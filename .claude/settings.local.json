@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(New-Item -ItemType Directory -Path \"C:\\\\Users\\\\felip\\\\Distr2\\\\supabase\\\\migrations\" -Force)",
+      "PowerShell(New-Item -ItemType Directory -Path \"C:\\\\Users\\\\felip\\\\Distr2\\\\scripts\" -Force)",
+      "PowerShell(New-Item -ItemType Directory -Path \"C:\\\\Users\\\\felip\\\\Distr2\\\\data\" -Force)"
+    ]
+  }
+}
