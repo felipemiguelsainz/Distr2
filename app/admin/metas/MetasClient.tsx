@@ -18,8 +18,8 @@ const inputCls = [
 export function MetasClient({ defaultAnio, defaultMes }: { defaultAnio: number; defaultMes: number }) {
   const [anio, setAnio] = useState(defaultAnio);
   const [mes,  setMes]  = useState(defaultMes);
-  const [objetivos, setObjetivos] = useState<Record<string, number>>(
-    Object.fromEntries(MONDELEZ_RUBROS.map(r => [r, 0]))
+  const [objetivos, setObjetivos] = useState<Record<string, string>>(
+    Object.fromEntries(MONDELEZ_RUBROS.map(r => [r, '']))
   );
 
   const [preview, setPreview]   = useState<MetaPreviewRubro[] | null>(null);
@@ -30,9 +30,12 @@ export function MetasClient({ defaultAnio, defaultMes }: { defaultAnio: number; 
 
   async function handleCalcular() {
     setLoading(true); setError(''); setSavedMsg('');
+    const parsed = Object.fromEntries(
+      Object.entries(objetivos).map(([k, v]) => [k, v === '' ? 0 : parseFloat(v) || 0]),
+    );
     const res = await fetch('/api/admin/metas/preview', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ anio, mes, objetivosMondelez: objetivos }),
+      body: JSON.stringify({ anio, mes, objetivosMondelez: parsed }),
     });
     const data = await res.json();
     setLoading(false);
@@ -77,16 +80,17 @@ export function MetasClient({ defaultAnio, defaultMes }: { defaultAnio: number; 
       <section className="bg-[#0b1528] rounded-2xl border border-[#1a2d4a] shadow-xl shadow-black/30 p-6">
         <h2 className="text-[15px] font-semibold text-[#f0f4ff] mb-1">Objetivos Mondelez ($)</h2>
         <p className="text-[12px] text-[#6b85a8] mb-4">Pegá el objetivo en pesos que pasó Mondelez para cada categoría.</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="flex flex-col gap-2">
           {MONDELEZ_RUBROS.map(rubro => (
             <div key={rubro} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-[#1a2d4a]">
               <span className="text-[13px] font-medium text-[#c8d8f0]">{rubro}</span>
               <input
                 type="number"
                 min={0}
-                value={objetivos[rubro] ?? 0}
-                onChange={e => setObjetivos(prev => ({ ...prev, [rubro]: parseFloat(e.target.value) || 0 }))}
-                className={inputCls}
+                inputMode="numeric"
+                value={objetivos[rubro] ?? ''}
+                onChange={e => setObjetivos(prev => ({ ...prev, [rubro]: e.target.value }))}
+                className={`${inputCls} placeholder:text-[#3a4a66]`}
                 placeholder="0"
               />
             </div>
@@ -177,8 +181,17 @@ function RubroCard({ preview }: { preview: MetaPreviewRubro }) {
             ) : (
               <>
                 <p>Ventas mes anterior: <strong className="text-[#c8d8f0]">{formatKg(preview.ventas_mes_anterior ?? 0)} kg</strong></p>
-                <p>Factor estacional: <strong className="text-[#c8d8f0]">{(preview.factor_estacional ?? 1).toFixed(3)}</strong></p>
+                {preview.peso_mes_ant_aa_pct != null && preview.peso_mes_target_aa_pct != null && (
+                  <p>
+                    Peso año pasado: mes anterior <strong className="text-[#c8d8f0]">{preview.peso_mes_ant_aa_pct.toFixed(2)}%</strong>
+                    {' '}vs mes target <strong className="text-[#c8d8f0]">{preview.peso_mes_target_aa_pct.toFixed(2)}%</strong>
+                  </p>
+                )}
+                <p>Factor estacional = target% / anterior% = <strong className="text-[#c8d8f0]">{(preview.factor_estacional ?? 1).toFixed(3)}</strong></p>
                 <p>kg meta = mes ant × factor = <strong className="text-[#c8d8f0]">{formatKg(preview.kg_meta_total)} kg</strong></p>
+                {preview.neto_meta_total != null && preview.dolar_por_kilo != null && (
+                  <p>$ meta ≈ kg meta × {formatCurrency(preview.dolar_por_kilo)}/kg = <strong className="text-[#c8d8f0]">{formatCurrency(preview.neto_meta_total)}</strong></p>
+                )}
               </>
             )}
           </div>

@@ -8,6 +8,7 @@ import { fetchTotalKpis, fetchTrendData, fetchClientesData } from '@/lib/calcula
 import { createClient } from '@/lib/supabase/server';
 import { Suspense } from 'react';
 import { KpiSkeleton } from '@/components/ui/Skeleton';
+import { EmptyMonth } from '@/components/ui/EmptyMonth';
 
 interface SearchParams {
   mes?:        string;
@@ -88,7 +89,7 @@ async function TotalKpiSection({
   const equipo = supervisor || undefined;
   const vnd    = vendedor   || undefined;
 
-  const [kpis, trend, clientes] = await Promise.all([
+  const [kpis, trend, { rows: clientes, cartera3mTotal, cccMesTotal, cccPrevTotal, cccAaTotal }] = await Promise.all([
     fetchTotalKpis(anio, mes, today, equipo, vnd),
     fetchTrendData({ equipo, vendedor: vnd }, anio, mes),
     fetchClientesData(anio, mes, today, equipo, vnd),
@@ -96,10 +97,12 @@ async function TotalKpiSection({
 
   const metaTotal = kpis.reduce((s, k) => s + (k.meta ?? 0), 0);
 
+  if (kpis.length === 0) return <EmptyMonth mes={mes} anio={anio} />;
+
   return (
     <div className="space-y-7">
       <KpiTable data={kpis} />
-      <ClientesTable data={clientes} />
+      <ClientesTable data={clientes} cartera3mTotal={cartera3mTotal} cccMesTotal={cccMesTotal} cccPrevTotal={cccPrevTotal} cccAaTotal={cccAaTotal} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <AvanceBarChart data={kpis} title="Proyección vs Meta por Rubro" />
         <div className="flex flex-col gap-5">

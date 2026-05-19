@@ -1,5 +1,5 @@
 import { AppShell } from '@/components/layout/AppShell';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { PanelClient } from './PanelClient';
 
@@ -21,14 +21,17 @@ export default async function PanelAdminPage() {
   const anio  = today.getFullYear();
   const mes   = today.getMonth() + 1;
 
-  const { data: existing } = await supabase
+  // Usamos service client porque las RLS sobre config_meses
+  // pueden no resolver bien get_user_rol() en SSR temprano.
+  const svc = createServiceClient();
+  const { data: existing } = await svc
     .from('config_meses')
     .select('dias_laborables')
     .eq('anio', anio)
     .eq('mes', mes)
-    .single();
+    .maybeSingle();
 
-  const meses = [{ anio, mes, dias_laborables: existing?.dias_laborables ?? 0 }];
+  const meses = [{ anio, mes, dias_laborables: existing?.dias_laborables ?? null }];
 
   return (
     <AppShell>

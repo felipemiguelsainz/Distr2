@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase/server';
+import { revalidateTag } from 'next/cache';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { MetaPreviewRubro } from '@/lib/types';
 
 export async function POST(request: NextRequest) {
   try {
+    const authClient = await createClient();
+    const { data: { user } } = await authClient.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
+    const { data: profile } = await authClient.from('profiles').select('rol').eq('id', user.id).single();
+    if (profile?.rol !== 'admin') return NextResponse.json({ error: 'Prohibido.' }, { status: 403 });
+
     const { anio, mes, preview } = await request.json() as {
       anio: number; mes: number; preview: MetaPreviewRubro[];
     };
@@ -38,12 +45,17 @@ export async function POST(request: NextRequest) {
     for (let i = 0; i < rows.length; i += CHUNK) {
       const chunk = rows.slice(i, i + CHUNK);
       const { error } = await supabase.from('metas').insert(chunk);
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) {
+        console.error('[metas-guardar] insert chunk:', error);
+        return NextResponse.json({ error: 'Error al guardar metas.' }, { status: 500 });
+      }
     }
+
+    revalidateTag('kpis', { expire: 0 });
 
     return NextResponse.json({ ok: true, total: rows.length });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error('[metas-guardar]', err);
+    return NextResponse.json({ error: 'Error interno del servidor.' }, { status: 500 });
   }
 }

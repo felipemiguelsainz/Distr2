@@ -1,35 +1,38 @@
-import { createClient } from '@/lib/supabase/server';
-import { Sidebar } from './Sidebar';
-import { Profile } from '@/lib/types';
+import { Sidebar, SupervisorLink } from './Sidebar';
+import { ShellLayout } from './ShellLayout';
+import { fetchMonthInfo } from '@/lib/calculations/queries';
+import { getCurrentProfile, getAdminEquipos } from '@/lib/supabase/profile';
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const profile = await getCurrentProfile();
 
-  let profile: Profile | null = null;
-  if (user) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
-    profile = data;
-  }
+  // Parallel: load equipos (cached) + month info (cached)
+  const [equipos, monthInfo] = profile
+    ? await Promise.all([
+        profile.rol === 'admin' ? getAdminEquipos() : Promise.resolve<string[]>([]),
+        (async () => {
+          const today = new Date();
+          return fetchMonthInfo(today.getFullYear(), today.getMonth() + 1, today);
+        })(),
+      ])
+    : [[] as string[], { diasLaborables: 0, diasTrabajados: 0 }];
+
+  const supervisores: SupervisorLink[] = equipos.map((equipo) => ({ equipo }));
+
+  const sidebar = profile ? (
+    <Sidebar
+      rol={profile.rol}
+      nombre={profile.nombre}
+      vendedorNombre={profile.vendedor_nombre}
+      supervisores={supervisores}
+      diasLaborables={monthInfo.diasLaborables}
+      diasTrabajados={monthInfo.diasTrabajados}
+    />
+  ) : null;
 
   return (
-    <div className="flex h-screen bg-[#060c1a]">
-      {profile && (
-        <Sidebar
-          rol={profile.rol}
-          nombre={profile.nombre}
-          vendedorNombre={profile.vendedor_nombre}
-        />
-      )}
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-[1280px] mx-auto px-6 py-8 animate-rise">{children}</div>
-      </main>
-    </div>
+    <ShellLayout sidebar={sidebar}>
+      {children}
+    </ShellLayout>
   );
 }

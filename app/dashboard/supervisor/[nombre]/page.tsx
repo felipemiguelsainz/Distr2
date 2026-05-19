@@ -8,6 +8,7 @@ import { fetchSupervisorKpis, fetchTrendData, fetchClientesData } from '@/lib/ca
 import { createClient } from '@/lib/supabase/server';
 import { Suspense } from 'react';
 import { KpiSkeleton } from '@/components/ui/Skeleton';
+import { EmptyMonth } from '@/components/ui/EmptyMonth';
 import { KpiVendedor } from '@/lib/types';
 import { avanceColor, formatKg, formatPctPlain } from '@/lib/calculations/dashboard';
 
@@ -77,11 +78,13 @@ async function SupervisorKpiSection({
   todayIso: string;
 }) {
   const today = new Date(todayIso);
-  const [{ totales, porVendedor }, trend, clientes] = await Promise.all([
+  const [{ totales, porVendedor }, trend, { rows: clientes, cartera3mTotal, cccMesTotal, cccPrevTotal, cccAaTotal }] = await Promise.all([
     fetchSupervisorKpis(equipo, anio, mes, today),
     fetchTrendData({ equipo }, anio, mes),
     fetchClientesData(anio, mes, today, equipo),
   ]);
+
+  if (totales.length === 0) return <EmptyMonth mes={mes} anio={anio} />;
 
   // Group porVendedor by vendedor for the table below
   const vendedores = [...new Set(porVendedor.map((k) => k.vendedor))];
@@ -93,7 +96,7 @@ async function SupervisorKpiSection({
         <KpiTable data={totales} />
       </section>
 
-      <ClientesTable data={clientes} />
+      <ClientesTable data={clientes} cartera3mTotal={cartera3mTotal} cccMesTotal={cccMesTotal} cccPrevTotal={cccPrevTotal} cccAaTotal={cccAaTotal} />
 
       <TrendChart data={trend} title="Tendencia KG diaria — Equipo" />
 

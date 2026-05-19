@@ -68,12 +68,12 @@ async function upsertChunk(
     placeholders.push(
       `($${idx++},$${idx++},$${idx++},$${idx++},$${idx++},` +
       `$${idx++},$${idx++},$${idx++},$${idx++},$${idx++},` +
-      `$${idx++},$${idx++})`
+      `$${idx++},$${idx++},$${idx++})`
     );
     values.push(
       row.id, row.razon_social, row.domicilio, row.localidad, row.zona,
       row.canal_distribucion, row.canal_venta, row.categoria_iva, row.cuit,
-      row.cartera, row.fecha_alta, row.ultima_vta
+      row.cartera, row.fecha_alta, row.ultima_vta, row.dia_visita ?? null
     );
   }
 
@@ -81,7 +81,7 @@ async function upsertChunk(
     INSERT INTO pdvs
       (id, razon_social, domicilio, localidad, zona,
        canal_distribucion, canal_venta, categoria_iva, cuit,
-       cartera, fecha_alta, ultima_vta)
+       cartera, fecha_alta, ultima_vta, dia_visita)
     VALUES ${placeholders.join(', ')}
     ON CONFLICT (id) DO UPDATE SET
       razon_social       = EXCLUDED.razon_social,
@@ -95,6 +95,7 @@ async function upsertChunk(
       cartera            = EXCLUDED.cartera,
       fecha_alta         = EXCLUDED.fecha_alta,
       ultima_vta         = EXCLUDED.ultima_vta,
+      dia_visita         = EXCLUDED.dia_visita,
       updated_at         = NOW()
     RETURNING (xmax = 0) AS inserted
   `;
@@ -183,6 +184,9 @@ async function main() {
         cartera,
         fecha_alta:         parseDate(m['Fecha Alta']),
         ultima_vta:         parseDate(m['Ultima Vta.'] ?? m['Ultima Vta']),
+        dia_visita: (['LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB', 'DOM'] as const)
+          .filter(d => str(m[d]).toUpperCase() === 'S')
+          .join(',') || null,
       });
 
       totalRows++;

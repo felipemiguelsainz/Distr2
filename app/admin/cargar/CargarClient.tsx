@@ -56,6 +56,9 @@ function parsePdvFile(buffer: ArrayBuffer) {
         fecha_alta:         parseDate(r['Fecha Alta']),
         ultima_vta:         parseDate(r['Ultima Vta'] ?? r['Última Vta']),
         activo,
+        dia_visita: (['LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB', 'DOM'] as const)
+          .filter(d => String(r[d] ?? '').trim().toUpperCase() === 'S')
+          .join(',') || null,
       };
     })
     .filter(Boolean);
@@ -195,7 +198,60 @@ function VentasPreviewModal({
   );
 }
 
-function ResultBanner({ result, type }: { result: unknown; type: 'ventas' | 'pdvs' | 'maestros' }) {
+interface GeoUploadResult {
+  upserted: number;
+  skipped_orphans: number;
+  skipped_no_coords: number;
+}
+
+function parseGeoFile(buffer: ArrayBuffer) {
+  const workbook = XLSX.read(buffer, { cellDates: false, type: 'array' });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const raw: Record<string, unknown>[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+  function parseSerialDate(val: unknown): string | null {
+    if (!val) return null;
+    if (typeof val === 'number' && val > 0) {
+      try {
+        const d = XLSX.SSF.parse_date_code(val);
+        return `${d.y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`;
+      } catch { return null; }
+    }
+    const s = String(val).trim();
+    return s ? s.slice(0, 10) : null;
+  }
+
+  return raw
+    .map((r) => {
+      const pdv_id = parseInt(String(r['Cod. Cliente'] ?? r['PDV'] ?? ''), 10);
+      if (!pdv_id || isNaN(pdv_id)) return null;
+      const lat = parseFloat(String(r['LATITUD'] ?? ''));
+      const lng = parseFloat(String(r['LONGITUD'] ?? ''));
+      const ruteableRaw = String(r['Ruteable'] ?? r['RUTEABLE'] ?? '').toLowerCase();
+      return {
+        pdv_id,
+        partido:      String(r['Partido']      ?? '').trim() || null,
+        provincia:    String(r['Provincia']    ?? '').trim() || null,
+        calle:        String(r['Calle']        ?? '').trim() || null,
+        altura:       String(r['Altura']       ?? '').trim() || null,
+        entre1:       String(r['Entre1']       ?? '').trim() || null,
+        entre2:       String(r['Entre2']       ?? '').trim() || null,
+        latitud:      isNaN(lat)  || lat  === 0 ? null : lat,
+        longitud:     isNaN(lng)  || lng  === 0 ? null : lng,
+        ruteable:     ruteableRaw === 'si' || ruteableRaw === 's'
+          ? true
+          : ruteableRaw === 'no' || ruteableRaw === 'n'
+          ? false
+          : null,
+        domicilio_geo: String(r['Domicilio_GEO'] ?? '').trim() || null,
+        fecha_geo:    parseSerialDate(r['Fecha_GEO']),
+        hora_geo:     String(r['Hora_GEO'] ?? '').trim() || null,
+      };
+    })
+    .filter(Boolean);
+}
+
+function ResultBanner({ result, type }: { result: unknown; type: 'ventas' | 'pdvs' | 'maestros' | 'geo' }) {
   if (!result) return null;
   const baseCard = 'mt-4 p-4 rounded-2xl border text-[13px]';
   if (type === 'ventas') {
@@ -205,6 +261,12 @@ function ResultBanner({ result, type }: { result: unknown; type: 'ventas' | 'pdv
         <p className="font-semibold text-[#14b8a6] mb-1">Carga completada</p>
         <p className="text-[#c8d8f0]">Insertados: <strong>{r.inserted}</strong> | Duplicados omitidos: <strong>{r.skipped}</strong></p>
         <p className="text-[#6b85a8] mt-0.5">Fechas afectadas: {r.fechas_afectadas.join(', ')}</p>
+        {r.resumen_warning && (
+          <div className="mt-2 p-2.5 rounded-xl bg-[#f59e0b]/[0.08] border border-[#f59e0b]/20">
+            <p className="text-[#f59e0b] font-semibold">⚠ Advertencia</p>
+            <p className="text-[#c8d8f0] mt-0.5">{r.resumen_warning}</p>
+          </div>
+        )}
         {r.errors.length > 0 && (
           <div className="mt-2 text-[#f87171]">
             <p className="font-semibold">Errores:</p>
@@ -219,7 +281,10 @@ function ResultBanner({ result, type }: { result: unknown; type: 'ventas' | 'pdv
     return (
       <div className={`${baseCard} bg-[#14b8a6]/[0.06] border-[#14b8a6]/20`}>
         <p className="font-semibold text-[#14b8a6] mb-1">Clientes actualizados</p>
-        <p className="text-[#c8d8f0]">Total: {r.total} | Nuevos: {r.inserted} | Actualizados: {r.updated}</p>
+        <p className="text-[#c8d8f0]">
+          Total: {r.total} | Nuevos: {r.inserted} | Actualizados: {r.updated}
+          {r.deactivated > 0 && <> | <span className="text-[#f87171]">Desactivados: {r.deactivated}</span></>}
+        </p>
         {r.reasignaciones.length > 0 && (
           <div className="mt-2">
             <p className="font-semibold text-[#f59e0b]">{r.reasignaciones.length} reasignación/es de cartera:</p>
@@ -241,6 +306,19 @@ function ResultBanner({ result, type }: { result: unknown; type: 'ventas' | 'pdv
       <div className={`${baseCard} bg-[#14b8a6]/[0.06] border-[#14b8a6]/20`}>
         <p className="font-semibold text-[#14b8a6] mb-1">Maestro actualizado</p>
         <p className="text-[#c8d8f0]">Vendedores cargados: <strong>{r.vendedores_upserted}</strong></p>
+      </div>
+    );
+  }
+  if (type === 'geo') {
+    const r = result as GeoUploadResult;
+    return (
+      <div className={`${baseCard} bg-[#14b8a6]/[0.06] border-[#14b8a6]/20`}>
+        <p className="font-semibold text-[#14b8a6] mb-1">Geolocalización actualizada</p>
+        <p className="text-[#c8d8f0]">
+          <strong>{r.upserted}</strong> PDVs actualizados
+          {r.skipped_no_coords > 0 && <span className="text-[#6b85a8]">, {r.skipped_no_coords} ignorados sin coordenadas</span>}
+          {r.skipped_orphans  > 0 && <span className="text-[#6b85a8]">, {r.skipped_orphans} ignorados (PDV no encontrado en base)</span>}
+        </p>
       </div>
     );
   }
@@ -293,6 +371,7 @@ export function CargarClient() {
   const [ventasError, setVentasError] = useState('');
   const [ventasPreview, setVentasPreview] = useState<VentasPreview | null>(null);
   const [ventasPendingFile, setVentasPendingFile] = useState<File | null>(null);
+  const [huerfanosWarning, setHuerfanosWarning] = useState<{ huerfanos: string[]; message: string } | null>(null);
 
   const [pdvsLoading, setPdvsLoading] = useState(false);
   const [pdvsResult, setPdvsResult] = useState<PdvsUploadResult | null>(null);
@@ -303,6 +382,10 @@ export function CargarClient() {
   const [maestrosLoading, setMaestrosLoading] = useState(false);
   const [maestrosResult, setMaestrosResult] = useState<MaestrosUploadResult | null>(null);
   const [maestrosError, setMaestrosError] = useState('');
+
+  const [geoLoading, setGeoLoading] = useState(false);
+  const [geoResult,  setGeoResult]  = useState<GeoUploadResult | null>(null);
+  const [geoError,   setGeoError]   = useState('');
 
   const [borrarMes,  setBorrarMes]  = useState(new Date().getMonth() + 1);
   const [borrarAnio, setBorrarAnio] = useState(new Date().getFullYear());
@@ -345,19 +428,25 @@ export function CargarClient() {
     } catch (e) { setVentasError(e instanceof Error ? e.message : String(e)); }
   }
 
-  async function confirmVentasUpload() {
+  async function confirmVentasUpload(confirmedHuerfanos = false) {
     if (!ventasPendingFile) return;
-    setVentasPreview(null);
+    if (!confirmedHuerfanos) setVentasPreview(null);
     setVentasLoading(true);
     try {
       const formData = new FormData();
       formData.append('file', ventasPendingFile);
-      const res = await fetch('/api/ventas/upload', { method: 'POST', body: formData });
+      if (confirmedHuerfanos) formData.append('confirmed', 'true');
+      const res = await fetch('/api/admin/ventas/upload', { method: 'POST', body: formData });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Error al cargar ventas.');
+      // Si el server pide confirmación por vendedores huérfanos, mostrar prompt
+      if (data.requires_confirmation && Array.isArray(data.huerfanos)) {
+        setHuerfanosWarning({ huerfanos: data.huerfanos, message: data.message ?? '' });
+        return;
+      }
       setVentasResult(data);
     } catch (e) { setVentasError(e instanceof Error ? e.message : String(e)); }
-    finally { setVentasLoading(false); setVentasPendingFile(null); }
+    finally { setVentasLoading(false); if (!confirmedHuerfanos) setVentasPendingFile(null); }
   }
 
   async function handlePdvsFile(file: File) {
@@ -366,7 +455,7 @@ export function CargarClient() {
       const buffer = await file.arrayBuffer();
       const rows = parsePdvFile(buffer);
       if (rows.length === 0) throw new Error('No se encontraron filas válidas en el archivo.');
-      const res = await fetch('/api/pdvs/upload', {
+      const res = await fetch('/api/admin/pdvs/upload', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rows, confirmed: false }),
       });
@@ -385,7 +474,7 @@ export function CargarClient() {
     if (!pdvsPendingRows) return;
     setPdvsLoading(true);
     try {
-      const res = await fetch('/api/pdvs/upload', {
+      const res = await fetch('/api/admin/pdvs/upload', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rows: pdvsPendingRows, confirmed: true }),
       });
@@ -402,7 +491,7 @@ export function CargarClient() {
       const buffer = await file.arrayBuffer();
       const vendedores = parseMaestrosFile(buffer);
       if (vendedores.length === 0) throw new Error('No se encontraron filas de vendedores en el archivo.');
-      const res = await fetch('/api/maestros/upload', {
+      const res = await fetch('/api/admin/maestros/upload', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ vendedores }),
       });
@@ -411,6 +500,23 @@ export function CargarClient() {
       setMaestrosResult(data);
     } catch (e) { setMaestrosError(e instanceof Error ? e.message : String(e)); }
     finally { setMaestrosLoading(false); }
+  }
+
+  async function handleGeoFile(file: File) {
+    setGeoLoading(true); setGeoError(''); setGeoResult(null);
+    try {
+      const buffer = await file.arrayBuffer();
+      const rows = parseGeoFile(buffer);
+      if (rows.length === 0) throw new Error('No se encontraron filas válidas en el archivo.');
+      const res = await fetch('/api/admin/pdvs-geo/upload', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Error al cargar geolocalización.');
+      setGeoResult(data);
+    } catch (e) { setGeoError(e instanceof Error ? e.message : String(e)); }
+    finally { setGeoLoading(false); }
   }
 
   const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -430,8 +536,8 @@ export function CargarClient() {
       <section className="bg-[#0b1528] rounded-2xl border border-[#1a2d4a] shadow-xl shadow-black/30 p-6">
         <h2 className="text-[15px] font-semibold text-[#f0f4ff] mb-0.5">Ventas diarias</h2>
         <p className="text-[12px] text-[#6b85a8] mb-4">Archivo Excel con las ventas del día (.xlsx)</p>
-        <DropZone label="Ventas diarias" accept=".xlsx,.xls" onFile={handleVentasFile} loading={ventasLoading}
-          hint="Columnas: Fecha, PDV, Vendedor, Comprobante, SKU, Kilos, Neto..." />
+        <DropZone label="Ventas diarias" accept=".xlsx,.xls,.xlsb" onFile={handleVentasFile} loading={ventasLoading}
+          hint="Podés subir uno o varios meses juntos; las filas repetidas no se duplican." />
         {ventasError && <p className="mt-3 text-[13px] text-[#f87171] bg-[#f87171]/[0.08] border border-[#f87171]/20 px-3 py-2 rounded-[10px]">{ventasError}</p>}
         <ResultBanner result={ventasResult} type="ventas" />
       </section>
@@ -439,7 +545,7 @@ export function CargarClient() {
       <section className="bg-[#0b1528] rounded-2xl border border-[#1a2d4a] shadow-xl shadow-black/30 p-6">
         <h2 className="text-[15px] font-semibold text-[#f0f4ff] mb-0.5">Maestro de Clientes (PDVs)</h2>
         <p className="text-[12px] text-[#6b85a8] mb-4">Archivo Excel con el padrón de puntos de venta (.xlsx)</p>
-        <DropZone label="Maestro de Clientes" accept=".xlsx,.xls" onFile={handlePdvsFile} loading={pdvsLoading}
+        <DropZone label="Maestro de Clientes" accept=".xlsx,.xls,.xlsb" onFile={handlePdvsFile} loading={pdvsLoading}
           hint="Columnas: PDV, Razon Social, Cartera, Zona, Canal, CUIT..." />
         {pdvsError && <p className="mt-3 text-[13px] text-[#f87171] bg-[#f87171]/[0.08] border border-[#f87171]/20 px-3 py-2 rounded-[10px]">{pdvsError}</p>}
         <ResultBanner result={pdvsResult} type="pdvs" />
@@ -453,6 +559,16 @@ export function CargarClient() {
           hint="Columnas: Nombre, Supervisor, Equipo, Localidad" />
         {maestrosError && <p className="mt-3 text-[13px] text-[#f87171] bg-[#f87171]/[0.08] border border-[#f87171]/20 px-3 py-2 rounded-[10px]">{maestrosError}</p>}
         <ResultBanner result={maestrosResult} type="maestros" />
+      </section>
+
+      <section className="bg-[#0b1528] rounded-2xl border border-[#1a2d4a] shadow-xl shadow-black/30 p-6">
+        <h2 className="text-[15px] font-semibold text-[#f0f4ff] mb-0.5">Maestro Geolocalizado (PDVs con coordenadas)</h2>
+        <p className="text-[12px] text-[#6b85a8] mb-4">Archivo Excel con latitud/longitud por PDV (.xlsx)</p>
+        <DropZone label="Maestro Geolocalizado" accept=".xlsx,.xls,.xlsb"
+          onFile={handleGeoFile} loading={geoLoading}
+          hint="Columnas: PDV, Partido, Provincia, Calle, Altura, LATITUD, LONGITUD, Ruteable..." />
+        {geoError && <p className="mt-3 text-[13px] text-[#f87171] bg-[#f87171]/[0.08] border border-[#f87171]/20 px-3 py-2 rounded-[10px]">{geoError}</p>}
+        <ResultBanner result={geoResult} type="geo" />
       </section>
 
       <section className="bg-[#0b1528] rounded-2xl border border-[#f87171]/30 shadow-xl shadow-black/30 p-6">

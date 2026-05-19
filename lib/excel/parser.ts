@@ -171,6 +171,11 @@ export function parseMaestrosFile(buffer: ArrayBuffer): RawVendedorRow[] {
     .map((r) => {
       const nombre = String(r['Nombre'] ?? r['NOMBRE'] ?? r['Vendedor'] ?? '').trim();
       if (!nombre) return null;
+      // Descartar la fila de total con que suele cerrar el Excel
+      const nombreUpper = nombre.toUpperCase();
+      if (nombreUpper === 'TOTAL' || nombreUpper === 'TOTALES' || nombreUpper.startsWith('TOTAL ')) {
+        return null;
+      }
       const activoRaw = r['Activo'] ?? r['ACTIVO'];
       const activo = activoRaw === undefined
         ? true
