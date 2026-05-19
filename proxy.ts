@@ -25,17 +25,17 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   const pathname = request.nextUrl.pathname;
 
-  // Public routes that don't require auth
+  // Public routes that don't require auth — skip auth check entirely
   const publicRoutes = ['/login', '/auth/callback'];
   if (publicRoutes.some((r) => pathname.startsWith(r))) {
     return supabaseResponse;
   }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   // Redirect unauthenticated users to login
   if (!user) {
@@ -44,27 +44,31 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Fetch role for path-based access control
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('rol')
-    .eq('id', user.id)
-    .single();
+  // Profile lookup only when path-based role check is needed.
+  // Most dashboard pages re-check role server-side anyway; middleware
+  // only fast-rejects the obviously wrong combos.
+  const needsRoleCheck =
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/dashboard/total');
 
-  const rol = profile?.rol;
+  if (needsRoleCheck) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('rol')
+      .eq('id', user.id)
+      .single();
+    const rol = profile?.rol;
 
-  // Admin-only routes
-  if (pathname.startsWith('/admin') && rol !== 'admin') {
-    const url = request.nextUrl.clone();
-    url.pathname = '/dashboard/vendedor/' + user.id;
-    return NextResponse.redirect(url);
-  }
-
-  // Total dashboard: admin only
-  if (pathname.startsWith('/dashboard/total') && rol !== 'admin') {
-    const url = request.nextUrl.clone();
-    url.pathname = '/';
-    return NextResponse.redirect(url);
+    if (pathname.startsWith('/admin') && rol !== 'admin') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/dashboard/vendedor/' + user.id;
+      return NextResponse.redirect(url);
+    }
+    if (pathname.startsWith('/dashboard/total') && rol !== 'admin') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/';
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;

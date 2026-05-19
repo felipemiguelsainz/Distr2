@@ -11,18 +11,23 @@
     "load:pdvs": "ts-node --project tsconfig.scripts.json scripts/load-pdvs.ts"
   },
   "dependencies": {
+    "@react-leaflet/core": "^3.0.0",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.105.3",
     "date-fns": "^4.1.0",
     "exceljs": "^4.4.0",
+    "leaflet": "^1.9.4",
     "next": "16.2.5",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "react-leaflet": "^5.0.0",
+    "react-leaflet-markercluster": "^5.0.0-rc.0",
     "recharts": "^3.8.1",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/leaflet": "^1.9.21",
     "@types/node": "^20.19.39",
     "@types/pg": "^8.20.0",
     "@types/react": "^19",

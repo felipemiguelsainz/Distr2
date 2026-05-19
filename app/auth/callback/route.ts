@@ -11,5 +11,7 @@ export async function GET(request: Request) {
     await supabase.auth.exchangeCodeForSession(code);
   }
 
-  return NextResponse.redirect(`${origin}${next}`);
+  // Prevent open redirect: only allow relative paths starting with /
+  const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/';
+  return NextResponse.redirect(`${origin}${safeNext}`);
 }

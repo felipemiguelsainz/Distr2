@@ -34,6 +34,7 @@ export interface Pdv {
   fecha_alta: string | null;
   ultima_vta: string | null;
   activo: boolean;
+  dia_visita?: string | null;
 }
 
 export interface Meta {
@@ -127,12 +128,14 @@ export interface VentasUploadResult {
   skipped: number;
   errors: string[];
   fechas_afectadas: string[];
+  resumen_warning?: string; // set when recalcularResumenDiario fails
 }
 
 export interface PdvsUploadResult {
   total: number;
   inserted: number;
   updated: number;
+  deactivated: number;   // PDVs marcados como inactivos (no estaban en el archivo)
   reasignaciones: Reasignacion[];
 }
 
@@ -163,10 +166,13 @@ export interface MetaPreviewRubro {
   objetivo_neto?: number;       // input from user, in $
   dolar_por_kilo?: number;      // calculated from last month
   // Estacional-only
-  ventas_mes_anterior?: number; // kg
-  factor_estacional?: number;   // ratio
+  ventas_mes_anterior?: number;        // kg vendidos mes anterior (actual)
+  peso_mes_target_aa_pct?: number;     // % del año pasado que pesó el mes target (0-100)
+  peso_mes_ant_aa_pct?: number;        // % del año pasado que pesó el mes anterior (0-100)
+  factor_estacional?: number;          // peso_target / peso_ant (= kg_target_AA / kg_ant_AA)
   // Resultado
   kg_meta_total: number;
+  neto_meta_total?: number;     // $ meta (Mondelez: input; estacional: kg × $/kg mes ant)
   vendedores: MetaPreviewVendedor[];
 }
 

@@ -17,18 +17,30 @@ function fmtSigned(pct: number) {
   return `${sign}${pct.toFixed(1)}%`;
 }
 
-export function ClientesTable({ data }: { data: ClientesRubro[] }) {
+export function ClientesTable({
+  data,
+  cartera3mTotal,
+  cccMesTotal,
+  cccPrevTotal,
+  cccAaTotal,
+}: {
+  data: ClientesRubro[];
+  cartera3mTotal: number;
+  cccMesTotal:  number;
+  cccPrevTotal: number;
+  cccAaTotal:   number;
+}) {
   if (data.length === 0) return null;
 
-  // Total row
+  // Total row — uses true COUNT(DISTINCT pdv_id) across all rubros (no double-counting)
   const total: ClientesRubro = {
     rubro: 'TOTAL',
-    clientes_mes:          data.reduce((s, r) => s + r.clientes_mes, 0),
-    cartera_activa_3m:     data.reduce((s, r) => s + r.cartera_activa_3m, 0),
+    clientes_mes:          cccMesTotal,
+    cartera_activa_3m:     cartera3mTotal,
     penetracion_pct:       0,
-    clientes_mes_anterior: data.reduce((s, r) => s + r.clientes_mes_anterior, 0),
+    clientes_mes_anterior: cccPrevTotal,
     vs_mes_anterior_pct:   0,
-    clientes_aa:           data.reduce((s, r) => s + r.clientes_aa, 0),
+    clientes_aa:           cccAaTotal,
     vs_aa_pct:             0,
   };
   total.penetracion_pct     = total.cartera_activa_3m > 0
