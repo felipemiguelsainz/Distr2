@@ -81,7 +81,6 @@ export function buildKpi(input: KpiInput): KpiRubro {
     tendencia,
     media_real,
     media_necesaria,
-    neto_media_necesaria,
     mismo_dia_minus7: acumulado_minus7,
     mismo_dia_minus14: acumulado_minus14,
     acumulado_aa,

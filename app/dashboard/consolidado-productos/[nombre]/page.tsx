@@ -32,7 +32,7 @@ export default async function ConsolidadoProductosPage({
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('rol, vendedor_nombre')
+    .select('rol, vendedor_nombre, equipo')
     .eq('id', user.id)
     .single();
   if (!profile) redirect('/login');
@@ -42,12 +42,15 @@ export default async function ConsolidadoProductosPage({
   }
 
   if (profile.rol === 'supervisor') {
-    const { data: meVendedor } = await supabase
-      .from('vendedores')
-      .select('equipo')
-      .eq('nombre', profile.vendedor_nombre ?? '')
-      .single();
-    const myEquipo = meVendedor?.equipo ?? '';
+    let myEquipo = profile.equipo ?? '';
+    if (!myEquipo) {
+      const { data: meVendedor } = await supabase
+        .from('vendedores')
+        .select('equipo')
+        .eq('nombre', profile.vendedor_nombre ?? '')
+        .single();
+      myEquipo = meVendedor?.equipo ?? '';
+    }
     if (myEquipo !== equipo) {
       redirect(`/dashboard/consolidado-productos/${encodeURIComponent(myEquipo)}`);
     }

@@ -336,7 +336,7 @@ export function RadarMetaChart({ data, title }: RadarMetaChartProps) {
               />
               <Tooltip
                 contentStyle={TOOLTIP_STYLE}
-                formatter={(v: number | string, name: string) =>
+                formatter={(v, name) =>
                   name === 'Meta'
                     ? ['100% (objetivo)', 'Meta']
                     : [`${Number(v).toFixed(1)}%`, 'Avance']

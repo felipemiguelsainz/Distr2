@@ -8,12 +8,13 @@ export default async function SupervisorIndexPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('vendedor_nombre')
+    .select('vendedor_nombre, equipo')
     .eq('id', user.id)
     .single();
 
-  if (profile?.vendedor_nombre) {
-    redirect(`/dashboard/supervisor/${encodeURIComponent(profile.vendedor_nombre)}`);
+  const destino = profile?.vendedor_nombre ?? profile?.equipo;
+  if (destino) {
+    redirect(`/dashboard/supervisor/${encodeURIComponent(destino)}`);
   }
 
   redirect('/login');

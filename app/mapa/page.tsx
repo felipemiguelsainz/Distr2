@@ -67,7 +67,7 @@ export default async function MapaPage() {
       .not('longitud', 'is', null)
       .range(page * PAGE, (page + 1) * PAGE - 1);
     if (!rawGeoPage || rawGeoPage.length === 0) break;
-    rawGeo = rawGeo.concat(rawGeoPage as RawGeoRow[]);
+    rawGeo = rawGeo.concat(rawGeoPage as unknown as RawGeoRow[]);
     if (rawGeoPage.length < PAGE) break;
     page++;
   }

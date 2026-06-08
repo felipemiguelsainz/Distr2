@@ -88,9 +88,10 @@ function buildNav(rol: Rol, vendedorNombre: string | null, supervisores: Supervi
       items.push({ href: '/dashboard/consolidado-productos', label: 'Por producto', icon: <ProductoIcon /> });
     }
 
-    items.push({ href: '/admin/metas',  label: 'Metas',           icon: <TargetIcon /> });
-    items.push({ href: '/admin/cargar', label: 'Cargar Archivos', icon: <UploadIcon /> });
-    items.push({ href: '/admin/panel',  label: 'Panel Admin',     icon: <GearIcon /> });
+    items.push({ href: '/admin/metas',    label: 'Metas',           icon: <TargetIcon /> });
+    items.push({ href: '/admin/cargar',   label: 'Cargar Archivos', icon: <UploadIcon /> });
+    items.push({ href: '/admin/usuarios', label: 'Usuarios',        icon: <UsersIcon /> });
+    items.push({ href: '/admin/panel',    label: 'Panel Admin',     icon: <GearIcon /> });
   }
 
   if (rol === 'supervisor' && vendedorNombre) {

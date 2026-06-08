@@ -6,6 +6,7 @@ import { CoberturaTable } from '@/components/dashboard/CoberturaTable';
 import { ClientesTable } from '@/components/dashboard/ClientesTable';
 import { fetchSupervisorKpis, fetchTrendData, fetchClientesData } from '@/lib/calculations/queries';
 import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { KpiSkeleton } from '@/components/ui/Skeleton';
 import { EmptyMonth } from '@/components/ui/EmptyMonth';
@@ -35,15 +36,50 @@ export default async function SupervisorDashboardPage({
   const mes = parseInt(sp.mes ?? String(today.getMonth() + 1), 10);
   const anio = parseInt(sp.anio ?? String(today.getFullYear()), 10);
 
-  // Fetch equipo for this supervisor
   const supabase = await createClient();
+
+  // Auth check + role-based access control
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('rol, vendedor_nombre, equipo')
+    .eq('id', user.id)
+    .single();
+  if (!profile) redirect('/login');
+
+  // Vendedores: no access to team views
+  if (profile.rol === 'vendedor') {
+    redirect(`/dashboard/vendedor/${encodeURIComponent(profile.vendedor_nombre ?? '')}`);
+  }
+
+  // Fetch equipo for this supervisor
   const { data: vendedorData } = await supabase
     .from('vendedores')
     .select('equipo, supervisor')
     .eq('nombre', vendedorNombre)
     .single();
 
-  const equipo = vendedorData?.equipo ?? '';
+  // Supervisor puro: no tiene fila en vendedores; el equipo es el propio
+  // segmento de la URL (que para supervisores es el nombre del equipo).
+  const equipo = vendedorData?.equipo ?? vendedorNombre;
+
+  // Supervisors can only see their own equipo
+  if (profile.rol === 'supervisor') {
+    let myEquipo = profile.equipo ?? '';
+    if (!myEquipo) {
+      const { data: me } = await supabase
+        .from('vendedores')
+        .select('equipo')
+        .eq('nombre', profile.vendedor_nombre ?? '')
+        .single();
+      myEquipo = me?.equipo ?? '';
+    }
+    if (myEquipo !== equipo) {
+      redirect(`/dashboard/supervisor/${encodeURIComponent(myEquipo)}`);
+    }
+  }
 
   return (
     <AppShell>
@@ -122,7 +158,7 @@ function VendedorSummaryTable({
   // Consolidate: one row per vendedor (sum across rubros for key metrics)
   const summary = vendedores.map((v) => {
     const rows = porVendedor.filter((k) => k.vendedor === v);
-    const meta = rows.reduce((s, r) => s + r.meta, 0);
+    const meta = rows.reduce((s, r) => s + (r.meta ?? 0), 0);
     const acumulado = rows.reduce((s, r) => s + r.acumulado, 0);
     const avance_pct = meta > 0 ? (acumulado / meta) * 100 : 0;
     const tendencia = rows.some(r => r.tendencia !== null)
