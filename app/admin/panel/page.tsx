@@ -1,28 +1,17 @@
-import { AppShell } from '@/components/layout/AppShell';
-import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server';
+import { getCurrentProfile } from '@/lib/supabase/profile';
 import { redirect } from 'next/navigation';
 import { PanelClient } from './PanelClient';
 
+// AppShell + tabs los provee app/admin/layout.tsx. Acá reforzamos admin-only.
 export default async function PanelAdminPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('rol')
-    .eq('id', user.id)
-    .single();
-
+  const profile = await getCurrentProfile();
   if (profile?.rol !== 'admin') redirect('/');
 
-  // Solo el mes corriente
   const today = new Date();
   const anio  = today.getFullYear();
   const mes   = today.getMonth() + 1;
 
-  // Usamos service client porque las RLS sobre config_meses
-  // pueden no resolver bien get_user_rol() en SSR temprano.
   const svc = createServiceClient();
   const { data: existing } = await svc
     .from('config_meses')
@@ -33,9 +22,5 @@ export default async function PanelAdminPage() {
 
   const meses = [{ anio, mes, dias_laborables: existing?.dias_laborables ?? null }];
 
-  return (
-    <AppShell>
-      <PanelClient meses={meses} />
-    </AppShell>
-  );
+  return <PanelClient meses={meses} />;
 }

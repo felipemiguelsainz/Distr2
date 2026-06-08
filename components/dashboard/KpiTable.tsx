@@ -120,10 +120,10 @@ function Cell({ col, row, isTotal, darkBg = false }: { col: ColDef; row: KpiRubr
   const raw = row[col.key];
 
   if (col.type === 'dash') {
-    return <td className="px-2 py-2 text-right text-xs select-none text-[#6b85a8]/50">—</td>;
+    return <td className="px-2 py-2 text-right text-xs select-none text-[#71717a]/50">—</td>;
   }
   if (raw === null) {
-    return <td className="px-2 py-2 text-right text-xs select-none text-[#6b85a8]/50">—</td>;
+    return <td className="px-2 py-2 text-right text-xs select-none text-[#71717a]/50">—</td>;
   }
 
   const val        = Number(raw) || 0;
@@ -138,7 +138,7 @@ function Cell({ col, row, isTotal, darkBg = false }: { col: ColDef; row: KpiRubr
   }
 
   const isColored = col.key === 'avance_pct' || col.key === 'avance_vs_aa_pct' || col.key === 'neto_vs_aa_pct';
-  const baseText  = darkBg ? 'text-[#f0f4ff]' : 'text-[#c8d8f0]';
+  const baseText  = darkBg ? 'text-[#09090b]' : 'text-[#27272a]';
 
   return (
     <td className={`px-2 py-2 text-right whitespace-nowrap tabular-nums text-[12px] ${
@@ -176,39 +176,44 @@ function DataTable({ data, label, isKg }: { data: KpiRubro[]; label: string; isK
     { row: totalGeneral, kind: 'total' as const },
   ];
 
+  // Min width keeps columns readable on phones; below it the table scrolls
+  // horizontally instead of squeezing the numbers. (label col + numeric cols)
+  const minWidth = 150 + cols.length * 58;
+
   return (
     <div>
-      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6b85a8] mb-2" style={{fontFamily: "'JetBrains Mono', monospace"}}>{label}</p>
-      <div className="rounded-2xl border border-[#1a2d4a] shadow-xl shadow-black/30 overflow-hidden">
-        <table className="w-full table-fixed">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a] mb-2" style={{fontFamily: "'JetBrains Mono', monospace"}}>{label}</p>
+      <div className="rounded-2xl border border-[#e4e4e7] shadow-xl shadow-black/5 overflow-hidden">
+        <div className="overflow-x-auto">
+        <table className="w-full table-fixed" style={{ minWidth }}>
           <thead>
-            <tr className="bg-[#0f1e38]/80 border-b border-[#1a2d4a]">
-              <th className="sticky left-0 z-10 bg-[#0f1e38] px-3 py-2.5 text-left text-[9px] font-semibold uppercase tracking-[0.1em] text-[#6b85a8] w-[110px]" style={{fontFamily: "'JetBrains Mono', monospace"}}>
+            <tr className="bg-[#f4f4f5]/80 border-b border-[#e4e4e7]">
+              <th className="sticky left-0 z-10 bg-[#f4f4f5] px-3 py-2.5 text-left text-[9px] font-semibold uppercase tracking-[0.1em] text-[#71717a] w-[150px]" style={{fontFamily: "'JetBrains Mono', monospace"}}>
                 Rubro
               </th>
               {cols.map((c, i) => (
-                <th key={`${c.key}-${i}`} className="px-2 py-2.5 text-right text-[9px] font-semibold uppercase tracking-[0.1em] text-[#6b85a8] whitespace-nowrap" style={{fontFamily: "'JetBrains Mono', monospace"}}>
+                <th key={`${c.key}-${i}`} className="px-2 py-2.5 text-right text-[9px] font-semibold uppercase tracking-[0.1em] text-[#71717a] whitespace-nowrap" style={{fontFamily: "'JetBrains Mono', monospace"}}>
                   {c.label}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="bg-[#0b1528] divide-y divide-[#1a2d4a]">
+          <tbody className="bg-[#ffffff] divide-y divide-[#e4e4e7]">
             {rows.map(({ row, kind }, idx) => {
               const isHeavy = kind === 'subtotal' || kind === 'total';
               const trCls = kind === 'total'
-                ? 'border-t-2 border-[#213654] bg-[#060c1a]'
+                ? 'border-t-2 border-[#d4d4d8] bg-[#fafafa]'
                 : kind === 'subtotal'
-                  ? 'border-t border-[#213654] bg-[#0f1e38]'
-                  : 'hover:bg-[rgba(59,130,246,0.04)] transition-colors duration-100';
+                  ? 'border-t border-[#d4d4d8] bg-[#f4f4f5]'
+                  : 'hover:bg-[rgba(12,92,171,0.04)] transition-colors duration-100';
               const labelCls = kind === 'total'
-                ? 'bg-[#060c1a] text-[#f0f4ff] font-bold'
+                ? 'bg-[#fafafa] text-[#09090b] font-bold'
                 : kind === 'subtotal'
-                  ? 'bg-[#0f1e38] text-[#3b82f6] font-bold tracking-wider text-[11px] uppercase'
-                  : 'bg-[#0b1528] text-[#c8d8f0] font-semibold';
+                  ? 'bg-[#f4f4f5] text-[#0c5cab] font-bold tracking-wider text-[11px] uppercase'
+                  : 'bg-[#ffffff] text-[#27272a] font-semibold';
               return (
                 <tr key={`${kind}-${idx}-${row.rubro}`} className={trCls}>
-                  <td className={`sticky left-0 z-10 px-3 py-2 whitespace-nowrap text-[12px] ${labelCls}`}>
+                  <td className={`sticky left-0 z-10 px-3 py-2 truncate max-w-[150px] text-[12px] ${labelCls}`}>
                     {row.rubro}
                   </td>
                   {cols.map((col, i) => (
@@ -219,6 +224,7 @@ function DataTable({ data, label, isKg }: { data: KpiRubro[]; label: string; isK
             })}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );
@@ -236,7 +242,7 @@ interface KpiTableProps {
 export function KpiTable({ data, title, showNeto = true }: KpiTableProps) {
   if (data.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-[#1a2d4a] py-14 text-center text-[14px] text-[#6b85a8]">
+      <div className="rounded-2xl border border-dashed border-[#e4e4e7] py-14 text-center text-[14px] text-[#71717a]">
         Sin datos para el período seleccionado.
       </div>
     );
@@ -244,7 +250,7 @@ export function KpiTable({ data, title, showNeto = true }: KpiTableProps) {
 
   return (
     <div className="space-y-8">
-      {title && <h3 className="text-[15px] font-semibold text-[#f0f4ff]">{title}</h3>}
+      {title && <h3 className="text-[15px] font-semibold text-[#09090b]">{title}</h3>}
       <DataTable data={data} label="Kilogramos"     isKg={true}  />
       {showNeto && <DataTable data={data} label="Facturación ($)" isKg={false} />}
     </div>

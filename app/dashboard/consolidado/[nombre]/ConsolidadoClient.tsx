@@ -59,7 +59,7 @@ function aggregateByVendedor(rows: KpiVendedor[]): VendedorAgg[] {
 function TH({ children, right }: { children: React.ReactNode; right?: boolean }) {
   return (
     <th
-      className={`px-3 py-2.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[#6b85a8] whitespace-nowrap ${right ? 'text-right' : 'text-left'}`}
+      className={`px-3 py-2.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[#71717a] whitespace-nowrap ${right ? 'text-right' : 'text-left'}`}
       style={MONO}
     >
       {children}
@@ -79,13 +79,13 @@ function SectionHeader({
   return (
     <button
       onClick={onToggle}
-      className="w-full flex items-center justify-between px-4 py-3 border-b border-[#1a2d4a] hover:bg-[rgba(59,130,246,0.04)] transition-colors lg:cursor-default"
+      className="w-full flex items-center justify-between px-4 py-3 border-b border-[#e4e4e7] hover:bg-[rgba(12,92,171,0.04)] transition-colors lg:cursor-default"
     >
-      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6b85a8]" style={MONO}>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a]" style={MONO}>
         {title}
       </p>
       <svg
-        className={`w-4 h-4 text-[#6b85a8] transition-transform lg:hidden ${open ? 'rotate-180' : ''}`}
+        className={`w-4 h-4 text-[#71717a] transition-transform lg:hidden ${open ? 'rotate-180' : ''}`}
         fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
       >
         <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -112,9 +112,9 @@ function KgVendedorTable({ data }: { data: VendedorAgg[] }) {
 
   return (
     <div className="overflow-x-auto">
-      <table className="table-fixed w-full text-[11px]">
+      <table className="table-fixed w-full text-[11px] min-w-[560px]">
         <thead>
-          <tr className="border-b border-[#1a2d4a] bg-[#0f1e38]/60">
+          <tr className="border-b border-[#e4e4e7] bg-[#f4f4f5]/60">
             <TH>Vendedor</TH>
             <TH right>Meta KG</TH>
             <TH right>Acum.</TH>
@@ -124,26 +124,26 @@ function KgVendedorTable({ data }: { data: VendedorAgg[] }) {
             <TH right>M.Nec.</TH>
           </tr>
         </thead>
-        <tbody className="divide-y divide-[#1a2d4a]">
+        <tbody className="divide-y divide-[#e4e4e7]">
           {data.map((r) => (
-            <tr key={r.vendedor} className="hover:bg-[rgba(59,130,246,0.04)]">
-              <td className="px-3 py-2 text-[10px] truncate text-[#c8d8f0]" style={MONO}>{r.vendedor}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-[#6b85a8]" style={MONO}>{formatKg(r.meta)}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-[#f0f4ff]" style={MONO}>{formatKg(r.acumulado)}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-[#6b85a8]" style={MONO}>{r.tendencia != null ? formatKg(r.tendencia) : '—'}</td>
+            <tr key={r.vendedor} className="hover:bg-[rgba(12,92,171,0.04)]">
+              <td className="px-3 py-2 text-[10px] truncate text-[#27272a]" style={MONO}>{r.vendedor}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{formatKg(r.meta)}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-[#09090b]" style={MONO}>{formatKg(r.acumulado)}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{r.tendencia != null ? formatKg(r.tendencia) : '—'}</td>
               <td className={`px-3 py-2 text-right tabular-nums font-semibold text-[11px] rounded-md ${avanceColor(r.avance_pct)}`} style={MONO}>{formatPctPlain(r.avance_pct)}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-[#6b85a8]" style={MONO}>{formatKg(r.media_real)}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-[#6b85a8]" style={MONO}>{r.media_necesaria != null ? formatKg(r.media_necesaria) : '—'}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{formatKg(r.media_real)}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{r.media_necesaria != null ? formatKg(r.media_necesaria) : '—'}</td>
             </tr>
           ))}
-          <tr className="bg-[#0f1e38]/70 border-t-2 border-t-[#1a2d4a]">
-            <td className="px-3 py-2 text-[10px] text-[#f0f4ff] font-bold" style={MONO}>TOTAL</td>
-            <td className="px-3 py-2 text-right tabular-nums text-[#6b85a8]" style={MONO}>{formatKg(tot.meta)}</td>
-            <td className="px-3 py-2 text-right tabular-nums text-[#f0f4ff] font-bold" style={MONO}>{formatKg(tot.acumulado)}</td>
-            <td className="px-3 py-2 text-right tabular-nums text-[#6b85a8]" style={MONO}>{tot.tendencia != null ? formatKg(tot.tendencia) : '—'}</td>
+          <tr className="bg-[#f4f4f5]/70 border-t-2 border-t-[#e4e4e7]">
+            <td className="px-3 py-2 text-[10px] text-[#09090b] font-bold" style={MONO}>TOTAL</td>
+            <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{formatKg(tot.meta)}</td>
+            <td className="px-3 py-2 text-right tabular-nums text-[#09090b] font-bold" style={MONO}>{formatKg(tot.acumulado)}</td>
+            <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{tot.tendencia != null ? formatKg(tot.tendencia) : '—'}</td>
             <td className={`px-3 py-2 text-right tabular-nums font-bold text-[11px] rounded-md ${avanceColor(totAvance)}`} style={MONO}>{formatPctPlain(totAvance)}</td>
-            <td className="px-3 py-2 text-right tabular-nums text-[#6b85a8]" style={MONO}>{formatKg(tot.media_real)}</td>
-            <td className="px-3 py-2 text-right tabular-nums text-[#6b85a8]" style={MONO}>{tot.media_necesaria != null ? formatKg(tot.media_necesaria) : '—'}</td>
+            <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{formatKg(tot.media_real)}</td>
+            <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{tot.media_necesaria != null ? formatKg(tot.media_necesaria) : '—'}</td>
           </tr>
         </tbody>
       </table>
@@ -169,9 +169,9 @@ function NetoVendedorTable({ data }: { data: VendedorAgg[] }) {
 
   return (
     <div className="overflow-x-auto">
-      <table className="table-fixed w-full text-[11px]">
+      <table className="table-fixed w-full text-[11px] min-w-[560px]">
         <thead>
-          <tr className="border-b border-[#1a2d4a] bg-[#0f1e38]/60">
+          <tr className="border-b border-[#e4e4e7] bg-[#f4f4f5]/60">
             <TH>Vendedor</TH>
             <TH right>Meta $</TH>
             <TH right>Acum.</TH>
@@ -181,26 +181,26 @@ function NetoVendedorTable({ data }: { data: VendedorAgg[] }) {
             <TH right>M.Nec.</TH>
           </tr>
         </thead>
-        <tbody className="divide-y divide-[#1a2d4a]">
+        <tbody className="divide-y divide-[#e4e4e7]">
           {data.map((r) => (
-            <tr key={r.vendedor} className="hover:bg-[rgba(59,130,246,0.04)]">
-              <td className="px-3 py-2 text-[10px] truncate text-[#c8d8f0]" style={MONO}>{r.vendedor}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-[#6b85a8]" style={MONO}>{formatCurrency(r.neto_meta)}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-[#f0f4ff]" style={MONO}>{formatCurrency(r.neto_acumulado)}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-[#6b85a8]" style={MONO}>{r.neto_tendencia != null ? formatCurrency(r.neto_tendencia) : '—'}</td>
+            <tr key={r.vendedor} className="hover:bg-[rgba(12,92,171,0.04)]">
+              <td className="px-3 py-2 text-[10px] truncate text-[#27272a]" style={MONO}>{r.vendedor}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{formatCurrency(r.neto_meta)}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-[#09090b]" style={MONO}>{formatCurrency(r.neto_acumulado)}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{r.neto_tendencia != null ? formatCurrency(r.neto_tendencia) : '—'}</td>
               <td className={`px-3 py-2 text-right tabular-nums font-semibold text-[11px] rounded-md ${avanceColor(r.neto_avance_pct)}`} style={MONO}>{formatPctPlain(r.neto_avance_pct)}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-[#6b85a8]" style={MONO}>{formatCurrency(r.neto_media_real)}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-[#6b85a8]" style={MONO}>{r.neto_media_necesaria != null ? formatCurrency(r.neto_media_necesaria) : '—'}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{formatCurrency(r.neto_media_real)}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{r.neto_media_necesaria != null ? formatCurrency(r.neto_media_necesaria) : '—'}</td>
             </tr>
           ))}
-          <tr className="bg-[#0f1e38]/70 border-t-2 border-t-[#1a2d4a]">
-            <td className="px-3 py-2 text-[10px] text-[#f0f4ff] font-bold" style={MONO}>TOTAL</td>
-            <td className="px-3 py-2 text-right tabular-nums text-[#6b85a8]" style={MONO}>{formatCurrency(tot.meta)}</td>
-            <td className="px-3 py-2 text-right tabular-nums text-[#f0f4ff] font-bold" style={MONO}>{formatCurrency(tot.acumulado)}</td>
-            <td className="px-3 py-2 text-right tabular-nums text-[#6b85a8]" style={MONO}>{tot.tendencia != null ? formatCurrency(tot.tendencia) : '—'}</td>
+          <tr className="bg-[#f4f4f5]/70 border-t-2 border-t-[#e4e4e7]">
+            <td className="px-3 py-2 text-[10px] text-[#09090b] font-bold" style={MONO}>TOTAL</td>
+            <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{formatCurrency(tot.meta)}</td>
+            <td className="px-3 py-2 text-right tabular-nums text-[#09090b] font-bold" style={MONO}>{formatCurrency(tot.acumulado)}</td>
+            <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{tot.tendencia != null ? formatCurrency(tot.tendencia) : '—'}</td>
             <td className={`px-3 py-2 text-right tabular-nums font-bold text-[11px] rounded-md ${avanceColor(totAvance)}`} style={MONO}>{formatPctPlain(totAvance)}</td>
-            <td className="px-3 py-2 text-right tabular-nums text-[#6b85a8]" style={MONO}>{formatCurrency(tot.media_real)}</td>
-            <td className="px-3 py-2 text-right tabular-nums text-[#6b85a8]" style={MONO}>{tot.media_necesaria != null ? formatCurrency(tot.media_necesaria) : '—'}</td>
+            <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{formatCurrency(tot.media_real)}</td>
+            <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{tot.media_necesaria != null ? formatCurrency(tot.media_necesaria) : '—'}</td>
           </tr>
         </tbody>
       </table>
@@ -216,27 +216,27 @@ function CccVendedorTable({ data }: { data: CccRow[] }) {
   const totAct = sorted.reduce((s, r) => s + r.mes_actual, 0);
   const totAnt = sorted.reduce((s, r) => s + r.mes_anterior, 0);
   const totVar = totAnt > 0 ? ((totAct - totAnt) / totAnt) * 100 : 0;
-  const totColor = totVar > 0 ? 'text-[#14b8a6]' : totVar < 0 ? 'text-[#f87171]' : 'text-[#6b85a8]';
+  const totColor = totVar > 0 ? 'text-[#16a34a]' : totVar < 0 ? 'text-[#dc2626]' : 'text-[#71717a]';
 
   return (
     <div className="overflow-x-auto">
-      <table className="table-fixed w-full text-[11px]">
+      <table className="table-fixed w-full text-[11px] min-w-[380px]">
         <thead>
-          <tr className="border-b border-[#1a2d4a] bg-[#0f1e38]/60">
+          <tr className="border-b border-[#e4e4e7] bg-[#f4f4f5]/60">
             <TH>Vendedor</TH>
             <TH right>Acum.</TH>
             <TH right>Mes Ant.</TH>
             <TH right>Var%</TH>
           </tr>
         </thead>
-        <tbody className="divide-y divide-[#1a2d4a]">
+        <tbody className="divide-y divide-[#e4e4e7]">
           {sorted.map((r) => {
-            const color = r.variacion_pct > 0 ? 'text-[#14b8a6]' : r.variacion_pct < 0 ? 'text-[#f87171]' : 'text-[#6b85a8]';
+            const color = r.variacion_pct > 0 ? 'text-[#16a34a]' : r.variacion_pct < 0 ? 'text-[#dc2626]' : 'text-[#71717a]';
             return (
-              <tr key={r.vendedor} className="hover:bg-[rgba(59,130,246,0.04)]">
-                <td className="px-3 py-2 text-[10px] truncate text-[#c8d8f0]" style={MONO}>{r.vendedor}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-[#f0f4ff] font-semibold" style={MONO}>{r.mes_actual}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-[#6b85a8]" style={MONO}>{r.mes_anterior}</td>
+              <tr key={r.vendedor} className="hover:bg-[rgba(12,92,171,0.04)]">
+                <td className="px-3 py-2 text-[10px] truncate text-[#27272a]" style={MONO}>{r.vendedor}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-[#09090b] font-semibold" style={MONO}>{r.mes_actual}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{r.mes_anterior}</td>
                 <td className={`px-3 py-2 text-right tabular-nums font-semibold ${color}`} style={MONO}>
                   {r.mes_anterior > 0 ? formatPct(r.variacion_pct) : '—'}
                 </td>
@@ -244,10 +244,10 @@ function CccVendedorTable({ data }: { data: CccRow[] }) {
             );
           })}
           {sorted.length > 0 && (
-            <tr className="bg-[#0f1e38]/70 border-t-2 border-t-[#1a2d4a]">
-              <td className="px-3 py-2 text-[10px] text-[#f0f4ff] font-bold" style={MONO}>TOTAL</td>
-              <td className="px-3 py-2 text-right tabular-nums text-[#f0f4ff] font-bold" style={MONO}>{totAct}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-[#6b85a8]" style={MONO}>{totAnt}</td>
+            <tr className="bg-[#f4f4f5]/70 border-t-2 border-t-[#e4e4e7]">
+              <td className="px-3 py-2 text-[10px] text-[#09090b] font-bold" style={MONO}>TOTAL</td>
+              <td className="px-3 py-2 text-right tabular-nums text-[#09090b] font-bold" style={MONO}>{totAct}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{totAnt}</td>
               <td className={`px-3 py-2 text-right tabular-nums font-bold ${totColor}`} style={MONO}>
                 {totAnt > 0 ? formatPct(totVar) : '—'}
               </td>
@@ -275,7 +275,7 @@ export function ConsolidadoClient({
 
   const aggregated = useMemo(() => aggregateByVendedor(porVendedor), [porVendedor]);
 
-  const card = 'bg-[#0b1528] rounded-2xl border border-[#1a2d4a] hover:border-[#213654] transition-all duration-200 shadow-xl shadow-black/30 overflow-hidden';
+  const card = 'bg-[#ffffff] rounded-2xl border border-[#e4e4e7] hover:border-[#d4d4d8] transition-all duration-200 shadow-xl shadow-black/5 overflow-hidden';
 
   return (
     <div className="space-y-4">

@@ -33,16 +33,20 @@ export async function proxy(request: NextRequest) {
     return supabaseResponse;
   }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims() verifies the JWT signature locally against the project's
+  // published public keys (no network round-trip to the Auth server, unlike
+  // getUser()), and still refreshes the session cookie via the setAll handler.
+  const { data, error } = await supabase.auth.getClaims();
+  const claims = data?.claims;
 
   // Redirect unauthenticated users to login
-  if (!user) {
+  if (error || !claims) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
   }
+
+  const userId = claims.sub;
 
   // Profile lookup only when path-based role check is needed.
   // Most dashboard pages re-check role server-side anyway; middleware
@@ -55,14 +59,27 @@ export async function proxy(request: NextRequest) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('rol')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single();
     const rol = profile?.rol;
 
-    if (pathname.startsWith('/admin') && rol !== 'admin') {
-      const url = request.nextUrl.clone();
-      url.pathname = '/dashboard/vendedor/' + user.id;
-      return NextResponse.redirect(url);
+    // /admin/metas-ccc es compartido admin+supervisor; el resto de /admin es admin-only.
+    const isMetasCcc =
+      pathname === '/admin/metas-ccc' || pathname.startsWith('/admin/metas-ccc/');
+
+    if (pathname.startsWith('/admin')) {
+      if (isMetasCcc) {
+        if (rol !== 'admin' && rol !== 'supervisor') {
+          const url = request.nextUrl.clone();
+          url.pathname = '/';
+          return NextResponse.redirect(url);
+        }
+      } else if (rol !== 'admin') {
+        // Supervisor que cae en una tab admin-only → a su panel de metas.
+        const url = request.nextUrl.clone();
+        url.pathname = rol === 'supervisor' ? '/admin/metas-ccc' : '/';
+        return NextResponse.redirect(url);
+      }
     }
     if (pathname.startsWith('/dashboard/total') && rol !== 'admin') {
       const url = request.nextUrl.clone();

@@ -32,16 +32,16 @@ function fmtKgFull(v: number) {
 }
 
 const MONO: React.CSSProperties = { fontFamily: "'JetBrains Mono', monospace" };
-const CARD = 'bg-[#0b1528] rounded-2xl border border-[#1a2d4a] hover:border-[#213654] transition-all duration-200 shadow-xl shadow-black/30 p-5';
-const SECTION_TITLE = 'text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6b85a8] mb-4';
+const CARD = 'bg-[#ffffff] rounded-2xl border border-[#e4e4e7] hover:border-[#d4d4d8] transition-all duration-200 shadow-xl shadow-black/5 p-5';
+const SECTION_TITLE = 'text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a] mb-4';
 
 const TOOLTIP_STYLE = {
-  backgroundColor: '#0f1e38',
-  border: '1px solid #1a2d4a',
+  backgroundColor: '#f4f4f5',
+  border: '1px solid #e4e4e7',
   borderRadius: 10,
   fontSize: 12,
   boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-  color: '#f0f4ff',
+  color: '#09090b',
 };
 
 // ─────────────────────────────────────────────
@@ -69,16 +69,16 @@ export function TrendChart({ data, title, meta }: TrendChartProps) {
 
       <ResponsiveContainer width="100%" height={280}>
         <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(26,45,74,0.8)" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(228,228,231,0.8)" vertical={false} />
           <XAxis
             dataKey="dia"
-            tick={{ fontSize: 10, fill: '#6b85a8' }}
+            tick={{ fontSize: 10, fill: '#71717a' }}
             axisLine={false}
             tickLine={false}
             interval={4}
           />
           <YAxis
-            tick={{ fontSize: 10, fill: '#6b85a8' }}
+            tick={{ fontSize: 10, fill: '#71717a' }}
             width={44}
             axisLine={false}
             tickLine={false}
@@ -90,7 +90,7 @@ export function TrendChart({ data, title, meta }: TrendChartProps) {
             labelFormatter={(d) => `Día ${d}`}
           />
           <Legend
-            wrapperStyle={{ fontSize: 11, paddingTop: 14, color: '#6b85a8' }}
+            wrapperStyle={{ fontSize: 11, paddingTop: 14, color: '#71717a' }}
             iconType="plainline"
             iconSize={16}
           />
@@ -99,10 +99,10 @@ export function TrendChart({ data, title, meta }: TrendChartProps) {
           {meta != null && meta > 0 && (
             <ReferenceLine
               y={meta}
-              stroke="#6366f1"
+              stroke="#0c5cab"
               strokeDasharray="6 3"
               strokeWidth={1.5}
-              label={{ value: 'Meta', position: 'right', fontSize: 10, fill: '#6366f1' }}
+              label={{ value: 'Meta', position: 'right', fontSize: 10, fill: '#0c5cab' }}
             />
           )}
 
@@ -110,17 +110,17 @@ export function TrendChart({ data, title, meta }: TrendChartProps) {
             type="monotone"
             dataKey="mes_actual"
             name="Mes actual"
-            stroke="#3b82f6"
+            stroke="#0c5cab"
             strokeWidth={2.5}
             dot={false}
             connectNulls
-            activeDot={{ r: 4, fill: '#3b82f6', stroke: '#0b1528', strokeWidth: 2 }}
+            activeDot={{ r: 4, fill: '#0c5cab', stroke: '#ffffff', strokeWidth: 2 }}
           />
           <Line
             type="monotone"
             dataKey="anio_anterior"
             name="Año anterior"
-            stroke="#f59e0b"
+            stroke="#d97706"
             strokeWidth={1.5}
             strokeDasharray="5 3"
             dot={false}
@@ -130,7 +130,7 @@ export function TrendChart({ data, title, meta }: TrendChartProps) {
             type="monotone"
             dataKey="mes_anterior"
             name="Mes anterior"
-            stroke="#6b85a8"
+            stroke="#71717a"
             strokeWidth={1.5}
             strokeDasharray="3 2"
             dot={false}
@@ -151,9 +151,9 @@ interface AvanceBarChartProps {
 }
 
 function trackColor(pct: number) {
-  if (pct >= 95) return { bar: '#14b8a6', ghost: '#14b8a620', text: 'text-[#14b8a6]' };
-  if (pct >= 75) return { bar: '#f59e0b', ghost: '#f59e0b20', text: 'text-[#f59e0b]' };
-  return        { bar: '#f87171',  ghost: '#f8717120', text: 'text-[#f87171]' };
+  if (pct >= 95) return { bar: '#16a34a', ghost: '#16a34a20', text: 'text-[#16a34a]' };
+  if (pct >= 75) return { bar: '#d97706', ghost: '#d9770620', text: 'text-[#d97706]' };
+  return        { bar: '#dc2626',  ghost: '#dc262620', text: 'text-[#dc2626]' };
 }
 
 export function AvanceBarChart({ data, title }: AvanceBarChartProps) {
@@ -164,7 +164,7 @@ export function AvanceBarChart({ data, title }: AvanceBarChartProps) {
     return (
       <div className={CARD}>
         {title && <p className={SECTION_TITLE} style={MONO}>{title}</p>}
-        <p className="text-[#6b85a8] text-sm">Sin metas cargadas.</p>
+        <p className="text-[#71717a] text-sm">Sin metas cargadas.</p>
       </div>
     );
   }
@@ -175,15 +175,15 @@ export function AvanceBarChart({ data, title }: AvanceBarChartProps) {
 
       {/* Legend */}
       <div className="flex gap-4 mb-5 flex-wrap">
-        <span className="flex items-center gap-1.5 text-[10px] text-[#6b85a8]">
-          <span className="w-3 h-2 rounded-sm inline-block bg-[#3b82f6]" />
+        <span className="flex items-center gap-1.5 text-[10px] text-[#71717a]">
+          <span className="w-3 h-2 rounded-sm inline-block bg-[#0c5cab]" />
           Acumulado
         </span>
-        <span className="flex items-center gap-1.5 text-[10px] text-[#6b85a8]">
-          <span className="w-3 h-2 rounded-sm inline-block opacity-40 bg-[#6366f1]" />
+        <span className="flex items-center gap-1.5 text-[10px] text-[#71717a]">
+          <span className="w-3 h-2 rounded-sm inline-block opacity-40 bg-[#0c5cab]" />
           Tendencia
         </span>
-        <span className="flex items-center gap-1.5 text-[10px] text-[#6b85a8]">
+        <span className="flex items-center gap-1.5 text-[10px] text-[#71717a]">
           <span className="w-0.5 h-3 inline-block bg-white/50" />
           Meta (100%)
         </span>
@@ -203,13 +203,13 @@ export function AvanceBarChart({ data, title }: AvanceBarChartProps) {
           const vsAaLabel = vsAa !== null
             ? (vsAa >= 0 ? `+${vsAa.toFixed(0)}%` : `${vsAa.toFixed(0)}%`)
             : null;
-          const vsAaColor = vsAa !== null && vsAa >= 0 ? 'text-[#14b8a6]' : 'text-[#f87171]';
+          const vsAaColor = vsAa !== null && vsAa >= 0 ? 'text-[#16a34a]' : 'text-[#dc2626]';
 
           return (
             <div key={d.rubro}>
               {/* Header row */}
               <div className="flex items-baseline justify-between mb-1">
-                <span className="text-[11px] font-semibold text-[#c8d8f0]" style={MONO}>
+                <span className="text-[11px] font-semibold text-[#27272a]" style={MONO}>
                   {d.rubro}
                 </span>
                 <div className="flex items-baseline gap-3">
@@ -225,7 +225,7 @@ export function AvanceBarChart({ data, title }: AvanceBarChartProps) {
               </div>
 
               {/* Bar track */}
-              <div className="relative h-5 rounded-full overflow-hidden" style={{ background: '#0f1e38' }}>
+              <div className="relative h-5 rounded-full overflow-hidden" style={{ background: '#f4f4f5' }}>
                 {/* Tendencia ghost bar */}
                 {tend > d.acumulado && (
                   <div
@@ -247,15 +247,15 @@ export function AvanceBarChart({ data, title }: AvanceBarChartProps) {
 
               {/* Sub-labels */}
               <div className="flex justify-between mt-0.5">
-                <span className="text-[9px] text-[#6b85a8]" style={MONO}>
+                <span className="text-[9px] text-[#71717a]" style={MONO}>
                   {fmtKg(d.acumulado)} kg
                 </span>
                 {tend !== d.acumulado && (
-                  <span className="text-[9px] text-[#6b85a8]" style={MONO}>
+                  <span className="text-[9px] text-[#71717a]" style={MONO}>
                     Tend: {fmtKg(tend)} kg
                   </span>
                 )}
-                <span className="text-[9px] text-[#6b85a8]" style={MONO}>
+                <span className="text-[9px] text-[#71717a]" style={MONO}>
                   Meta: {fmtKg(meta)} kg
                 </span>
               </div>
@@ -276,9 +276,9 @@ interface RadarMetaChartProps {
 }
 
 function radarColor(pct: number) {
-  if (pct >= 100) return '#14b8a6';
-  if (pct >= 75)  return '#f59e0b';
-  return '#f87171';
+  if (pct >= 100) return '#16a34a';
+  if (pct >= 75)  return '#d97706';
+  return '#dc2626';
 }
 
 export function RadarMetaChart({ data, title }: RadarMetaChartProps) {
@@ -302,24 +302,24 @@ export function RadarMetaChart({ data, title }: RadarMetaChartProps) {
         <div className="flex-1 min-w-0">
           <ResponsiveContainer width="100%" height={200}>
             <RadarChart data={radarData} margin={{ top: 4, right: 20, bottom: 4, left: 20 }}>
-              <PolarGrid stroke="rgba(26,45,74,1)" />
+              <PolarGrid stroke="rgba(228,228,231,1)" />
               <PolarAngleAxis
                 dataKey="label"
-                tick={{ fontSize: 9, fill: '#6b85a8', fontFamily: "'JetBrains Mono', monospace" }}
+                tick={{ fontSize: 9, fill: '#71717a', fontFamily: "'JetBrains Mono', monospace" }}
               />
               <PolarRadiusAxis
                 angle={90}
                 domain={[0, 150]}
                 tickCount={4}
-                tick={{ fontSize: 8, fill: '#6b85a8' }}
+                tick={{ fontSize: 8, fill: '#71717a' }}
                 tickFormatter={(v: number) => v === 100 ? 'META' : `${v}%`}
               />
               {/* 100% reference shape */}
               <Radar
                 name="Meta"
                 dataKey="meta"
-                stroke="#6366f1"
-                fill="#6366f1"
+                stroke="#0c5cab"
+                fill="#0c5cab"
                 fillOpacity={0.06}
                 strokeDasharray="4 2"
                 strokeWidth={1.5}
@@ -328,11 +328,11 @@ export function RadarMetaChart({ data, title }: RadarMetaChartProps) {
               <Radar
                 name="Avance"
                 dataKey="value"
-                stroke="#3b82f6"
-                fill="#3b82f6"
+                stroke="#0c5cab"
+                fill="#0c5cab"
                 fillOpacity={0.18}
                 strokeWidth={2}
-                dot={{ fill: '#3b82f6', r: 3 }}
+                dot={{ fill: '#0c5cab', r: 3 }}
               />
               <Tooltip
                 contentStyle={TOOLTIP_STYLE}
@@ -356,7 +356,7 @@ export function RadarMetaChart({ data, title }: RadarMetaChartProps) {
               <div key={d.rubro}>
                 <div className="flex items-baseline justify-between mb-[3px]">
                   <span
-                    className="text-[9px] text-[#6b85a8] truncate max-w-[72px]"
+                    className="text-[9px] text-[#71717a] truncate max-w-[72px]"
                     style={MONO}
                   >
                     {d.rubro}
@@ -368,7 +368,7 @@ export function RadarMetaChart({ data, title }: RadarMetaChartProps) {
                     {pct.toFixed(0)}%
                   </span>
                 </div>
-                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: '#0f1e38' }}>
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: '#f4f4f5' }}>
                   <div
                     className="h-full rounded-full"
                     style={{

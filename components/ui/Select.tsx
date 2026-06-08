@@ -13,10 +13,10 @@ export function Select({ className = '', children, ...props }: SelectProps) {
         {...props}
         className={[
           'appearance-none cursor-pointer pl-3 pr-8 py-[7px]',
-          'text-[13px] font-medium text-[#f0f4ff]',
-          'bg-[#0d1a2d] border border-[#1a2d4a] rounded-[8px]',
-          'hover:border-[#213654] hover:bg-[#0f1e38]',
-          'focus:outline-none focus:border-[rgba(99,102,241,0.5)] focus:bg-[#0f1e38]',
+          'text-[13px] font-medium text-[#09090b]',
+          'bg-[#f4f4f5] border border-[#e4e4e7] rounded-[8px]',
+          'hover:border-[#d4d4d8] hover:bg-[#f4f4f5]',
+          'focus:outline-none focus:border-[rgba(12,92,171,0.5)] focus:bg-[#f4f4f5]',
           'transition-all',
           className,
         ].join(' ')}
@@ -25,7 +25,7 @@ export function Select({ className = '', children, ...props }: SelectProps) {
       </select>
       {/* Custom chevron */}
       <svg
-        className="pointer-events-none absolute right-2.5 text-[#6b85a8]"
+        className="pointer-events-none absolute right-2.5 text-[#71717a]"
         width="12" height="12" viewBox="0 0 12 12" fill="none"
         xmlns="http://www.w3.org/2000/svg"
       >

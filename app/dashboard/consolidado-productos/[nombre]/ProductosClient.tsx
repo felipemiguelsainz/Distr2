@@ -5,7 +5,7 @@ import { formatKg, formatCurrency } from '@/lib/calculations/dashboard';
 import type { CatalogoItem, ConsolidadoProductoRow } from '@/lib/calculations/productos';
 
 const MONO: React.CSSProperties = { fontFamily: "'JetBrains Mono', monospace" };
-const CARD = 'bg-[#0b1528] rounded-2xl border border-[#1a2d4a] shadow-xl shadow-black/30 overflow-hidden';
+const CARD = 'bg-[#ffffff] rounded-2xl border border-[#e4e4e7] shadow-xl shadow-black/5 overflow-hidden';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -13,7 +13,7 @@ const CARD = 'bg-[#0b1528] rounded-2xl border border-[#1a2d4a] shadow-xl shadow-
 function TH({ children, right }: { children: React.ReactNode; right?: boolean }) {
   return (
     <th
-      className={`px-3 py-2.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[#6b85a8] whitespace-nowrap ${right ? 'text-right' : 'text-left'}`}
+      className={`px-3 py-2.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[#71717a] whitespace-nowrap ${right ? 'text-right' : 'text-left'}`}
       style={MONO}
     >
       {children}
@@ -41,25 +41,25 @@ function VendedorTable({
 
   return (
     <div className={CARD}>
-      <p className="px-4 py-3 border-b border-[#1a2d4a] text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6b85a8]" style={MONO}>
+      <p className="px-4 py-3 border-b border-[#e4e4e7] text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a]" style={MONO}>
         {title}
       </p>
       <div className="overflow-x-auto">
-        <table className="table-fixed w-full text-[11px]">
+        <table className="table-fixed w-full text-[11px]" style={{ minWidth: 150 + cols.length * 110 }}>
           <thead>
-            <tr className="border-b border-[#1a2d4a] bg-[#0f1e38]/60">
+            <tr className="border-b border-[#e4e4e7] bg-[#f4f4f5]/60">
               <TH>Vendedor</TH>
               {cols.map((c) => <TH key={c.label} right>{c.label}</TH>)}
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#1a2d4a]">
+          <tbody className="divide-y divide-[#e4e4e7]">
             {data.map((r) => (
-              <tr key={r.vendedor} className="hover:bg-[rgba(59,130,246,0.04)]">
-                <td className="px-3 py-2 text-[10px] truncate text-[#c8d8f0]" style={MONO}>{r.vendedor}</td>
+              <tr key={r.vendedor} className="hover:bg-[rgba(12,92,171,0.04)]">
+                <td className="px-3 py-2 text-[10px] truncate text-[#27272a]" style={MONO}>{r.vendedor}</td>
                 {cols.map((c) => {
                   const v = c.value(r);
                   return (
-                    <td key={c.label} className="px-3 py-2 text-right tabular-nums text-[#f0f4ff]" style={MONO}>
+                    <td key={c.label} className="px-3 py-2 text-right tabular-nums text-[#09090b]" style={MONO}>
                       {v == null ? '—' : c.fmt(v)}
                     </td>
                   );
@@ -67,10 +67,10 @@ function VendedorTable({
               </tr>
             ))}
             {data.length > 0 && (
-              <tr className="bg-[#0f1e38]/70 border-t-2 border-t-[#1a2d4a]">
-                <td className="px-3 py-2 text-[10px] text-[#f0f4ff] font-bold" style={MONO}>TOTAL</td>
+              <tr className="bg-[#f4f4f5]/70 border-t-2 border-t-[#e4e4e7]">
+                <td className="px-3 py-2 text-[10px] text-[#09090b] font-bold" style={MONO}>TOTAL</td>
                 {cols.map((c, i) => (
-                  <td key={c.label} className="px-3 py-2 text-right tabular-nums text-[#f0f4ff] font-bold" style={MONO}>
+                  <td key={c.label} className="px-3 py-2 text-right tabular-nums text-[#09090b] font-bold" style={MONO}>
                     {totals[i] == null ? '—' : c.fmt(totals[i] as number)}
                   </td>
                 ))}
@@ -78,7 +78,7 @@ function VendedorTable({
             )}
             {data.length === 0 && (
               <tr>
-                <td colSpan={cols.length + 1} className="px-3 py-6 text-center text-[#6b85a8] text-[12px]">
+                <td colSpan={cols.length + 1} className="px-3 py-6 text-center text-[#71717a] text-[12px]">
                   Sin datos para los productos seleccionados.
                 </td>
               </tr>
@@ -125,14 +125,14 @@ function ProductoSelector({
 
   return (
     <div className={CARD}>
-      <div className="px-4 py-3 border-b border-[#1a2d4a] flex items-center justify-between gap-3 flex-wrap">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6b85a8]" style={MONO}>
+      <div className="px-4 py-3 border-b border-[#e4e4e7] flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a]" style={MONO}>
           Productos — {seleccionados.size} de {catalogo.length}
         </p>
         <div className="flex items-center gap-2">
-          <button onClick={onAll}  className="text-[11px] text-[#3b82f6] hover:underline">Todos</button>
-          <span className="text-[#1a2d4a]">·</span>
-          <button onClick={onNone} className="text-[11px] text-[#6b85a8] hover:underline">Ninguno</button>
+          <button onClick={onAll}  className="text-[11px] text-[#0c5cab] hover:underline">Todos</button>
+          <span className="text-[#e4e4e7]">·</span>
+          <button onClick={onNone} className="text-[11px] text-[#71717a] hover:underline">Ninguno</button>
         </div>
       </div>
 
@@ -141,7 +141,7 @@ function ProductoSelector({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar producto…"
-          className="w-full px-3 py-2 text-[13px] bg-[rgba(255,255,255,0.02)] border border-[#1a2d4a] rounded-[8px] text-[#f0f4ff] caret-[#3b82f6] focus:outline-none focus:border-[rgba(99,102,241,0.4)] transition-all placeholder:text-[#3a4a66] mb-2"
+          className="w-full px-3 py-2 text-[13px] bg-[rgba(0,0,0,0.02)] border border-[#e4e4e7] rounded-[8px] text-[#09090b] caret-[#0c5cab] focus:outline-none focus:border-[rgba(12,92,171,0.4)] transition-all placeholder:text-[#9f9fa9] mb-2"
         />
         <div className="max-h-[280px] overflow-y-auto space-y-1">
           {porRubro.map(([rubro, articulos]) => {
@@ -155,14 +155,14 @@ function ProductoSelector({
             const isOpen   = openRubros.has(rubro) || q.length > 0;
 
             return (
-              <div key={rubro} className="rounded-lg border border-[#1a2d4a] overflow-hidden">
-                <div className="flex items-center gap-2 px-3 py-2 bg-[#0f1e38]/50">
+              <div key={rubro} className="rounded-lg border border-[#e4e4e7] overflow-hidden">
+                <div className="flex items-center gap-2 px-3 py-2 bg-[#f4f4f5]/50">
                   <input
                     type="checkbox"
                     checked={allSel}
                     ref={(el) => { if (el) el.indeterminate = selCount > 0 && !allSel; }}
                     onChange={() => onToggleRubro(articulos, !allSel)}
-                    className="accent-[#3b82f6]"
+                    className="accent-[#0c5cab]"
                   />
                   <button
                     onClick={() => setOpen((prev) => {
@@ -172,8 +172,8 @@ function ProductoSelector({
                     })}
                     className="flex-1 flex items-center justify-between text-left"
                   >
-                    <span className="text-[12px] font-semibold text-[#c8d8f0]">{rubro}</span>
-                    <span className="text-[10px] text-[#6b85a8]" style={MONO}>
+                    <span className="text-[12px] font-semibold text-[#27272a]">{rubro}</span>
+                    <span className="text-[10px] text-[#71717a]" style={MONO}>
                       {selCount}/{articulos.length}
                       <span className={`ml-2 inline-block transition-transform ${isOpen ? 'rotate-180' : ''}`}>▾</span>
                     </span>
@@ -187,9 +187,9 @@ function ProductoSelector({
                           type="checkbox"
                           checked={seleccionados.has(a)}
                           onChange={() => onToggleArticulo(a)}
-                          className="accent-[#3b82f6]"
+                          className="accent-[#0c5cab]"
                         />
-                        <span className="text-[11.5px] text-[#c8d8f0] truncate">{a}</span>
+                        <span className="text-[11.5px] text-[#27272a] truncate">{a}</span>
                       </label>
                     ))}
                   </div>

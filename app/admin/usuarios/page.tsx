@@ -1,21 +1,14 @@
-import { AppShell } from '@/components/layout/AppShell';
-import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server';
+import { getCurrentProfile } from '@/lib/supabase/profile';
 import { redirect } from 'next/navigation';
 import { UsuariosClient } from './UsuariosClient';
 
+// Gate de admin + AppShell + tabs los provee app/admin/layout.tsx.
 export default async function UsuariosAdminPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+  const profile = await getCurrentProfile();
+  if (!profile) redirect('/login');
+  if (profile.rol !== 'admin') redirect('/');
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('rol')
-    .eq('id', user.id)
-    .single();
-  if (profile?.rol !== 'admin') redirect('/');
-
-  // Listas para los desplegables del formulario.
   const svc = createServiceClient();
   const { data: vRows } = await svc
     .from('vendedores')
@@ -36,12 +29,10 @@ export default async function UsuariosAdminPage() {
   ).sort((a, b) => a.localeCompare(b));
 
   return (
-    <AppShell>
-      <UsuariosClient
-        supervisores={supervisores}
-        vendedores={vendedores}
-        currentUserId={user.id}
-      />
-    </AppShell>
+    <UsuariosClient
+      supervisores={supervisores}
+      vendedores={vendedores}
+      currentUserId={profile.id}
+    />
   );
 }

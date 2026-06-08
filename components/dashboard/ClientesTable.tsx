@@ -3,9 +3,9 @@ import { ClientesRubro } from '@/lib/types';
 const MONO = { fontFamily: "'JetBrains Mono', monospace" };
 
 function signedColor(pct: number) {
-  if (pct >= 5)  return 'text-[#14b8a6]';
-  if (pct >= -5) return 'text-[#6b85a8]';
-  return 'text-[#f87171]';
+  if (pct >= 5)  return 'text-[#16a34a]';
+  if (pct >= -5) return 'text-[#71717a]';
+  return 'text-[#dc2626]';
 }
 
 function pctBar(value: number, max: number) {
@@ -54,7 +54,7 @@ export function ClientesTable({
 
   const TH = ({ children, right }: { children: React.ReactNode; right?: boolean }) => (
     <th
-      className={`px-3 py-2.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[#6b85a8] whitespace-nowrap ${right ? 'text-right' : 'text-left'}`}
+      className={`px-3 py-2.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[#71717a] whitespace-nowrap ${right ? 'text-right' : 'text-left'}`}
       style={MONO}
     >
       {children}
@@ -64,11 +64,11 @@ export function ClientesTable({
   const rows = [...data, total];
 
   return (
-    <div className="bg-[#0b1528] rounded-2xl border border-[#1a2d4a] hover:border-[#213654] transition-all duration-200 shadow-xl shadow-black/30 overflow-hidden">
+    <div className="bg-[#ffffff] rounded-2xl border border-[#e4e4e7] hover:border-[#d4d4d8] transition-all duration-200 shadow-xl shadow-black/5 overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-3.5 border-b border-[#1a2d4a]">
+      <div className="px-5 py-3.5 border-b border-[#e4e4e7]">
         <p
-          className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6b85a8]"
+          className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a]"
           style={MONO}
         >
           Clientes con Compra — Por Categoría
@@ -76,9 +76,9 @@ export function ClientesTable({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="table-fixed w-full text-[12px]">
+        <table className="table-fixed w-full text-[12px] min-w-[520px]">
           <thead>
-            <tr className="border-b border-[#1a2d4a] bg-[#0f1e38]/60">
+            <tr className="border-b border-[#e4e4e7] bg-[#f4f4f5]/60">
               <TH>Categoría</TH>
               <TH right>Clientes Mes</TH>
               <TH right>Cartera 3M</TH>
@@ -87,7 +87,7 @@ export function ClientesTable({
               <TH right>vs AA</TH>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#1a2d4a]">
+          <tbody className="divide-y divide-[#e4e4e7]">
             {rows.map((row, idx) => {
               const isTotal = row.rubro === 'TOTAL';
               const barPct  = pctBar(row.clientes_mes, isTotal ? row.cartera_activa_3m : maxCartera);
@@ -97,23 +97,23 @@ export function ClientesTable({
                   key={row.rubro}
                   className={`transition-colors ${
                     isTotal
-                      ? 'bg-[#0f1e38]/70 border-t-2 border-t-[#1a2d4a]'
-                      : 'hover:bg-[rgba(59,130,246,0.04)]'
+                      ? 'bg-[#f4f4f5]/70 border-t-2 border-t-[#e4e4e7]'
+                      : 'hover:bg-[rgba(12,92,171,0.04)]'
                   }`}
                 >
                   {/* Categoría */}
                   <td className="px-3 py-2">
                     <div
-                      className={`text-[11px] font-medium truncate ${isTotal ? 'text-[#f0f4ff] font-bold' : 'text-[#f0f4ff]'}`}
+                      className={`text-[11px] font-medium truncate ${isTotal ? 'text-[#09090b] font-bold' : 'text-[#09090b]'}`}
                       style={MONO}
                     >
                       {row.rubro}
                     </div>
                     {/* Mini progress bar */}
                     {!isTotal && (
-                      <div className="mt-1 h-[3px] rounded-full overflow-hidden" style={{ background: '#0f1e38' }}>
+                      <div className="mt-1 h-[3px] rounded-full overflow-hidden" style={{ background: '#f4f4f5' }}>
                         <div
-                          className="h-full rounded-full bg-[#3b82f6]"
+                          className="h-full rounded-full bg-[#0c5cab]"
                           style={{
                             width: `${barPct}%`,
                             transition: 'width 0.6s cubic-bezier(0.4,0,0.2,1)',
@@ -126,7 +126,7 @@ export function ClientesTable({
                   {/* Clientes Mes */}
                   <td className="px-3 py-2 text-right">
                     <span
-                      className={`tabular-nums ${isTotal ? 'text-[#f0f4ff] font-bold' : 'text-[#f0f4ff]'}`}
+                      className={`tabular-nums ${isTotal ? 'text-[#09090b] font-bold' : 'text-[#09090b]'}`}
                       style={MONO}
                     >
                       {row.clientes_mes.toLocaleString('es-AR')}
@@ -135,7 +135,7 @@ export function ClientesTable({
 
                   {/* Cartera Activa 3M */}
                   <td className="px-3 py-2 text-right">
-                    <span className="text-[#6b85a8] tabular-nums" style={MONO}>
+                    <span className="text-[#71717a] tabular-nums" style={MONO}>
                       {row.cartera_activa_3m.toLocaleString('es-AR')}
                     </span>
                   </td>
@@ -145,10 +145,10 @@ export function ClientesTable({
                     <span
                       className={`tabular-nums font-semibold ${
                         row.penetracion_pct >= 70
-                          ? 'text-[#14b8a6]'
+                          ? 'text-[#16a34a]'
                           : row.penetracion_pct >= 40
-                            ? 'text-[#f59e0b]'
-                            : 'text-[#f87171]'
+                            ? 'text-[#d97706]'
+                            : 'text-[#dc2626]'
                       }`}
                       style={MONO}
                     >
@@ -164,12 +164,12 @@ export function ClientesTable({
                         style={MONO}
                       >
                         {fmtSigned(row.vs_mes_anterior_pct)}
-                        <span className="text-[9px] text-[#6b85a8] ml-1">
+                        <span className="text-[9px] text-[#71717a] ml-1">
                           ({row.clientes_mes_anterior})
                         </span>
                       </span>
                     ) : (
-                      <span className="text-[#6b85a8]" style={MONO}>—</span>
+                      <span className="text-[#71717a]" style={MONO}>—</span>
                     )}
                   </td>
 
@@ -181,12 +181,12 @@ export function ClientesTable({
                         style={MONO}
                       >
                         {fmtSigned(row.vs_aa_pct)}
-                        <span className="text-[9px] text-[#6b85a8] ml-1">
+                        <span className="text-[9px] text-[#71717a] ml-1">
                           ({row.clientes_aa})
                         </span>
                       </span>
                     ) : (
-                      <span className="text-[#6b85a8]" style={MONO}>—</span>
+                      <span className="text-[#71717a]" style={MONO}>—</span>
                     )}
                   </td>
                 </tr>

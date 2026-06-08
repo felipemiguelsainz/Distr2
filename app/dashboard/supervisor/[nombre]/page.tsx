@@ -1,7 +1,7 @@
 import { AppShell } from '@/components/layout/AppShell';
 import { MonthFilter } from '@/components/ui/MonthFilter';
 import { KpiTable } from '@/components/dashboard/KpiTable';
-import { TrendChart } from '@/components/dashboard/TrendChart';
+import { TrendChart } from '@/components/dashboard/LazyCharts';
 import { CoberturaTable } from '@/components/dashboard/CoberturaTable';
 import { ClientesTable } from '@/components/dashboard/ClientesTable';
 import { fetchSupervisorKpis, fetchTrendData, fetchClientesData } from '@/lib/calculations/queries';
@@ -86,8 +86,8 @@ export default async function SupervisorDashboardPage({
       <div className="space-y-7">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-[22px] font-bold tracking-[-0.02em] text-[#f0f4ff]">{vendedorNombre}</h1>
-            <p className="text-[13px] text-[#6b85a8] mt-0.5">Equipo: {equipo}</p>
+            <h1 className="text-[22px] font-bold tracking-[-0.02em] text-[#09090b]">{vendedorNombre}</h1>
+            <p className="text-[13px] text-[#71717a] mt-0.5">Equipo: {equipo}</p>
           </div>
           <Suspense>
             <MonthFilter defaultMes={mes} defaultAnio={anio} />
@@ -128,7 +128,7 @@ async function SupervisorKpiSection({
   return (
     <div className="space-y-8">
       <section>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6b85a8] mb-3" style={{fontFamily: "'JetBrains Mono', monospace"}}>Totales del equipo</p>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a] mb-3" style={{fontFamily: "'JetBrains Mono', monospace"}}>Totales del equipo</p>
         <KpiTable data={totales} />
       </section>
 
@@ -137,7 +137,7 @@ async function SupervisorKpiSection({
       <TrendChart data={trend} title="Tendencia KG diaria — Equipo" />
 
       <section>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6b85a8] mb-3" style={{fontFamily: "'JetBrains Mono', monospace"}}>Por vendedor</p>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a] mb-3" style={{fontFamily: "'JetBrains Mono', monospace"}}>Por vendedor</p>
         <VendedorSummaryTable porVendedor={porVendedor} vendedores={vendedores} />
       </section>
     </div>
@@ -168,29 +168,29 @@ function VendedorSummaryTable({
   });
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-[#1a2d4a] shadow-xl shadow-black/30">
+    <div className="overflow-x-auto rounded-2xl border border-[#e4e4e7] shadow-xl shadow-black/5">
       <table className="min-w-full text-[13px]">
         <thead>
-          <tr className="bg-[#0f1e38]/80 border-b border-[#1a2d4a]">
-            <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6b85a8]" style={{fontFamily: "'JetBrains Mono', monospace"}}>Vendedor</th>
-            <th className="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6b85a8]" style={{fontFamily: "'JetBrains Mono', monospace"}}>Meta KG</th>
-            <th className="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6b85a8]" style={{fontFamily: "'JetBrains Mono', monospace"}}>Acumulado</th>
-            <th className="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6b85a8]" style={{fontFamily: "'JetBrains Mono', monospace"}}>Avance %</th>
-            <th className="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6b85a8]" style={{fontFamily: "'JetBrains Mono', monospace"}}>Tendencia</th>
+          <tr className="bg-[#f4f4f5]/80 border-b border-[#e4e4e7]">
+            <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a]" style={{fontFamily: "'JetBrains Mono', monospace"}}>Vendedor</th>
+            <th className="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a]" style={{fontFamily: "'JetBrains Mono', monospace"}}>Meta KG</th>
+            <th className="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a]" style={{fontFamily: "'JetBrains Mono', monospace"}}>Acumulado</th>
+            <th className="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a]" style={{fontFamily: "'JetBrains Mono', monospace"}}>Avance %</th>
+            <th className="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a]" style={{fontFamily: "'JetBrains Mono', monospace"}}>Tendencia</th>
           </tr>
         </thead>
-        <tbody className="bg-[#0b1528] divide-y divide-[#1a2d4a]">
+        <tbody className="bg-[#ffffff] divide-y divide-[#e4e4e7]">
           {summary.map(({ v, meta, acumulado, avance_pct, tendencia }) => (
-            <tr key={v} className="hover:bg-[rgba(59,130,246,0.04)] transition-colors">
-              <td className="px-4 py-2.5 font-medium text-[#3b82f6]">
+            <tr key={v} className="hover:bg-[rgba(12,92,171,0.04)] transition-colors">
+              <td className="px-4 py-2.5 font-medium text-[#0c5cab]">
                 <a href={`/dashboard/vendedor/${encodeURIComponent(v)}`}>{v}</a>
               </td>
-              <td className="px-4 py-2.5 text-right tabular-nums text-[#c8d8f0]">{formatKg(meta)}</td>
-              <td className="px-4 py-2.5 text-right tabular-nums text-[#c8d8f0]">{formatKg(acumulado)}</td>
+              <td className="px-4 py-2.5 text-right tabular-nums text-[#27272a]">{formatKg(meta)}</td>
+              <td className="px-4 py-2.5 text-right tabular-nums text-[#27272a]">{formatKg(acumulado)}</td>
               <td className={`px-4 py-2.5 text-right tabular-nums font-semibold ${avanceColor(avance_pct)} rounded-lg`}>
                 {formatPctPlain(avance_pct)}
               </td>
-              <td className="px-4 py-2.5 text-right tabular-nums text-[#6b85a8]">
+              <td className="px-4 py-2.5 text-right tabular-nums text-[#71717a]">
                 {tendencia !== null ? formatKg(tendencia) : '—'}
               </td>
             </tr>
