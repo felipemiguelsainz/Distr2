@@ -82,11 +82,11 @@ export default async function ConsolidadoPage({
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#6b85a8]"
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#71717a]"
                style={{ fontFamily: "'JetBrains Mono', monospace" }}>
               Consolidado
             </p>
-            <h1 className="text-[22px] font-bold tracking-[-0.02em] text-[#f0f4ff] mt-0.5">
+            <h1 className="text-[22px] font-bold tracking-[-0.02em] text-[#09090b] mt-0.5">
               {equipo}
             </h1>
           </div>

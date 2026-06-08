@@ -98,15 +98,15 @@ export function buildKpi(input: KpiInput): KpiRubro {
 }
 
 export function avanceColor(pct: number): string {
-  if (pct >= 90) return 'text-[#14b8a6] bg-[#14b8a6]/[0.1]';
-  if (pct >= 70) return 'text-[#f59e0b] bg-[#f59e0b]/[0.1]';
-  return 'text-[#f87171] bg-[#f87171]/[0.1]';
+  if (pct >= 90) return 'text-[#16a34a] bg-[#16a34a]/[0.1]';
+  if (pct >= 70) return 'text-[#d97706] bg-[#d97706]/[0.1]';
+  return 'text-[#dc2626] bg-[#dc2626]/[0.1]';
 }
 
 export function vsAaColor(pct: number): string {
-  if (pct > 0) return 'text-[#14b8a6]';
-  if (pct < 0) return 'text-[#f87171]';
-  return 'text-[#6b85a8]';
+  if (pct > 0) return 'text-[#16a34a]';
+  if (pct < 0) return 'text-[#dc2626]';
+  return 'text-[#71717a]';
 }
 
 export function formatKg(kg: number): string {

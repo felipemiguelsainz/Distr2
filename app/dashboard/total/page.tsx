@@ -2,7 +2,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { MonthFilter } from '@/components/ui/MonthFilter';
 import { EntityFilter } from '@/components/ui/EntityFilter';
 import { KpiTable } from '@/components/dashboard/KpiTable';
-import { TrendChart, AvanceBarChart, RadarMetaChart } from '@/components/dashboard/TrendChart';
+import { TrendChart, AvanceBarChart, RadarMetaChart } from '@/components/dashboard/LazyCharts';
 import { ClientesTable } from '@/components/dashboard/ClientesTable';
 import { fetchTotalKpis, fetchTrendData, fetchClientesData } from '@/lib/calculations/queries';
 import { createClient } from '@/lib/supabase/server';
@@ -52,8 +52,8 @@ export default async function TotalDashboardPage({
       <div className="space-y-7">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div>
-            <h1 className="text-[22px] font-bold tracking-[-0.02em] text-[#f0f4ff]">Total Empresa</h1>
-            <p className="text-[13px] text-[#6b85a8] mt-0.5">{subtitulo}</p>
+            <h1 className="text-[22px] font-bold tracking-[-0.02em] text-[#09090b]">Total Empresa</h1>
+            <p className="text-[13px] text-[#71717a] mt-0.5">{subtitulo}</p>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-wrap">
             <Suspense>

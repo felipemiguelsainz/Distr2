@@ -18,7 +18,7 @@ export function ShellLayout({ sidebar, children }: ShellLayoutProps) {
   }, [pathname]);
 
   return (
-    <div className="flex h-screen bg-[#060c1a]">
+    <div className="flex h-screen bg-[#fafafa]">
       {/* Mobile overlay */}
       {open && (
         <div
@@ -39,10 +39,10 @@ export function ShellLayout({ sidebar, children }: ShellLayoutProps) {
       {/* Main content */}
       <main className="flex-1 overflow-y-auto min-w-0">
         {/* Mobile top bar */}
-        <div className="lg:hidden flex items-center gap-3 px-4 py-3 border-b border-[#1a2d4a] bg-[#0b1528] sticky top-0 z-10">
+        <div className="lg:hidden flex items-center gap-3 h-14 px-4 border-b border-[#e4e4e7] bg-[#ffffff] sticky top-0 z-10">
           <button
             onClick={() => setOpen(true)}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-[#6b85a8] hover:text-[#f0f4ff] hover:bg-[rgba(255,255,255,0.06)] transition-colors"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-[#71717a] hover:text-[#09090b] hover:bg-[rgba(0,0,0,0.04)] transition-colors"
             aria-label="Abrir menú"
           >
             <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20">
@@ -50,12 +50,12 @@ export function ShellLayout({ sidebar, children }: ShellLayoutProps) {
             </svg>
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-[7px] flex items-center justify-center shrink-0" style={{background: 'linear-gradient(135deg, #3b82f6, #6366f1)'}}>
+            <div className="w-6 h-6 rounded-[7px] flex items-center justify-center shrink-0" style={{background: 'linear-gradient(135deg, #0c5cab, #0c5cab)'}}>
               <svg width="12" height="12" fill="white" viewBox="0 0 20 20">
                 <path d="M15.5 2A1.5 1.5 0 0014 3.5v13a1.5 1.5 0 003 0v-13A1.5 1.5 0 0015.5 2zM9.5 6A1.5 1.5 0 008 7.5v9a1.5 1.5 0 003 0v-9A1.5 1.5 0 009.5 6zM3.5 10A1.5 1.5 0 002 11.5v5a1.5 1.5 0 003 0v-5A1.5 1.5 0 003.5 10z"/>
               </svg>
             </div>
-            <span className="text-[14px] font-bold text-[#f0f4ff]">Candysur</span>
+            <span className="text-[14px] font-bold text-[#09090b]">Candysur</span>
           </div>
         </div>
 

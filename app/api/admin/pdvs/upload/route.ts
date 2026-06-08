@@ -134,6 +134,19 @@ export async function POST(request: NextRequest) {
 
     revalidateTag('kpis', { expire: 0 });
 
+    // Recalcular las metas CCC preseteadas para el mes corriente: la meta total
+    // por vendedor depende de los PDVs activos asignados, que acaban de cambiar.
+    // No pisa metas editadas por el supervisor (es_preset = false).
+    try {
+      const now = new Date();
+      await supabase.rpc('calcular_preset_ccc', {
+        p_mes: now.getMonth() + 1,
+        p_anio: now.getFullYear(),
+      });
+    } catch (e) {
+      console.error('[pdvs-upload] calcular_preset_ccc', e);
+    }
+
     const result: PdvsUploadResult = {
       total: rows.length,
       inserted,

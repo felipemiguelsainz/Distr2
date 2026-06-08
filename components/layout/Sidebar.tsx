@@ -88,16 +88,14 @@ function buildNav(rol: Rol, vendedorNombre: string | null, supervisores: Supervi
       items.push({ href: '/dashboard/consolidado-productos', label: 'Por producto', icon: <ProductoIcon /> });
     }
 
-    items.push({ href: '/admin/metas',    label: 'Metas',           icon: <TargetIcon /> });
-    items.push({ href: '/admin/cargar',   label: 'Cargar Archivos', icon: <UploadIcon /> });
-    items.push({ href: '/admin/usuarios', label: 'Usuarios',        icon: <UsersIcon /> });
-    items.push({ href: '/admin/panel',    label: 'Panel Admin',     icon: <GearIcon /> });
+    items.push({ href: '/admin/panel',    label: 'Configuración',   icon: <GearIcon /> });
   }
 
   if (rol === 'supervisor' && vendedorNombre) {
     items.push({ href: `/dashboard/supervisor/${encodeURIComponent(vendedorNombre)}`, label: 'Mi Equipo', icon: <ChartIcon /> });
     items.push({ href: `/dashboard/consolidado/${encodeURIComponent(vendedorNombre)}`, label: 'Consolidado',  icon: <ConsolidadoIcon /> });
     items.push({ href: `/dashboard/consolidado-productos/${encodeURIComponent(vendedorNombre)}`, label: 'Por producto', icon: <ProductoIcon /> });
+    items.push({ href: '/admin/metas-ccc', label: 'Metas del equipo', icon: <TargetIcon /> });
     items.push({ href: '/mapa',            label: 'Mapa de PDVs',    icon: <MapPinIcon /> });
   }
 
@@ -105,6 +103,9 @@ function buildNav(rol: Rol, vendedorNombre: string | null, supervisores: Supervi
     items.push({ href: `/dashboard/vendedor/${encodeURIComponent(vendedorNombre)}`, label: 'Mi Dashboard', icon: <PersonIcon /> });
     items.push({ href: '/mapa',            label: 'Mapa de PDVs',    icon: <MapPinIcon /> });
   }
+
+  // Perfil — disponible para todos los roles
+  items.push({ href: '/perfil', label: 'Mi perfil', icon: <PersonIcon /> });
 
   return items;
 }
@@ -141,25 +142,25 @@ export function Sidebar({
   const items = buildNav(rol, vendedorNombre, supervisores);
 
   return (
-    <aside className="flex flex-col w-[220px] h-screen shrink-0 bg-[#0b1528] border-r border-[#1a2d4a] select-none">
+    <aside className="flex flex-col w-[220px] h-screen shrink-0 bg-[#ffffff] border-r border-[#e4e4e7] select-none">
       {/* Brand */}
       <div className="px-5 py-6">
         <div className="flex items-center gap-2.5">
-          <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center shrink-0 shadow-lg" style={{background: 'linear-gradient(135deg, #3b82f6, #6366f1)'}}>
+          <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center shrink-0 shadow-lg" style={{background: 'linear-gradient(135deg, #0c5cab, #0c5cab)'}}>
             <ChartIcon />
           </div>
           <div>
-            <span className="text-[15px] font-bold tracking-[-0.01em] text-[#f0f4ff] block leading-tight">Candysur</span>
-            <span className="text-[11px] text-[#6b85a8] leading-tight block">Dashboard de Ventas</span>
+            <span className="text-[15px] font-bold tracking-[-0.01em] text-[#09090b] block leading-tight">Candysur</span>
+            <span className="text-[11px] text-[#71717a] leading-tight block">Dashboard de Ventas</span>
           </div>
         </div>
         {diasLaborables > 0 && (
-          <div className="mt-3 flex items-center gap-1.5 text-[10.5px] text-[#6b85a8] leading-tight"
+          <div className="mt-3 flex items-center gap-1.5 text-[10.5px] text-[#71717a] leading-tight"
                style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-            <span className="text-[#f0f4ff] font-semibold tabular-nums">{diasTrabajados}</span>
-            <span className="text-[#6b85a8]">/</span>
+            <span className="text-[#09090b] font-semibold tabular-nums">{diasTrabajados}</span>
+            <span className="text-[#71717a]">/</span>
             <span className="tabular-nums">{diasLaborables}</span>
-            <span className="text-[#6b85a8] uppercase tracking-[0.06em] ml-0.5">días</span>
+            <span className="text-[#71717a] uppercase tracking-[0.06em] ml-0.5">días</span>
           </div>
         )}
       </div>
@@ -175,11 +176,11 @@ export function Sidebar({
               className={`flex items-center gap-2.5 px-3 py-[7px] rounded-[10px] text-[13.5px] font-medium transition-all duration-150 ${
                 active
                   ? 'text-white shadow-md shadow-blue-500/20'
-                  : 'text-[#6b85a8] hover:bg-[rgba(59,130,246,0.08)] hover:text-[#f0f4ff]'
+                  : 'text-[#71717a] hover:bg-[rgba(12,92,171,0.08)] hover:text-[#09090b]'
               }`}
-              style={active ? {background: 'linear-gradient(135deg, #3b82f6, #6366f1)'} : {}}
+              style={active ? {background: 'linear-gradient(135deg, #0c5cab, #0c5cab)'} : {}}
             >
-              <span className={`shrink-0 ${active ? 'text-white' : 'text-[#6b85a8]'}`}>
+              <span className={`shrink-0 ${active ? 'text-white' : 'text-[#71717a]'}`}>
                 {item.icon}
               </span>
               {item.label}
@@ -189,19 +190,19 @@ export function Sidebar({
       </nav>
 
       {/* User footer */}
-      <div className="p-3 border-t border-[#1a2d4a]">
-        <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-[10px] hover:bg-[rgba(59,130,246,0.06)] transition-colors group cursor-default">
-          <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-[rgba(99,102,241,0.15)] border border-[rgba(99,102,241,0.3)]">
-            <span className="text-[10px] font-bold text-[#6366f1]">{getInitials(nombre)}</span>
+      <div className="p-3 border-t border-[#e4e4e7]">
+        <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-[10px] hover:bg-[rgba(12,92,171,0.06)] transition-colors group cursor-default">
+          <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-[rgba(12,92,171,0.15)] border border-[rgba(12,92,171,0.3)]">
+            <span className="text-[10px] font-bold text-[#0c5cab]">{getInitials(nombre)}</span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[12px] font-semibold text-[#f0f4ff] truncate leading-tight">{nombre ?? '—'}</p>
-            <p className="text-[11px] text-[#6b85a8] leading-tight">{ROL_LABEL[rol]}</p>
+            <p className="text-[12px] font-semibold text-[#09090b] truncate leading-tight">{nombre ?? '—'}</p>
+            <p className="text-[11px] text-[#71717a] leading-tight">{ROL_LABEL[rol]}</p>
           </div>
           <button
             onClick={handleSignOut}
             title="Cerrar sesión"
-            className="opacity-0 group-hover:opacity-100 text-[#6b85a8] hover:text-[#f87171] transition-all shrink-0"
+            className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 text-[#71717a] hover:text-[#dc2626] transition-all shrink-0"
           >
             <SignOutIcon />
           </button>

@@ -1,7 +1,7 @@
 import { AppShell } from '@/components/layout/AppShell';
 import { MonthFilter } from '@/components/ui/MonthFilter';
 import { KpiTable } from '@/components/dashboard/KpiTable';
-import { TrendChart } from '@/components/dashboard/TrendChart';
+import { TrendChart } from '@/components/dashboard/LazyCharts';
 import { CccCard } from '@/components/dashboard/CccCard';
 import { CoberturaTable } from '@/components/dashboard/CoberturaTable';
 import { ClientesTable } from '@/components/dashboard/ClientesTable';
@@ -82,8 +82,8 @@ export default async function VendedorDashboardPage({
       <div className="space-y-7">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-[22px] font-bold tracking-[-0.02em] text-[#f0f4ff]">{vendedor}</h1>
-            <p className="text-[13px] text-[#6b85a8] mt-0.5">
+            <h1 className="text-[22px] font-bold tracking-[-0.02em] text-[#09090b]">{vendedor}</h1>
+            <p className="text-[13px] text-[#71717a] mt-0.5">
               {vData?.equipo && `Equipo: ${vData.equipo}`}
               {vData?.supervisor && ` · Supervisor: ${vData.supervisor}`}
             </p>

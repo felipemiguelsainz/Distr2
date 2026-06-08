@@ -10,6 +10,8 @@ export interface Profile {
   rol: Rol;
   vendedor_nombre: string | null;
   equipo: string | null;
+  activo?: boolean;
+  must_change_password?: boolean;
 }
 
 export interface Vendedor {

@@ -1,14 +1,14 @@
-export function Skeleton({ className = '' }: { className?: string }) {
+export function Skeleton({ className = '', style }: { className?: string; style?: React.CSSProperties }) {
   return (
-    <div className={`animate-pulse bg-[#1a2d4a] rounded-lg ${className}`} />
+    <div className={`animate-pulse bg-[#e4e4e7] rounded-lg ${className}`} style={style} />
   );
 }
 
 export function KpiSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="bg-[#0b1528] rounded-2xl border border-[#1a2d4a] shadow-xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-[#1a2d4a]">
+      <div className="bg-[#ffffff] rounded-2xl border border-[#e4e4e7] shadow-xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-[#e4e4e7]">
           <Skeleton className="h-3 w-24" />
         </div>
         <div className="p-4 space-y-2.5">

@@ -1,10 +1,13 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import type { PdvGeo } from './page';
+import { Loader } from '@/components/ui/Loader';
 
-const MapaClient = dynamic(() => import('./MapaClient'), { ssr: false });
+const MapaClient = dynamic(() => import('./MapaClient'), {
+  ssr: false,
+  loading: () => <Loader fullScreen label="Cargando mapa…" />,
+});
 
-export function MapaClientWrapper({ puntos }: { puntos: PdvGeo[] }) {
-  return <MapaClient puntos={puntos} />;
+export function MapaClientWrapper() {
+  return <MapaClient />;
 }
