@@ -54,6 +54,7 @@ const ORDER = [
   '020_catalogo_productos.sql',
   '021_prod_critical_fixes.sql',
   '023_profiles_equipo.sql',
+  '024_lock_down_functions.sql',
 ];
 
 const dir = path.join('supabase', 'migrations');
