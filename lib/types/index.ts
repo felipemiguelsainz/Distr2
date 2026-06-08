@@ -9,6 +9,7 @@ export interface Profile {
   nombre: string | null;
   rol: Rol;
   vendedor_nombre: string | null;
+  equipo: string | null;
 }
 
 export interface Vendedor {

@@ -8,7 +8,7 @@ export default async function ConsolidadoIndexPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('rol, vendedor_nombre')
+    .select('rol, vendedor_nombre, equipo')
     .eq('id', user.id)
     .single();
   if (!profile) redirect('/login');
@@ -18,12 +18,15 @@ export default async function ConsolidadoIndexPage() {
   }
 
   if (profile.rol === 'supervisor') {
-    const { data: me } = await supabase
-      .from('vendedores')
-      .select('equipo')
-      .eq('nombre', profile.vendedor_nombre ?? '')
-      .single();
-    const eq = me?.equipo ?? '';
+    let eq = profile.equipo ?? '';
+    if (!eq) {
+      const { data: me } = await supabase
+        .from('vendedores')
+        .select('equipo')
+        .eq('nombre', profile.vendedor_nombre ?? '')
+        .single();
+      eq = me?.equipo ?? '';
+    }
     redirect(`/dashboard/consolidado/${encodeURIComponent(eq)}`);
   }
 
