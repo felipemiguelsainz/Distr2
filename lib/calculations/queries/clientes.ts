@@ -135,6 +135,43 @@ export async function fetchMetasCcc(
   return _fetchMetasCccImpl(year, month, equipo ?? null, vnd ?? null);
 }
 
+// Meta CCC total (rubro NULL) por vendedor de un equipo — para el consolidado.
+const _fetchMetasCccByVendedorImpl = unstable_cache(
+  async (
+    equipo: string,
+    year:   number,
+    month:  number,
+  ): Promise<Record<string, number>> => {
+  const svc        = createServiceClient();
+  const vendedores = await vendedoresByEquipo(equipo);
+  if (vendedores.length === 0) return {};
+
+  const { data } = await svc
+    .from('metas_ccc')
+    .select('vendedor, meta_pdvs')
+    .eq('mes', month)
+    .eq('anio', year)
+    .is('rubro', null)
+    .in('vendedor', vendedores);
+
+  const out: Record<string, number> = {};
+  for (const m of (data ?? []) as { vendedor: string; meta_pdvs: number }[]) {
+    out[m.vendedor] = (out[m.vendedor] ?? 0) + Number(m.meta_pdvs);
+  }
+  return out;
+  },
+  ['fetchMetasCccByVendedor'],
+  { revalidate: 300, tags: ['kpis'] },
+);
+
+export async function fetchMetasCccByVendedor(
+  equipo: string,
+  year:   number,
+  month:  number,
+): Promise<Record<string, number>> {
+  return _fetchMetasCccByVendedorImpl(equipo, year, month);
+}
+
 // ---------------------------------------------------------------------------
 // Clientes con compra por rubro (mes, cartera activa 3m, vs prev, vs AA) — cacheado
 // ---------------------------------------------------------------------------
