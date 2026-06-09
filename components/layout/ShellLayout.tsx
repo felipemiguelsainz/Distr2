@@ -18,7 +18,7 @@ export function ShellLayout({ sidebar, children }: ShellLayoutProps) {
   }, [pathname]);
 
   return (
-    <div className="flex h-screen bg-[#fafafa]">
+    <div className="flex h-dvh bg-[#fafafa]">
       {/* Mobile overlay */}
       {open && (
         <div

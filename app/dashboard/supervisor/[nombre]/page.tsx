@@ -1,10 +1,11 @@
 import { AppShell } from '@/components/layout/AppShell';
 import { MonthFilter } from '@/components/ui/MonthFilter';
+import { VendedorFilter } from '@/components/ui/VendedorFilter';
 import { KpiTable } from '@/components/dashboard/KpiTable';
 import { TrendChart } from '@/components/dashboard/LazyCharts';
 import { CoberturaTable } from '@/components/dashboard/CoberturaTable';
 import { ClientesTable } from '@/components/dashboard/ClientesTable';
-import { fetchSupervisorKpis, fetchTrendData, fetchClientesData } from '@/lib/calculations/queries';
+import { fetchSupervisorKpis, fetchVendedorKpis, fetchTrendData, fetchClientesData, fetchMetasCcc } from '@/lib/calculations/queries';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
@@ -19,6 +20,7 @@ interface PageParams {
 interface SearchParams {
   mes?: string;
   anio?: string;
+  vendedor?: string;
 }
 
 export default async function SupervisorDashboardPage({
@@ -35,6 +37,7 @@ export default async function SupervisorDashboardPage({
   const today = new Date();
   const mes = parseInt(sp.mes ?? String(today.getMonth() + 1), 10);
   const anio = parseInt(sp.anio ?? String(today.getFullYear()), 10);
+  const vendedorSel = sp.vendedor ?? '';
 
   const supabase = await createClient();
 
@@ -81,21 +84,42 @@ export default async function SupervisorDashboardPage({
     }
   }
 
+  // Vendedores activos del equipo (para el dropdown de filtro)
+  const { data: equipoVendedores } = await supabase
+    .from('vendedores')
+    .select('nombre')
+    .eq('equipo', equipo)
+    .eq('activo', true)
+    .order('nombre');
+  const vendedores = (equipoVendedores ?? []).map((v) => v.nombre as string);
+
+  // Sólo se acepta un vendedor seleccionado si pertenece al equipo
+  const vendedor = vendedores.includes(vendedorSel) ? vendedorSel : '';
+
   return (
     <AppShell>
       <div className="space-y-7">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-[22px] font-bold tracking-[-0.02em] text-[#09090b]">{vendedorNombre}</h1>
+            <h1 className="text-[22px] font-bold tracking-[-0.02em] text-[#09090b]">{vendedor || vendedorNombre}</h1>
             <p className="text-[13px] text-[#71717a] mt-0.5">Equipo: {equipo}</p>
           </div>
-          <Suspense>
-            <MonthFilter defaultMes={mes} defaultAnio={anio} />
-          </Suspense>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-wrap">
+            <Suspense>
+              <VendedorFilter vendedores={vendedores} current={vendedor} />
+            </Suspense>
+            <Suspense>
+              <MonthFilter defaultMes={mes} defaultAnio={anio} />
+            </Suspense>
+          </div>
         </div>
 
         <Suspense fallback={<KpiSkeleton />}>
-          <SupervisorKpiSection equipo={equipo} mes={mes} anio={anio} todayIso={today.toISOString()} />
+          {vendedor ? (
+            <VendedorFilteredSection vendedor={vendedor} mes={mes} anio={anio} todayIso={today.toISOString()} />
+          ) : (
+            <SupervisorKpiSection equipo={equipo} mes={mes} anio={anio} todayIso={today.toISOString()} />
+          )}
         </Suspense>
       </div>
     </AppShell>
@@ -114,10 +138,11 @@ async function SupervisorKpiSection({
   todayIso: string;
 }) {
   const today = new Date(todayIso);
-  const [{ totales, porVendedor }, trend, { rows: clientes, cartera3mTotal, cccMesTotal, cccPrevTotal, cccAaTotal }] = await Promise.all([
+  const [{ totales, porVendedor }, trend, { rows: clientes, cartera3mTotal, cccMesTotal, cccPrevTotal, cccAaTotal }, metasCcc] = await Promise.all([
     fetchSupervisorKpis(equipo, anio, mes, today),
     fetchTrendData({ equipo }, anio, mes),
     fetchClientesData(anio, mes, today, equipo),
+    fetchMetasCcc(anio, mes, equipo),
   ]);
 
   if (totales.length === 0) return <EmptyMonth mes={mes} anio={anio} />;
@@ -132,7 +157,7 @@ async function SupervisorKpiSection({
         <KpiTable data={totales} />
       </section>
 
-      <ClientesTable data={clientes} cartera3mTotal={cartera3mTotal} cccMesTotal={cccMesTotal} cccPrevTotal={cccPrevTotal} cccAaTotal={cccAaTotal} />
+      <ClientesTable data={clientes} cartera3mTotal={cartera3mTotal} cccMesTotal={cccMesTotal} cccPrevTotal={cccPrevTotal} cccAaTotal={cccAaTotal} metaPorRubro={metasCcc.porRubro} metaTotal={metasCcc.total} />
 
       <TrendChart data={trend} title="Tendencia KG diaria — Equipo" />
 
@@ -140,6 +165,37 @@ async function SupervisorKpiSection({
         <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a] mb-3" style={{fontFamily: "'JetBrains Mono', monospace"}}>Por vendedor</p>
         <VendedorSummaryTable porVendedor={porVendedor} vendedores={vendedores} />
       </section>
+    </div>
+  );
+}
+
+// Vista acotada a un solo vendedor del equipo (filtro in-place del supervisor).
+async function VendedorFilteredSection({
+  vendedor,
+  mes,
+  anio,
+  todayIso,
+}: {
+  vendedor: string;
+  mes:      number;
+  anio:     number;
+  todayIso: string;
+}) {
+  const today = new Date(todayIso);
+  const [kpis, trend, { rows: clientes, cartera3mTotal, cccMesTotal, cccPrevTotal, cccAaTotal }, metasCcc] = await Promise.all([
+    fetchVendedorKpis(vendedor, anio, mes, today),
+    fetchTrendData({ vendedor }, anio, mes),
+    fetchClientesData(anio, mes, today, undefined, vendedor),
+    fetchMetasCcc(anio, mes, undefined, vendedor),
+  ]);
+
+  if (kpis.length === 0) return <EmptyMonth mes={mes} anio={anio} />;
+
+  return (
+    <div className="space-y-8">
+      <KpiTable data={kpis} />
+      <ClientesTable data={clientes} cartera3mTotal={cartera3mTotal} cccMesTotal={cccMesTotal} cccPrevTotal={cccPrevTotal} cccAaTotal={cccAaTotal} metaPorRubro={metasCcc.porRubro} metaTotal={metasCcc.total} />
+      <TrendChart data={trend} title={`Tendencia KG diaria — ${vendedor}`} />
     </div>
   );
 }

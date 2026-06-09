@@ -11,6 +11,7 @@ import {
   fetchCCC,
   fetchCobertura,
   fetchClientesData,
+  fetchMetasCcc,
 } from '@/lib/calculations/queries';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
@@ -121,12 +122,13 @@ async function VendedorKpiSection({
   todayIso: string;
 }) {
   const today = new Date(todayIso);
-  const [kpis, trend, ccc, cobertura, { rows: clientes, cartera3mTotal, cccMesTotal, cccPrevTotal, cccAaTotal }] = await Promise.all([
+  const [kpis, trend, ccc, cobertura, { rows: clientes, cartera3mTotal, cccMesTotal, cccPrevTotal, cccAaTotal }, metasCcc] = await Promise.all([
     fetchVendedorKpis(vendedor, anio, mes, today),
     fetchTrendData({ vendedor }, anio, mes),
     fetchCCC(vendedor, anio, mes),
     fetchCobertura(vendedor, cartera, anio, mes),
     fetchClientesData(anio, mes, today, undefined, vendedor),
+    fetchMetasCcc(anio, mes, undefined, vendedor),
   ]);
 
   if (kpis.length === 0) return <EmptyMonth mes={mes} anio={anio} />;
@@ -134,7 +136,7 @@ async function VendedorKpiSection({
   return (
     <div className="space-y-7">
       <KpiTable data={kpis} />
-      <ClientesTable data={clientes} cartera3mTotal={cartera3mTotal} cccMesTotal={cccMesTotal} cccPrevTotal={cccPrevTotal} cccAaTotal={cccAaTotal} />
+      <ClientesTable data={clientes} cartera3mTotal={cartera3mTotal} cccMesTotal={cccMesTotal} cccPrevTotal={cccPrevTotal} cccAaTotal={cccAaTotal} metaPorRubro={metasCcc.porRubro} metaTotal={metasCcc.total} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <CccCard data={ccc} />

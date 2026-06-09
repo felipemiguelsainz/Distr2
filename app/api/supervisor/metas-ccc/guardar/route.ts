@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 interface MetaRow {
@@ -70,6 +71,10 @@ export async function POST(request: NextRequest) {
     console.error('[metas-ccc:guardar]', error);
     return NextResponse.json({ error: 'No se pudieron guardar las metas.' }, { status: 500 });
   }
+
+  // Las metas CCC se leen en los dashboards vía fetchMetasCcc (cache tag 'kpis').
+  // Invalidar para que la edición se refleje sin esperar el revalidate de 5 min.
+  revalidateTag('kpis', { expire: 0 });
 
   return NextResponse.json({ ok: true, rows: data });
 }
