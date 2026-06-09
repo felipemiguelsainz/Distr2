@@ -1,0 +1,11 @@
+Agregar meta CCC en el consolidado por vendedor
+
+La tabla CCC del consolidado mostraba Acum./Mes Ant./Var% sin meta. Ahora
+incluye columnas Meta (meta_pdvs total por vendedor) y Cumpl. (acum/meta),
+con el mismo estilo de avance que las tablas de KG y $.
+
+- Nueva query fetchMetasCccByVendedor(equipo, anio, mes): meta total (rubro NULL)
+  por vendedor del equipo, cacheada con tag kpis.
+- Conectada en la pagina consolidado y CccVendedorTable.
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>

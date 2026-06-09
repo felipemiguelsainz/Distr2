@@ -3,7 +3,7 @@ import { MonthFilter } from '@/components/ui/MonthFilter';
 import { SupervisorFilter } from '@/components/ui/SupervisorFilter';
 import { KpiSkeleton } from '@/components/ui/Skeleton';
 import { EmptyMonth } from '@/components/ui/EmptyMonth';
-import { fetchSupervisorKpis, fetchCCCByEquipo } from '@/lib/calculations/queries';
+import { fetchSupervisorKpis, fetchCCCByEquipo, fetchMetasCccByVendedor } from '@/lib/calculations/queries';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
@@ -128,12 +128,13 @@ async function ConsolidadoSection({
 }) {
   const today = new Date(todayIso);
 
-  const [{ totales, porVendedor }, ccc] = await Promise.all([
+  const [{ totales, porVendedor }, ccc, metaCccByVendedor] = await Promise.all([
     fetchSupervisorKpis(equipo, anio, mes, today),
     fetchCCCByEquipo(equipo, anio, mes),
+    fetchMetasCccByVendedor(equipo, anio, mes),
   ]);
 
   if (totales.length === 0) return <EmptyMonth mes={mes} anio={anio} />;
 
-  return <ConsolidadoClient porVendedor={porVendedor} ccc={ccc} />;
+  return <ConsolidadoClient porVendedor={porVendedor} ccc={ccc} metaCccByVendedor={metaCccByVendedor} />;
 }

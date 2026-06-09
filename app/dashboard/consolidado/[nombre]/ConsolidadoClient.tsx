@@ -209,22 +209,26 @@ function NetoVendedorTable({ data }: { data: VendedorAgg[] }) {
 }
 
 // ---------------------------------------------------------------------------
-// CCC por vendedor — sin META (no modelada todavía)
+// CCC por vendedor — con META (meta_pdvs total) y cumplimiento
 // ---------------------------------------------------------------------------
-function CccVendedorTable({ data }: { data: CccRow[] }) {
+function CccVendedorTable({ data, metaByVendedor }: { data: CccRow[]; metaByVendedor: Record<string, number> }) {
   const sorted = [...data].sort((a, b) => a.vendedor.localeCompare(b.vendedor));
-  const totAct = sorted.reduce((s, r) => s + r.mes_actual, 0);
-  const totAnt = sorted.reduce((s, r) => s + r.mes_anterior, 0);
-  const totVar = totAnt > 0 ? ((totAct - totAnt) / totAnt) * 100 : 0;
+  const totAct  = sorted.reduce((s, r) => s + r.mes_actual, 0);
+  const totAnt  = sorted.reduce((s, r) => s + r.mes_anterior, 0);
+  const totMeta = sorted.reduce((s, r) => s + (metaByVendedor[r.vendedor] ?? 0), 0);
+  const totVar  = totAnt > 0 ? ((totAct - totAnt) / totAnt) * 100 : 0;
   const totColor = totVar > 0 ? 'text-[#16a34a]' : totVar < 0 ? 'text-[#dc2626]' : 'text-[#71717a]';
+  const totCumpl = totMeta > 0 ? (totAct / totMeta) * 100 : null;
 
   return (
     <div className="overflow-x-auto">
-      <table className="table-fixed w-full text-[11px] min-w-[380px]">
+      <table className="table-fixed w-full text-[11px] min-w-[480px]">
         <thead>
           <tr className="border-b border-[#e4e4e7] bg-[#f4f4f5]/60">
             <TH>Vendedor</TH>
+            <TH right>Meta</TH>
             <TH right>Acum.</TH>
+            <TH right>Cumpl.</TH>
             <TH right>Mes Ant.</TH>
             <TH right>Var%</TH>
           </tr>
@@ -232,10 +236,16 @@ function CccVendedorTable({ data }: { data: CccRow[] }) {
         <tbody className="divide-y divide-[#e4e4e7]">
           {sorted.map((r) => {
             const color = r.variacion_pct > 0 ? 'text-[#16a34a]' : r.variacion_pct < 0 ? 'text-[#dc2626]' : 'text-[#71717a]';
+            const meta  = metaByVendedor[r.vendedor] ?? 0;
+            const cumpl = meta > 0 ? (r.mes_actual / meta) * 100 : null;
             return (
               <tr key={r.vendedor} className="hover:bg-[rgba(12,92,171,0.04)]">
                 <td className="px-3 py-2 text-[10px] truncate text-[#27272a]" style={MONO}>{r.vendedor}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{meta > 0 ? meta : '—'}</td>
                 <td className="px-3 py-2 text-right tabular-nums text-[#09090b] font-semibold" style={MONO}>{r.mes_actual}</td>
+                <td className={`px-3 py-2 text-right tabular-nums font-semibold text-[11px] rounded-md ${cumpl !== null ? avanceColor(cumpl) : 'text-[#71717a]'}`} style={MONO}>
+                  {cumpl !== null ? formatPctPlain(cumpl) : '—'}
+                </td>
                 <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{r.mes_anterior}</td>
                 <td className={`px-3 py-2 text-right tabular-nums font-semibold ${color}`} style={MONO}>
                   {r.mes_anterior > 0 ? formatPct(r.variacion_pct) : '—'}
@@ -246,7 +256,11 @@ function CccVendedorTable({ data }: { data: CccRow[] }) {
           {sorted.length > 0 && (
             <tr className="bg-[#f4f4f5]/70 border-t-2 border-t-[#e4e4e7]">
               <td className="px-3 py-2 text-[10px] text-[#09090b] font-bold" style={MONO}>TOTAL</td>
+              <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{totMeta > 0 ? totMeta : '—'}</td>
               <td className="px-3 py-2 text-right tabular-nums text-[#09090b] font-bold" style={MONO}>{totAct}</td>
+              <td className={`px-3 py-2 text-right tabular-nums font-bold text-[11px] rounded-md ${totCumpl !== null ? avanceColor(totCumpl) : 'text-[#71717a]'}`} style={MONO}>
+                {totCumpl !== null ? formatPctPlain(totCumpl) : '—'}
+              </td>
               <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{totAnt}</td>
               <td className={`px-3 py-2 text-right tabular-nums font-bold ${totColor}`} style={MONO}>
                 {totAnt > 0 ? formatPct(totVar) : '—'}
@@ -265,9 +279,11 @@ function CccVendedorTable({ data }: { data: CccRow[] }) {
 export function ConsolidadoClient({
   porVendedor,
   ccc,
+  metaCccByVendedor,
 }: {
-  porVendedor: KpiVendedor[];
-  ccc:         CccRow[];
+  porVendedor:       KpiVendedor[];
+  ccc:               CccRow[];
+  metaCccByVendedor: Record<string, number>;
 }) {
   const [openKg,   setOpenKg]   = useState(true);
   const [openNeto, setOpenNeto] = useState(true);
@@ -299,7 +315,7 @@ export function ConsolidadoClient({
       <div className={card}>
         <SectionHeader title="CCC — Clientes con Compra" open={openCcc} onToggle={() => setOpenCcc(v => !v)} />
         <div className={openCcc ? '' : 'hidden lg:block'}>
-          <CccVendedorTable data={ccc} />
+          <CccVendedorTable data={ccc} metaByVendedor={metaCccByVendedor} />
         </div>
       </div>
     </div>
