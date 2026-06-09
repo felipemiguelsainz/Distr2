@@ -85,6 +85,57 @@ export async function fetchCCCByEquipo(
 }
 
 // ---------------------------------------------------------------------------
+// Metas CCC (clientes con compra objetivo) por rubro + total — cacheado
+// Agrega meta_pdvs de metas_ccc para el scope pedido (vendedor / equipo / todos).
+// rubro NULL = meta total del vendedor.
+// ---------------------------------------------------------------------------
+const _fetchMetasCccImpl = unstable_cache(
+  async (
+    year:   number,
+    month:  number,
+    equipo: string | null,
+    vnd:    string | null,
+  ): Promise<{ porRubro: Record<string, number>; total: number }> => {
+  const svc = createServiceClient();
+
+  let vendedores: string[] | null = null;
+  if (vnd) {
+    vendedores = [vnd];
+  } else if (equipo) {
+    const names = await vendedoresByEquipo(equipo);
+    vendedores = names.length > 0 ? names : ['__none__'];
+  }
+
+  let q = svc
+    .from('metas_ccc')
+    .select('rubro, meta_pdvs')
+    .eq('mes', month)
+    .eq('anio', year);
+  if (vendedores) q = q.in('vendedor', vendedores);
+  const { data } = await q;
+
+  const porRubro: Record<string, number> = {};
+  let total = 0;
+  for (const m of (data ?? []) as { rubro: string | null; meta_pdvs: number }[]) {
+    if (m.rubro === null) total += Number(m.meta_pdvs);
+    else porRubro[m.rubro] = (porRubro[m.rubro] ?? 0) + Number(m.meta_pdvs);
+  }
+  return { porRubro, total };
+  },
+  ['fetchMetasCcc'],
+  { revalidate: 300, tags: ['kpis'] },
+);
+
+export async function fetchMetasCcc(
+  year:    number,
+  month:   number,
+  equipo?: string,
+  vnd?:    string,
+): Promise<{ porRubro: Record<string, number>; total: number }> {
+  return _fetchMetasCccImpl(year, month, equipo ?? null, vnd ?? null);
+}
+
+// ---------------------------------------------------------------------------
 // Clientes con compra por rubro (mes, cartera activa 3m, vs prev, vs AA) — cacheado
 // ---------------------------------------------------------------------------
 const _fetchClientesDataImpl = unstable_cache(

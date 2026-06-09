@@ -142,7 +142,7 @@ export function Sidebar({
   const items = buildNav(rol, vendedorNombre, supervisores);
 
   return (
-    <aside className="flex flex-col w-[220px] h-screen shrink-0 bg-[#ffffff] border-r border-[#e4e4e7] select-none">
+    <aside className="flex flex-col w-[220px] h-dvh shrink-0 bg-[#ffffff] border-r border-[#e4e4e7] select-none">
       {/* Brand */}
       <div className="px-5 py-6">
         <div className="flex items-center gap-2.5">
