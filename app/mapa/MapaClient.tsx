@@ -70,14 +70,17 @@ function MultiSelect({
   selected,
   onChange,
   formatOption,
+  searchable = false,
 }: {
   label: string;
   options: string[];
   selected: Set<string>;
   onChange: (v: Set<string>) => void;
   formatOption?: (v: string) => string;
+  searchable?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -98,8 +101,20 @@ function MultiSelect({
     onChange(next);
   }
 
-  function selectAll() { onChange(new Set(options)); }
   function clearAll()  { onChange(new Set()); }
+
+  // When searchable, filter by query and cap the rendered list so a few
+  // thousand options don't tank the dropdown. Selected items always show.
+  const visible = useMemo(() => {
+    if (!searchable) return options;
+    const q = query.trim().toLowerCase();
+    const matches = q
+      ? options.filter(o => (formatOption ? formatOption(o) : o).toLowerCase().includes(q))
+      : options;
+    return matches.slice(0, 100);
+  }, [options, query, searchable, formatOption]);
+
+  function selectAll() { onChange(new Set(visible)); }
 
   return (
     <div ref={ref} className="relative">
@@ -118,23 +133,43 @@ function MultiSelect({
       </button>
 
       {open && (
-        <div className="absolute top-full mt-1 left-0 z-[9999] min-w-[180px] max-h-64 overflow-y-auto rounded-[12px] border border-[#e4e4e7] bg-[#ffffff] shadow-[0_8px_24px_rgba(0,0,0,0.12)] py-1">
+        <div className="absolute top-full mt-1 left-0 z-[9999] min-w-[220px] max-h-72 overflow-hidden flex flex-col rounded-[12px] border border-[#e4e4e7] bg-[#ffffff] shadow-[0_8px_24px_rgba(0,0,0,0.12)] py-1">
+          {searchable && (
+            <div className="px-2 pt-1 pb-1.5 border-b border-[#e4e4e7]">
+              <input
+                autoFocus
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Buscar PDV…"
+                className="w-full px-2 py-1.5 text-[12px] rounded-[6px] border border-[#e4e4e7] bg-[rgba(0,0,0,0.02)] text-[#09090b] placeholder:text-[#a1a1aa] focus:outline-none focus:border-[rgba(12,92,171,0.4)]"
+              />
+            </div>
+          )}
           <div className="flex gap-2 px-3 py-1.5 border-b border-[#e4e4e7]">
-            <button onClick={selectAll} className="text-[11px] text-[#0c5cab] hover:text-[#0c5cab] transition-colors">Todos</button>
+            <button onClick={selectAll} className="text-[11px] text-[#0c5cab] hover:text-[#0c5cab] transition-colors">{searchable ? 'Agregar visibles' : 'Todos'}</button>
             <span className="text-[#e4e4e7]">|</span>
             <button onClick={clearAll}  className="text-[11px] text-[#71717a] hover:text-[#09090b] transition-colors">Limpiar</button>
           </div>
-          {options.map(opt => (
-            <label key={opt} className="flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-[rgba(12,92,171,0.08)] transition-colors">
-              <input
-                type="checkbox"
-                checked={selected.has(opt)}
-                onChange={() => toggle(opt)}
-                className="accent-[#0c5cab] shrink-0"
-              />
-              <span className="text-[12px] text-[#27272a] truncate">{formatOption ? formatOption(opt) : opt}</span>
-            </label>
-          ))}
+          <div className="overflow-y-auto">
+            {visible.length === 0 ? (
+              <p className="px-3 py-2 text-[12px] text-[#a1a1aa]">Sin resultados</p>
+            ) : (
+              visible.map(opt => (
+                <label key={opt} className="flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-[rgba(12,92,171,0.08)] transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(opt)}
+                    onChange={() => toggle(opt)}
+                    className="accent-[#0c5cab] shrink-0"
+                  />
+                  <span className="text-[12px] text-[#27272a] truncate">{formatOption ? formatOption(opt) : opt}</span>
+                </label>
+              ))
+            )}
+            {searchable && query.trim() === '' && options.length > visible.length && (
+              <p className="px-3 py-1.5 text-[11px] text-[#a1a1aa]">Escribí para buscar entre {options.length.toLocaleString('es-AR')} PDVs…</p>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -185,18 +220,28 @@ export default function MapaClient() {
     partidos:   [...new Set(puntos.map(p => p.partido).filter(Boolean) as string[])].sort(),
     canales:    [...new Set(puntos.map(p => p.canal_venta).filter(Boolean) as string[])].sort(),
     dias:       DIA_ORDER.filter(d => puntos.some(p => p.dia_visita?.split(',').includes(d))),
+    pdvs:       puntos.map(p => String(p.pdv_id)).sort((a, b) => Number(a) - Number(b)),
   }), [puntos]);
+
+  // pdv_id → "#id — razón social" label for the PDV multi-select
+  const pdvLabel = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of puntos) m.set(String(p.pdv_id), `#${p.pdv_id} — ${p.razon_social ?? 's/n'}`);
+    return m;
+  }, [puntos]);
 
   const [selVendedores,  setSelVendedores]  = useState<Set<string>>(new Set());
   const [selZonas,       setSelZonas]       = useState<Set<string>>(new Set());
   const [selPartidos,    setSelPartidos]    = useState<Set<string>>(new Set());
   const [selCanales,     setSelCanales]     = useState<Set<string>>(new Set());
   const [selDias,        setSelDias]        = useState<Set<string>>(new Set());
+  const [selPdvs,        setSelPdvs]        = useState<Set<string>>(new Set());
   const [ruteable,       setRuteable]       = useState<RuteableFilter>('todos');
   const [clienteActivo,  setClienteActivo]  = useState(false);
 
   const filtered = useMemo(() => {
     return puntos.filter(p => {
+      if (selPdvs.size      > 0 && !selPdvs.has(String(p.pdv_id)))                        return false;
       if (selVendedores.size > 0 && (!p.cartera    || !selVendedores.has(p.cartera)))    return false;
       if (selZonas.size      > 0 && (!p.zona       || !selZonas.has(p.zona)))            return false;
       if (selPartidos.size   > 0 && (!p.partido    || !selPartidos.has(p.partido)))      return false;
@@ -209,11 +254,12 @@ export default function MapaClient() {
       if (clienteActivo && !p.activo_3m) return false;
       return true;
     });
-  }, [puntos, selVendedores, selZonas, selPartidos, selCanales, selDias, ruteable, clienteActivo]);
+  }, [puntos, selPdvs, selVendedores, selZonas, selPartidos, selCanales, selDias, ruteable, clienteActivo]);
 
-  const hasFilters = selVendedores.size > 0 || selZonas.size > 0 || selPartidos.size > 0 || selCanales.size > 0 || selDias.size > 0 || ruteable !== 'todos' || clienteActivo;
+  const hasFilters = selPdvs.size > 0 || selVendedores.size > 0 || selZonas.size > 0 || selPartidos.size > 0 || selCanales.size > 0 || selDias.size > 0 || ruteable !== 'todos' || clienteActivo;
 
   const clearAll = useCallback(() => {
+    setSelPdvs(new Set());
     setSelVendedores(new Set());
     setSelZonas(new Set());
     setSelPartidos(new Set());
@@ -269,6 +315,14 @@ export default function MapaClient() {
 
         {/* ── Filter bar ── */}
         <div className="flex flex-wrap items-center gap-2 mt-3">
+          <MultiSelect
+            label="PDV"
+            options={opts.pdvs}
+            selected={selPdvs}
+            onChange={setSelPdvs}
+            formatOption={id => pdvLabel.get(id) ?? `#${id}`}
+            searchable
+          />
           <MultiSelect label="Vendedor"    options={opts.vendedores} selected={selVendedores} onChange={setSelVendedores} />
           <MultiSelect label="Zona"        options={opts.zonas}      selected={selZonas}      onChange={setSelZonas} />
           <MultiSelect label="Partido"     options={opts.partidos}   selected={selPartidos}   onChange={setSelPartidos} />
