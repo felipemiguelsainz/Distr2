@@ -149,7 +149,7 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
           {payload.cards.length === 0 ? (
             <p className="text-sm text-gray-400">No hay acciones sugeridas para este período.</p>
           ) : (
-            payload.cards.map((card, i) => <ActionCard key={i} card={card} when={hace(generatedAt)} />)
+            payload.cards.map((card, i) => <ActionCard key={i} card={card} when={hace(generatedAt)} vendedor={vendedor} />)
           )}
         </div>
       )}
@@ -157,7 +157,7 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
   );
 }
 
-function ActionCard({ card, when }: { card: InsightCard; when: string }) {
+function ActionCard({ card, when, vendedor }: { card: InsightCard; when: string; vendedor: string }) {
   const [open, setOpen] = useState(false);
   const [done, setDone] = useState(false);
   const cfg = TIPO_CFG[card.tipo];
@@ -180,18 +180,23 @@ function ActionCard({ card, when }: { card: InsightCard; when: string }) {
           {card.metrica
             ? <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium" style={{ background: cfg.color + '14', color: cfg.color }}>{card.metrica}</span>
             : <span />}
-          <button
-            onClick={() => setOpen((o) => !o)}
-            className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700 transition"
-          >
-            {card.cta}
-            <ArrowRight className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-90' : ''}`} />
-          </button>
+          {/* El CTA (ver detalle/clientes) solo tiene sentido por vendedor */}
+          {vendedor ? (
+            <button
+              onClick={() => setOpen((o) => !o)}
+              className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700 transition"
+            >
+              {card.cta}
+              <ArrowRight className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-90' : ''}`} />
+            </button>
+          ) : (
+            <span className="text-xs text-gray-400">Seleccioná un vendedor para ver detalle</span>
+          )}
         </div>
       </div>
 
-      {/* Panel expandible */}
-      <div className={`grid transition-all duration-300 ease-in-out ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+      {/* Panel expandible (solo en vista por vendedor) */}
+      <div className={`grid transition-all duration-300 ease-in-out ${open && vendedor ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
         <div className="overflow-hidden">
           <div className="px-4 pb-4 pt-1 border-t border-gray-100">
             {card.detalle && (
