@@ -8,6 +8,7 @@
 App de gestión de ventas para una distribuidora de Mondelez en el GBA.
 Stack: **Next.js 16 (App Router, Turbopack) + Supabase (Postgres) + Vercel**.
 Idioma del producto y de los textos: **español rioplatense**.
+Producción: **https://distr2.vercel.app** (auto-deploy desde `main`).
 
 ---
 
@@ -64,6 +65,10 @@ Tablas clave:
   cada endpoint (`/api/mapa`, `/api/ruta`, etc.).
 - **`avance_pct` se calcula sobre tendencia**, no acumulado (cae a acumulado
   sólo si tendencia es null = mes pasado).
+- **Los datos de `ventas` van atrasados respecto del calendario** (p. ej. hoy 22
+  pero la última venta cargada es del 11). Toda comparación interanual debe cortar
+  AMBOS años en el **último día con datos del mes en curso** (no en "hoy"), o
+  exagera caídas falsas (ver `tendencia_anual`, §8).
 
 ---
 
@@ -151,10 +156,22 @@ requiere importar direcciones reales.
   de Vercel (tope 4.5 MB + timeout).
 - Credenciales (OpenAI, etc.): el usuario las pone en `.env.local`; nunca pegarlas
   en el chat ni commitearlas.
-- Migraciones: numeración correlativa en `supabase/migrations/` (última conocida:
-  `029_*`). Vercel **no** corre migraciones; se aplican aparte contra la DB.
+- Migraciones: numeración correlativa en `supabase/migrations/` (última: `036_*`).
+  Vercel **no** corre migraciones; se aplican aparte contra la DB (mismo Supabase
+  que prod). Patrón para aplicar: script .cjs con `pg` leyendo `DATABASE_URL` de
+  `.env.local`.
 - Funciones `SECURITY DEFINER` de escritura: `REVOKE` a public/anon/authenticated
   + `GRANT` a `service_role` (ver migración `024`).
+
+### Env vars en Vercel (gotcha real)
+- La IA necesita **una sola** var: **`OPENAI_API_KEY`** (nombre EXACTO). `AI_PROVIDER`,
+  `OPENAI_MODEL`, `ANTHROPIC_API_KEY` son opcionales — NO crearlas salvo que pases
+  a Claude. Si `AI_PROVIDER=anthropic` por error, `llmAvailable()` mira la key de
+  Anthropic y da "no configurado".
+- Debe estar en scope **Production** (los 3 checkboxes: Production/Preview/Dev).
+- **Vercel NO aplica una env nueva al deployment ya corriendo**: hay que
+  **redeploy** después de cargarla. "no configurado" = la var no llega (nombre,
+  scope o falta redeploy), no es problema del valor.
 
 ---
 
@@ -207,16 +224,30 @@ requiere importar direcciones reales.
   - **Cross-sell por mix:** RPC `cross_sell(p_carteras)` → rubros fuertes (top 4
     por penetración) que clientes ACTIVOS no compran: `n_no_compran`,
     `valor_estimado` ($/mes potencial), y muestra de clientes (los de mayor valor).
-    El LLM hace cards CRECIMIENTO con esos clientes. Las 4 fuentes pesadas
-    (ultima_vta, valor_12m, cadencia, cross_sell) + el paginado de PDVs corren en
-    **paralelo** (Promise.all) porque cross_sell es lento (~8-10s).
+    El LLM hace cards CRECIMIENTO con esos clientes. Las 5 fuentes pesadas
+    (ultima_vta, valor_12m, cadencia, cross_sell, tendencia_anual) + el paginado
+    corren en **paralelo** (Promise.all) porque cross_sell es lento (~8-10s).
+  - **⚠️ Statement timeout (nos rompió la vista):** Supabase/PostgREST cancela
+    statements a los ~8s. Los RPCs que escanean toda `ventas`, sobre todo en
+    paralelo, se pasaban → devolvían NULL → `pdvs_ultima_vta` vacío → los 7028
+    PDVs caían como "en riesgo" (0 activos). Fix (mig. `034`): `ALTER FUNCTION …
+    SET statement_timeout = '30s'` en los 4 RPCs (al hacer `CREATE OR REPLACE`
+    hay que re-declarar el SET, no se hereda). Y **resiliencia**: si la recencia
+    falla, `buildInsightData` ABORTA en vez de cachear un insight roto.
   - **Tendencia vs año pasado (a igual día del mes):** RPC `tendencia_anual`
     (mig. 035) corta AMBOS años en el último día con datos del mes en curso →
     apples-to-apples (evita la falsa caída por mes parcial). Campo `tendencia`
     en InsightData; strip de chips ↑/↓. El LLM hace ALERTA/CRECIMIENTO según pct.
   - **Página /insights/enfriandose:** lista COMPLETA de clientes enfriándose
-    (`computeEnfriandose` + `esEnfriandose`), filtrable por vendedor (dropdown),
-    con $/mes en juego y "Ver en mapa". Endpoint `/api/insights/enfriandose`.
+    (`computeEnfriandose` + `esEnfriandose` reutilizables), filtrable por vendedor
+    (dropdown). Endpoint `/api/insights/enfriandose`. Tabla: Cliente · Localidad ·
+    Vendedor · Compra cada · Hace · **Zona roja en** (`90 - dias_sin` como badge:
+    verde >30 / amarillo 15–30 / rojo pulsante <15 / "En zona roja" ≤0) · $/mes ·
+    **Kg/mes** · Acciones (MapPin → mapa del cliente; ClipboardList "Registrar
+    visita" = placeholder, no existe la función). 3 KPI cards (clientes, $/mes,
+    kg/mes). `whitespace-nowrap` en th/td (la tabla scrollea, no envuelve).
+    NOTA: "enfriándose" (rompió cadencia) ≠ "tibios" del mapa (compró 1–3 meses).
+    Para Kg/mes hubo que agregar `kilos` al RPC `pdvs_valor_12m` (mig. `036`).
   - **Datos (SQL):** `lib/ai/insights.ts` → `buildInsightData(svc, {label,
     carteras, avance, today})`. `carteras=null` = empresa (PAGINA pdvs: ~7000
     superan el límite de 1000 de PostgREST). Avance se calcula afuera por rol:
