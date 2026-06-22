@@ -162,9 +162,20 @@ requiere importar direcciones reales.
 
 ---
 
-## 8. Hooks de IA pendientes (cuando se quiera)
+## 8. Estado de los módulos de IA
 
-- Capa LLM agnóstica de proveedor (OpenAI ahora, Claude después).
-- Asistente NL con tool-calling read-only (respeta scoping).
-- Resúmenes/insights por vendedor (datos de SQL; el LLM sólo redacta).
-- La narración de rutas se descartó por ahora (no aporta).
+- **Módulo 0 — capa LLM (HECHO, base):** `lib/ai/provider.ts` (interfaz
+  `LLMProvider` agnóstica + OpenAI y Anthropic vía fetch, sin SDK; se elige con
+  `AI_PROVIDER`, default openai; `getLLMProvider()` / `llmAvailable()`).
+  `lib/ai/tools.ts` (tools read-only con scoping por rol: `get_pdvs_inactivos`,
+  `get_pdv_info`; `resolveCarteras` da las carteras visibles). La capa de DATOS
+  está testeada contra la DB; la orquestación LLM se valida cuando haya key.
+  - **Para activar:** `OPENAI_API_KEY` en `.env.local` (y en Vercel). Modelos:
+    `OPENAI_MODEL` (default `gpt-4o-mini`). Para Claude: `AI_PROVIDER=anthropic`
+    + `ANTHROPIC_API_KEY` (+ `ANTHROPIC_MODEL`, default `claude-haiku-4-5-20251001`).
+- **Módulo 2 — asistente/chat (PENDIENTE):** endpoint `POST /api/asistente`
+  con loop de tool-calling sobre `lib/ai/tools.ts` (el LLM solo ve resultados de
+  tools) + panel de chat. Requiere key para wirear y probar.
+- **Módulo 3 — insights (PENDIENTE):** resumen narrativo por vendedor + alertas
+  de churn; datos de SQL, el LLM solo redacta; cacheado en tabla. Requiere key.
+- La narración de rutas se descartó (no aporta).
