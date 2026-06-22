@@ -8,6 +8,7 @@ import {
 
 type CardTipo = 'RECUPERACIÓN' | 'CRECIMIENTO' | 'COBERTURA' | 'ALERTA';
 interface ClienteRef { pdv_id: number; razon_social: string | null; localidad: string | null; ultima_vta: string; valor_mensual: number }
+type EnfriandoseRef = ClienteRef & { cadencia_dias: number; dias_sin: number };
 interface InsightCard {
   tipo: CardTipo; accion: string; metrica: string; detalle: string; pasos: string[]; cta: string; pdv_ids: number[];
 }
@@ -15,6 +16,7 @@ interface InsightData {
   alcance: string;
   actividad: { total: number; activos: number; tibios: number; inactivos: number; pct_comprando: number };
   churn: { count: number; valor_total: number; top: ClienteRef[] };
+  enfriandose: { count: number; valor_total: number; top: EnfriandoseRef[] };
 }
 interface Payload { data: InsightData; cards: InsightCard[] }
 
@@ -145,6 +147,18 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
         </div>
       )}
 
+      {/* Alerta temprana: clientes enfriándose */}
+      {d && d.enfriandose?.count > 0 && (
+        <div className="mb-6 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5">
+          <Clock className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+          <p className="text-sm text-amber-800">
+            <strong>{d.enfriandose.count} clientes enfriándose</strong> — todavía compran pero rompieron su frecuencia
+            {d.enfriandose.valor_total > 0 && <> · <strong>{fmtPesos(d.enfriandose.valor_total)}/mes en juego</strong></>}.
+            Contactalos antes de que se apaguen.
+          </p>
+        </div>
+      )}
+
       {/* Loading inicial */}
       {loading && !payload && (
         <div className="flex items-center gap-2.5 text-sm text-gray-500 py-10 justify-center">
@@ -159,7 +173,9 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
           {payload.cards.length === 0 ? (
             <p className="text-sm text-gray-400">No hay acciones sugeridas para este período.</p>
           ) : (() => {
-            const clientes = new Map((payload.data.churn.top ?? []).map((c) => [c.pdv_id, c]));
+            const clientes = new Map<number, ClienteRef>(
+              [...(payload.data.churn.top ?? []), ...(payload.data.enfriandose?.top ?? [])].map((c) => [c.pdv_id, c])
+            );
             return payload.cards.map((card, i) => (
               <ActionCard key={i} card={card} when={hace(generatedAt)} vendedor={vendedor} clientes={clientes} />
             ));

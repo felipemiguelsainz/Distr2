@@ -199,6 +199,11 @@ requiere importar direcciones reales.
     neto últ. 12m / meses con compra), no por fecha. `churn.valor_total` = $/mes
     en juego (se muestra en la KPI "En riesgo" y en la lista de clientes). El
     prompt le pide al LLM priorizar y cuantificar en $.
+  - **Quiebre de cadencia (alerta temprana):** RPC `pdvs_cadencia` (mediana de
+    días entre compras, últ. 12m, >=4 compras). `enfriandose` = clientes que
+    compran regular (cadencia 3–35 d) pero hace >2x su cadencia que no compran y
+    siguen dentro de 90 d (aún "activos" por el corte plano) → se están apagando
+    AHORA. Ordenados por valor; banner ámbar + el LLM hace card para contactarlos.
   - **Datos (SQL):** `lib/ai/insights.ts` → `buildInsightData(svc, {label,
     carteras, avance, today})`. `carteras=null` = empresa (PAGINA pdvs: ~7000
     superan el límite de 1000 de PostgREST). Avance se calcula afuera por rol:

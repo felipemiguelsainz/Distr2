@@ -16,11 +16,17 @@ export interface ChurnCliente {
   pdv_id: number; razon_social: string | null; localidad: string | null; ultima_vta: string;
   valor_mensual: number; // $ que facturaba por mes cuando compraba (últ. 12m)
 }
+export interface EnfriandoseCliente extends ChurnCliente {
+  cadencia_dias: number; // cada cuántos días compra habitualmente
+  dias_sin: number;      // días desde la última compra
+}
 export interface InsightData {
   alcance: string;            // etiqueta legible: nombre del vendedor o "Total Empresa"
   periodo: string;
   actividad: { total: number; activos: number; tibios: number; inactivos: number; pct_comprando: number };
   churn: { count: number; valor_total: number; top: ChurnCliente[] }; // valor_total = $/mes en juego
+  // Clientes que rompieron su frecuencia (todavía "activos" pero se enfrían):
+  enfriandose: { count: number; valor_total: number; top: EnfriandoseCliente[] };
   avance: InsightAvance[];
 }
 
@@ -68,6 +74,14 @@ export async function buildInsightData(
     if (r?.pdv_id != null) valor.set(r.pdv_id, Math.round(Number(r.neto_12m) / Math.max(1, Number(r.meses))));
   }
 
+  // Cadencia (días entre compras) por PDV para detectar quiebres de frecuencia.
+  const { data: cdRows } = await svc.rpc('pdvs_cadencia');
+  const cad = new Map<number, { cadencia: number; ultima: string }>();
+  for (const r of (cdRows as { pdv_id: number; cadencia: number; ultima: string }[] | null) ?? []) {
+    if (r?.pdv_id != null && r.cadencia) cad.set(r.pdv_id, { cadencia: Number(r.cadencia), ultima: r.ultima });
+  }
+  const diasDesde = (iso: string) => Math.round((today.getTime() - new Date(iso).getTime()) / 86_400_000);
+
   // Paginar para superar el límite de filas de PostgREST (la vista empresa
   // tiene ~7000 PDVs; sin paginar se cortaría en 1000 y subcontaría).
   const PAGE = 1000;
@@ -83,6 +97,7 @@ export async function buildInsightData(
 
   let activos = 0, tibios = 0, inactivos = 0;
   const rojos: ChurnCliente[] = [];
+  const enfri: EnfriandoseCliente[] = [];
   for (const p of pdvs ?? []) {
     const u = ult.get(p.id) ?? null;
     const d = u?.slice(0, 10);
@@ -92,17 +107,27 @@ export async function buildInsightData(
       inactivos++;
       rojos.push({ pdv_id: p.id, razon_social: p.razon_social, localidad: p.localidad, ultima_vta: u ?? 'sin registro', valor_mensual: valor.get(p.id) ?? 0 });
     }
+    // Enfriándose: compra regular (3–35 días) pero hace >2x su cadencia que no
+    // compra, y todavía dentro de 90 días (aún no es churn) → alerta temprana.
+    const c = cad.get(p.id);
+    if (c && c.cadencia >= 3 && c.cadencia <= 35) {
+      const ds = diasDesde(c.ultima);
+      if (ds >= 2 * c.cadencia && ds <= 90) {
+        enfri.push({ pdv_id: p.id, razon_social: p.razon_social, localidad: p.localidad, ultima_vta: c.ultima, valor_mensual: valor.get(p.id) ?? 0, cadencia_dias: c.cadencia, dias_sin: ds });
+      }
+    }
   }
   const total = (pdvs ?? []).length;
   // Ordenar por PLATA EN JUEGO (valor mensual histórico), no por fecha.
   rojos.sort((a, b) => b.valor_mensual - a.valor_mensual);
-  const valorTotal = rojos.reduce((acc, r) => acc + r.valor_mensual, 0);
+  enfri.sort((a, b) => b.valor_mensual - a.valor_mensual);
 
   return {
     alcance: label,
     periodo: today.toISOString().slice(0, 7),
     actividad: { total, activos, tibios, inactivos, pct_comprando: total > 0 ? Math.round(((activos + tibios) / total) * 100) : 0 },
-    churn: { count: inactivos, valor_total: valorTotal, top: rojos.slice(0, 15) },
+    churn: { count: inactivos, valor_total: rojos.reduce((a, r) => a + r.valor_mensual, 0), top: rojos.slice(0, 15) },
+    enfriandose: { count: enfri.length, valor_total: enfri.reduce((a, r) => a + r.valor_mensual, 0), top: enfri.slice(0, 15) },
     avance,
   };
 }
@@ -157,6 +182,10 @@ export async function generateCards(data: InsightData): Promise<InsightCard[]> {
     'PRIORIZÁ POR PLATA: churn.top viene ordenado por valor_mensual ($/mes que',
     'facturaba cada cliente apagado). Enfocá las acciones en los de mayor valor y',
     'cuantificá en $ (usá valor_mensual y churn.valor_total como "$/mes en juego").',
+    'ALERTA TEMPRANA: enfriandose.top son clientes que TODAVÍA compran pero',
+    'rompieron su frecuencia (compran cada cadencia_dias y hace dias_sin que no).',
+    'Generá una card para contactarlos YA y NO perderlos (es más fácil que recuperar',
+    'un apagado); priorizá por valor_mensual y mencioná el $/mes en juego.',
     'Respondé SOLO con un array JSON válido (sin markdown, sin texto extra) con este schema por item:',
     '{ "tipo": "RECUPERACIÓN" | "CRECIMIENTO" | "COBERTURA" | "ALERTA", "accion": string, "metrica": string, "detalle": string, "pasos": string[], "cta": "Ver clientes" | "Ver productos" | "Ver ruta" | "Ver detalle", "pdv_ids": number[] }',
     '- accion: imperativa, 1 línea. metrica: etiqueta corta para un badge (ej: "5 clientes", "28 en riesgo").',
