@@ -18,7 +18,7 @@ interface InsightData {
   churn: { count: number; valor_total: number; top: ClienteRef[] };
   enfriandose: { count: number; valor_total: number; top: EnfriandoseRef[] };
   cross_sell: { rubro: string; n_no_compran: number; valor_estimado: number; clientes: ClienteRef[] }[];
-  avance: { rubro: string; vs_aa_pct: number; acumulado_aa: number }[];
+  tendencia: { rubro: string; pct: number | null; este: number; aa: number }[];
 }
 interface Payload { data: InsightData; cards: InsightCard[] }
 
@@ -153,27 +153,30 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
       {d && d.enfriandose?.count > 0 && (
         <div className="mb-6 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5">
           <Clock className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
-          <p className="text-sm text-amber-800">
+          <p className="text-sm text-amber-800 flex-1">
             <strong>{d.enfriandose.count} clientes enfriándose</strong> — todavía compran pero rompieron su frecuencia
             {d.enfriandose.valor_total > 0 && <> · <strong>{fmtPesos(d.enfriandose.valor_total)}/mes en juego</strong></>}.
             Contactalos antes de que se apaguen.
           </p>
+          <a href={`/insights/enfriandose${vendedor ? `?vendedor=${encodeURIComponent(vendedor)}` : ''}`} className="shrink-0 text-sm font-semibold text-amber-800 hover:text-amber-900 whitespace-nowrap">
+            Ver todos →
+          </a>
         </div>
       )}
 
-      {/* Tendencia vs año pasado (por rubro) */}
-      {d && (d.avance ?? []).some((a) => a.acumulado_aa > 0) && (
+      {/* Tendencia vs año pasado (por rubro, a igual día del mes) */}
+      {d && (d.tendencia ?? []).some((a) => a.pct != null) && (
         <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-100 px-5 py-3.5">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Tendencia vs año pasado</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Tendencia vs año pasado <span className="normal-case font-normal text-gray-400">(a igual día del mes)</span></p>
           <div className="flex flex-wrap gap-2">
-            {(d.avance ?? []).filter((a) => a.acumulado_aa > 0).map((a) => {
-              const up = a.vs_aa_pct >= 0;
+            {(d.tendencia ?? []).filter((a) => a.pct != null).map((a) => {
+              const up = (a.pct as number) >= 0;
               const Icon = up ? TrendingUp : TrendingDown;
               return (
                 <span key={a.rubro} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${up ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
                   <Icon className="w-3.5 h-3.5" />
                   <span className="text-gray-700">{a.rubro}</span>
-                  <span className="font-semibold tabular-nums">{up ? '+' : ''}{a.vs_aa_pct}%</span>
+                  <span className="font-semibold tabular-nums">{up ? '+' : ''}{a.pct}%</span>
                 </span>
               );
             })}

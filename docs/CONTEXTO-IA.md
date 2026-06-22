@@ -210,10 +210,13 @@ requiere importar direcciones reales.
     El LLM hace cards CRECIMIENTO con esos clientes. Las 4 fuentes pesadas
     (ultima_vta, valor_12m, cadencia, cross_sell) + el paginado de PDVs corren en
     **paralelo** (Promise.all) porque cross_sell es lento (~8-10s).
-  - **Tendencia vs año pasado:** `InsightAvance` incluye `vs_aa_pct` y
-    `acumulado_aa` (de `avance_vs_aa_pct`/`acumulado_aa` de los KpiRubro, ya
-    trusted por los dashboards). UI: strip "Tendencia vs año pasado" con chips
-    por rubro (↑ verde / ↓ rojo). El LLM hace ALERTA si un rubro cae fuerte.
+  - **Tendencia vs año pasado (a igual día del mes):** RPC `tendencia_anual`
+    (mig. 035) corta AMBOS años en el último día con datos del mes en curso →
+    apples-to-apples (evita la falsa caída por mes parcial). Campo `tendencia`
+    en InsightData; strip de chips ↑/↓. El LLM hace ALERTA/CRECIMIENTO según pct.
+  - **Página /insights/enfriandose:** lista COMPLETA de clientes enfriándose
+    (`computeEnfriandose` + `esEnfriandose`), filtrable por vendedor (dropdown),
+    con $/mes en juego y "Ver en mapa". Endpoint `/api/insights/enfriandose`.
   - **Datos (SQL):** `lib/ai/insights.ts` → `buildInsightData(svc, {label,
     carteras, avance, today})`. `carteras=null` = empresa (PAGINA pdvs: ~7000
     superan el límite de 1000 de PostgREST). Avance se calcula afuera por rol:

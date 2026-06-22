@@ -11,8 +11,9 @@ import type { KpiRubro } from '@/lib/types';
 
 export interface InsightAvance {
   rubro: string; avance_pct: number; acumulado: number; meta: number | null; tendencia: number | null;
-  acumulado_aa: number;  // mismo período del año anterior (KG)
-  vs_aa_pct: number;     // variación vs año anterior (%)
+}
+export interface TendenciaRubro {
+  rubro: string; pct: number | null; este: number; aa: number; // vs año pasado, a igual día del mes
 }
 export interface ChurnCliente {
   pdv_id: number; razon_social: string | null; localidad: string | null; ultima_vta: string;
@@ -31,6 +32,7 @@ export interface InsightData {
   enfriandose: { count: number; valor_total: number; top: EnfriandoseCliente[] };
   // Cross-sell: rubros fuertes que clientes activos no compran (oportunidad).
   cross_sell: { rubro: string; n_no_compran: number; valor_estimado: number; clientes: ChurnCliente[] }[];
+  tendencia: TendenciaRubro[]; // vs año pasado, a igual día del mes
   avance: InsightAvance[];
 }
 
@@ -48,8 +50,6 @@ export function avanceFromKpis(kpis: KpiRubro[]): InsightAvance[] {
     acumulado: Math.round(k.acumulado),
     meta: k.meta != null ? Math.round(k.meta) : null,
     tendencia: k.tendencia != null ? Math.round(k.tendencia) : null,
-    acumulado_aa: Math.round(k.acumulado_aa ?? 0),
-    vs_aa_pct: Math.round(k.avance_vs_aa_pct ?? 0),
   }));
 }
 
@@ -83,11 +83,12 @@ export async function buildInsightData(
   };
 
   // Todas las fuentes son independientes → en paralelo (la generación es pesada).
-  const [udRes, vdRes, cdRes, csRes, pdvs] = await Promise.all([
+  const [udRes, vdRes, cdRes, csRes, tdRes, pdvs] = await Promise.all([
     svc.rpc('pdvs_ultima_vta'),
     svc.rpc('pdvs_valor_12m'),
     svc.rpc('pdvs_cadencia'),
     svc.rpc('cross_sell', { p_carteras: carteras }),
+    svc.rpc('tendencia_anual', { p_carteras: carteras }),
     fetchPdvs(),
   ]);
 
@@ -120,12 +121,11 @@ export async function buildInsightData(
       inactivos++;
       rojos.push({ pdv_id: p.id, razon_social: p.razon_social, localidad: p.localidad, ultima_vta: u ?? 'sin registro', valor_mensual: valor.get(p.id) ?? 0 });
     }
-    // Enfriándose: compra regular (3–35 días) pero hace >2x su cadencia que no
-    // compra, y todavía dentro de 90 días (aún no es churn) → alerta temprana.
+    // Enfriándose: alerta temprana (ver esEnfriandose).
     const c = cad.get(p.id);
-    if (c && c.cadencia >= 3 && c.cadencia <= 35) {
+    if (c) {
       const ds = diasDesde(c.ultima);
-      if (ds >= 2 * c.cadencia && ds <= 90) {
+      if (esEnfriandose(c.cadencia, ds)) {
         enfri.push({ pdv_id: p.id, razon_social: p.razon_social, localidad: p.localidad, ultima_vta: c.ultima, valor_mensual: valor.get(p.id) ?? 0, cadencia_dias: c.cadencia, dias_sin: ds });
       }
     }
@@ -150,6 +150,9 @@ export async function buildInsightData(
         .filter((c): c is ChurnCliente => c !== null),
     }));
 
+  const tendencia = ((tdRes.data as { rubro: string; pct: number | null; este: number; aa: number }[] | null) ?? [])
+    .map((t) => ({ rubro: t.rubro, pct: t.pct, este: Number(t.este), aa: Number(t.aa) }));
+
   return {
     alcance: label,
     periodo: today.toISOString().slice(0, 7),
@@ -157,6 +160,7 @@ export async function buildInsightData(
     churn: { count: inactivos, valor_total: rojos.reduce((a, r) => a + r.valor_mensual, 0), top: rojos.slice(0, 15) },
     enfriandose: { count: enfri.length, valor_total: enfri.reduce((a, r) => a + r.valor_mensual, 0), top: enfri.slice(0, 15) },
     cross_sell,
+    tendencia,
     avance,
   };
 }
@@ -219,9 +223,9 @@ export async function generateCards(data: InsightData): Promise<InsightCard[]> {
     'NO compran (n_no_compran clientes, valor_estimado de oportunidad mensual, y',
     'clientes ejemplo). Generá cards de venta nueva: "X clientes no te compran',
     '<rubro> → ~$Y/mes"; poné sus pdv_ids en la card.',
-    'TENDENCIA: avance trae vs_aa_pct (variación vs el año pasado por rubro).',
-    'Si un rubro cae fuerte (vs_aa_pct muy negativo) generá una ALERTA; si crece',
-    'fuerte, una de CRECIMIENTO. Mencioná el % vs año pasado.',
+    'TENDENCIA: tendencia[] trae pct (variación vs el año pasado por rubro, a',
+    'igual día del mes). Si un rubro cae fuerte (pct muy negativo) generá una',
+    'ALERTA; si crece fuerte, una de CRECIMIENTO. Mencioná el % vs año pasado.',
     'Respondé SOLO con un array JSON válido (sin markdown, sin texto extra) con este schema por item:',
     '{ "tipo": "RECUPERACIÓN" | "CRECIMIENTO" | "COBERTURA" | "ALERTA", "accion": string, "metrica": string, "detalle": string, "pasos": string[], "cta": "Ver clientes" | "Ver productos" | "Ver ruta" | "Ver detalle", "pdv_ids": number[] }',
     '- accion: imperativa, 1 línea. metrica: etiqueta corta para un badge (ej: "5 clientes", "28 en riesgo").',
@@ -263,4 +267,54 @@ export async function getOrCreateInsight(
   const generated_at = new Date().toISOString();
   await svc.from('ai_insights').upsert({ scope_key: opts.scopeKey, periodo, payload, generated_at });
   return { payload, generated_at };
+}
+
+// --- Enfriándose: predicado + cómputo de la lista completa (para su página) --
+// Compra regular (cadencia 3–35 días), pero hace >2x su cadencia que no compra
+// y sigue dentro de 90 días (aún "activo" por el corte plano) → alerta temprana.
+export function esEnfriandose(cadencia: number, diasSin: number): boolean {
+  return cadencia >= 3 && cadencia <= 35 && diasSin >= 2 * cadencia && diasSin <= 90;
+}
+
+export type EnfriandoseConCartera = EnfriandoseCliente & { cartera: string | null };
+
+/** Lista COMPLETA de clientes enfriándose del scope (carteras=null = todas). */
+export async function computeEnfriandose(
+  svc: SupabaseClient,
+  carteras: string[] | null,
+  today: Date
+): Promise<EnfriandoseConCartera[]> {
+  const PAGE = 1000;
+  const pdvs: { id: number; razon_social: string | null; localidad: string | null; cartera: string | null }[] = [];
+  for (let from = 0; ; from += PAGE) {
+    let q = svc.from('pdvs').select('id, razon_social, localidad, cartera').eq('activo', true).range(from, from + PAGE - 1);
+    if (carteras !== null) q = q.in('cartera', carteras.length ? carteras : ['__none__']);
+    const { data } = await q;
+    if (!data || data.length === 0) break;
+    pdvs.push(...data);
+    if (data.length < PAGE) break;
+  }
+
+  const [vdRes, cdRes] = await Promise.all([svc.rpc('pdvs_valor_12m'), svc.rpc('pdvs_cadencia')]);
+  const valor = new Map<number, number>();
+  for (const r of (vdRes.data as { pdv_id: number; neto_12m: number; meses: number }[] | null) ?? []) {
+    if (r?.pdv_id != null) valor.set(r.pdv_id, Math.round(Number(r.neto_12m) / Math.max(1, Number(r.meses))));
+  }
+  const cad = new Map<number, { cadencia: number; ultima: string }>();
+  for (const r of (cdRes.data as { pdv_id: number; cadencia: number; ultima: string }[] | null) ?? []) {
+    if (r?.pdv_id != null && r.cadencia) cad.set(r.pdv_id, { cadencia: Number(r.cadencia), ultima: r.ultima });
+  }
+  const diasDesde = (iso: string) => Math.round((today.getTime() - new Date(iso).getTime()) / 86_400_000);
+
+  const out: EnfriandoseConCartera[] = [];
+  for (const p of pdvs) {
+    const c = cad.get(p.id);
+    if (!c) continue;
+    const ds = diasDesde(c.ultima);
+    if (esEnfriandose(c.cadencia, ds)) {
+      out.push({ pdv_id: p.id, razon_social: p.razon_social, localidad: p.localidad, cartera: p.cartera, ultima_vta: c.ultima, valor_mensual: valor.get(p.id) ?? 0, cadencia_dias: c.cadencia, dias_sin: ds });
+    }
+  }
+  out.sort((a, b) => b.valor_mensual - a.valor_mensual);
+  return out;
 }

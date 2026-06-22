@@ -1,0 +1,132 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { Clock, ChevronDown, RefreshCw, MapPin } from 'lucide-react';
+
+interface Cliente {
+  pdv_id: number; razon_social: string | null; localidad: string | null; cartera: string | null;
+  ultima_vta: string; valor_mensual: number; cadencia_dias: number; dias_sin: number;
+}
+
+function fmtPesos(n: number): string {
+  if (!n) return '$0';
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1).replace('.', ',')} M`;
+  if (n >= 1_000) return `$${Math.round(n / 1000)} mil`;
+  return `$${n}`;
+}
+
+export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores: string[]; mostrarVendedor: boolean }) {
+  const [vendedor, setVendedor] = useState('');
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [valorTotal, setValorTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/insights/enfriandose${vendedor ? `?vendedor=${encodeURIComponent(vendedor)}` : ''}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Error cargando clientes.');
+      setClientes(data.clientes ?? []);
+      setValorTotal(data.valor_total ?? 0);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [vendedor]);
+
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [vendedor]);
+
+  const mapsHref = clientes.length
+    ? `/mapa?pdvs=${clientes.slice(0, 200).map((c) => c.pdv_id).join(',')}${vendedor ? `&vendedor=${encodeURIComponent(vendedor)}` : ''}`
+    : '';
+
+  return (
+    <div className="mt-2">
+      {/* Header */}
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
+        <div className="flex items-center gap-2">
+          <Clock className="w-7 h-7 text-amber-500" />
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Clientes enfriándose</h1>
+            <p className="text-sm text-gray-500 mt-0.5">Todavía compran pero rompieron su frecuencia habitual. Contactalos antes de que se apaguen.</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {vendedores.length > 1 && (
+            <div className="relative">
+              <select
+                value={vendedor}
+                onChange={(e) => setVendedor(e.target.value)}
+                className="appearance-none cursor-pointer pl-3 pr-8 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-lg shadow-sm hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition"
+              >
+                <option value="">Todos los vendedores</option>
+                {vendedores.map((v) => <option key={v} value={v}>{v}</option>)}
+              </select>
+              <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          )}
+          {mapsHref && (
+            <a href={mapsHref} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition">
+              <MapPin className="w-4 h-4" /> Ver en mapa
+            </a>
+          )}
+        </div>
+      </div>
+
+      {/* Resumen */}
+      <div className="flex flex-wrap gap-4 mb-5">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-amber-500 px-4 py-3">
+          <p className="text-xs text-gray-500">Clientes enfriándose</p>
+          <p className="text-3xl font-bold text-amber-600 tabular-nums">{clientes.length}</p>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-red-500 px-4 py-3">
+          <p className="text-xs text-gray-500">$/mes en juego</p>
+          <p className="text-3xl font-bold text-red-600 tabular-nums">{fmtPesos(valorTotal)}</p>
+        </div>
+      </div>
+
+      {error && <p className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-xl">{error}</p>}
+
+      {loading ? (
+        <div className="flex items-center gap-2.5 text-sm text-gray-500 py-10 justify-center">
+          <RefreshCw className="w-4 h-4 animate-spin" /> Calculando…
+        </div>
+      ) : clientes.length === 0 ? (
+        <p className="text-sm text-gray-400 py-6">No hay clientes enfriándose en este alcance. 🎉</p>
+      ) : (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[640px]">
+              <thead>
+                <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
+                  <th className="px-4 py-2.5 font-medium">Cliente</th>
+                  <th className="px-4 py-2.5 font-medium">Localidad</th>
+                  {mostrarVendedor && <th className="px-4 py-2.5 font-medium">Vendedor</th>}
+                  <th className="px-4 py-2.5 font-medium text-right">Compra cada</th>
+                  <th className="px-4 py-2.5 font-medium text-right">Hace</th>
+                  <th className="px-4 py-2.5 font-medium text-right">$/mes</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {clientes.map((c) => (
+                  <tr key={c.pdv_id} className="hover:bg-gray-50/60">
+                    <td className="px-4 py-2.5 text-gray-900">#{c.pdv_id} — {c.razon_social ?? 's/n'}</td>
+                    <td className="px-4 py-2.5 text-gray-500">{c.localidad ?? '—'}</td>
+                    {mostrarVendedor && <td className="px-4 py-2.5 text-gray-500">{c.cartera ?? '—'}</td>}
+                    <td className="px-4 py-2.5 text-right tabular-nums text-gray-700">{c.cadencia_dias} d</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums font-medium text-amber-700">{c.dias_sin} d</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-gray-900">{fmtPesos(c.valor_mensual)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
