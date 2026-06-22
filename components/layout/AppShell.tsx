@@ -3,6 +3,8 @@ import { Sidebar, SupervisorLink } from './Sidebar';
 import { ShellLayout } from './ShellLayout';
 import { fetchMonthInfo } from '@/lib/calculations/queries';
 import { getCurrentProfile, getAdminEquipos } from '@/lib/supabase/profile';
+import { llmAvailable } from '@/lib/ai/provider';
+import { Asistente } from '@/components/asistente/Asistente';
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
   const profile = await getCurrentProfile();
@@ -41,6 +43,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <ShellLayout sidebar={sidebar}>
       {children}
+      {profile && llmAvailable() && <Asistente />}
     </ShellLayout>
   );
 }

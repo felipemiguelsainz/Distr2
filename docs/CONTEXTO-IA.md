@@ -173,9 +173,14 @@ requiere importar direcciones reales.
   - **Para activar:** `OPENAI_API_KEY` en `.env.local` (y en Vercel). Modelos:
     `OPENAI_MODEL` (default `gpt-4o-mini`). Para Claude: `AI_PROVIDER=anthropic`
     + `ANTHROPIC_API_KEY` (+ `ANTHROPIC_MODEL`, default `claude-haiku-4-5-20251001`).
-- **Módulo 2 — asistente/chat (PENDIENTE):** endpoint `POST /api/asistente`
-  con loop de tool-calling sobre `lib/ai/tools.ts` (el LLM solo ve resultados de
-  tools) + panel de chat. Requiere key para wirear y probar.
+- **Módulo 2 — asistente/chat (HECHO):** `POST /api/asistente` corre el loop de
+  tool-calling (máx 5 turnos) sobre `lib/ai/tools.ts`; auth + scoping por rol;
+  acota el historial (12 msgs) para controlar costo; degrada con 503 si no hay
+  key. UI: `components/asistente/Asistente.tsx` (widget flotante), montado en
+  `AppShell` solo si `llmAvailable()`. Validado end-to-end (OpenAI gpt-4o-mini +
+  tools reales contra la DB): responde con números exactos, sin alucinar.
+  - **OJO en producción:** hay que cargar `OPENAI_API_KEY` en las env vars de
+    Vercel; si no, el widget no aparece (degrada).
 - **Módulo 3 — insights (PENDIENTE):** resumen narrativo por vendedor + alertas
   de churn; datos de SQL, el LLM solo redacta; cacheado en tabla. Requiere key.
 - La narración de rutas se descartó (no aporta).
