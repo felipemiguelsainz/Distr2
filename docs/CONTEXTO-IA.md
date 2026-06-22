@@ -181,6 +181,17 @@ requiere importar direcciones reales.
   tools reales contra la DB): responde con números exactos, sin alucinar.
   - **OJO en producción:** hay que cargar `OPENAI_API_KEY` en las env vars de
     Vercel; si no, el widget no aparece (degrada).
-- **Módulo 3 — insights (PENDIENTE):** resumen narrativo por vendedor + alertas
-  de churn; datos de SQL, el LLM solo redacta; cacheado en tabla. Requiere key.
+- **Módulo 3 — insights (HECHO):** página propia `/insights` (link en sidebar).
+  `lib/ai/insights.ts` arma los datos por vendedor (actividad/recencia, churn,
+  avance vs meta reutilizando `fetchVendedorKpis`) y el LLM SOLO los redacta.
+  Cacheado en tabla `ai_insights` (migración 030) por `vendedor:<n>` + período;
+  GET lee del cache, POST regenera (force). `app/insights` + `InsightsClient`.
+  Validado: datos por SQL + narrativa sin alucinar; cache verificado (14s cold
+  → 0,8s cacheado). Endpoints con `maxDuration = 60` para no cortar en Vercel.
 - La narración de rutas se descartó (no aporta).
+
+## 9. Notas de costo/operación de IA
+- Modelo default barato (`gpt-4o-mini`). Subir a `gpt-4o` solo si hace falta.
+- Insights cacheados por mes (no se regeneran salvo "Regenerar").
+- Asistente: historial acotado a 12 msgs y máx 5 turnos de tools.
+- En Vercel: cargar `OPENAI_API_KEY` en env vars o la IA no aparece (degrada).

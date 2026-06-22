@@ -7,6 +7,9 @@ import { toolDefs, runTool, type UserContext } from '@/lib/ai/tools';
 // read-only (que ya aplican el scoping por rol). El LLM nunca toca la DB ni
 // calcula números: pide tools, lee resultados y redacta.
 
+// El loop de tool-calling puede encadenar varias llamadas; subir el límite.
+export const maxDuration = 60;
+
 const MAX_TURNS = 5; // tope de iteraciones de tool-calling
 
 function systemPrompt(ctx: UserContext): string {

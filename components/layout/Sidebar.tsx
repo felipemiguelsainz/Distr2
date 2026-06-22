@@ -76,6 +76,12 @@ const ProductoIcon = () => (
   </svg>
 );
 
+const SparkIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+    <path d="M10 1.5l1.6 4.1 4.4 1.4-4.4 1.4L10 12.5 8.4 8.4 4 7l4.4-1.4L10 1.5zM4.5 12l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8.8-2z"/>
+  </svg>
+);
+
 function buildNav(rol: Rol, vendedorNombre: string | null, supervisores: SupervisorLink[]) {
   const items: { href: string; label: string; icon: React.ReactNode }[] = [];
 
@@ -104,7 +110,10 @@ function buildNav(rol: Rol, vendedorNombre: string | null, supervisores: Supervi
     items.push({ href: '/mapa',            label: 'Mapa de PDVs',    icon: <MapPinIcon /> });
   }
 
-  // Perfil — disponible para todos los roles
+  // Insights (IA) y Perfil — disponibles para todos los roles
+  if (vendedorNombre || rol === 'admin') {
+    items.push({ href: '/insights', label: 'Insights', icon: <SparkIcon /> });
+  }
   items.push({ href: '/perfil', label: 'Mi perfil', icon: <PersonIcon /> });
 
   return items;
