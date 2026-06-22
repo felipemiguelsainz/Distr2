@@ -7,13 +7,14 @@ import {
 } from 'lucide-react';
 
 type CardTipo = 'RECUPERACIÓN' | 'CRECIMIENTO' | 'COBERTURA' | 'ALERTA';
+interface ClienteRef { pdv_id: number; razon_social: string | null; localidad: string | null; ultima_vta: string }
 interface InsightCard {
-  tipo: CardTipo; accion: string; metrica: string; detalle: string; pasos: string[]; cta: string;
+  tipo: CardTipo; accion: string; metrica: string; detalle: string; pasos: string[]; cta: string; pdv_ids: number[];
 }
 interface InsightData {
   alcance: string;
   actividad: { total: number; activos: number; tibios: number; inactivos: number; pct_comprando: number };
-  churn: { count: number };
+  churn: { count: number; top: ClienteRef[] };
 }
 interface Payload { data: InsightData; cards: InsightCard[] }
 
@@ -148,17 +149,21 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
         <div className="space-y-3">
           {payload.cards.length === 0 ? (
             <p className="text-sm text-gray-400">No hay acciones sugeridas para este período.</p>
-          ) : (
-            payload.cards.map((card, i) => <ActionCard key={i} card={card} when={hace(generatedAt)} vendedor={vendedor} />)
-          )}
+          ) : (() => {
+            const clientes = new Map((payload.data.churn.top ?? []).map((c) => [c.pdv_id, c]));
+            return payload.cards.map((card, i) => (
+              <ActionCard key={i} card={card} when={hace(generatedAt)} vendedor={vendedor} clientes={clientes} />
+            ));
+          })()}
         </div>
       )}
     </div>
   );
 }
 
-function ActionCard({ card, when, vendedor }: { card: InsightCard; when: string; vendedor: string }) {
+function ActionCard({ card, when, vendedor, clientes }: { card: InsightCard; when: string; vendedor: string; clientes: Map<number, ClienteRef> }) {
   const [open, setOpen] = useState(false);
+  const refClientes = (card.pdv_ids ?? []).map((id) => clientes.get(id)).filter((c): c is ClienteRef => !!c);
   const [done, setDone] = useState(false);
   const cfg = TIPO_CFG[card.tipo];
   const Icon = cfg.icon;
@@ -215,6 +220,24 @@ function ActionCard({ card, when, vendedor }: { card: InsightCard; when: string;
                     </li>
                   ))}
                 </ol>
+              </div>
+            )}
+            {refClientes.length > 0 && (
+              <div className="mt-3">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Clientes ({refClientes.length})</p>
+                <div className="divide-y divide-gray-100 rounded-lg border border-gray-100">
+                  {refClientes.map((c) => (
+                    <div key={c.pdv_id} className="flex items-center justify-between gap-2 px-3 py-1.5">
+                      <span className="min-w-0">
+                        <span className="block text-sm text-gray-900 truncate">#{c.pdv_id} — {c.razon_social ?? 's/n'}</span>
+                        <span className="block text-xs text-gray-500">{c.localidad ?? '—'}</span>
+                      </span>
+                      <span className="shrink-0 text-xs text-gray-500">
+                        {c.ultima_vta === 'sin registro' ? 'sin compras' : `últ: ${c.ultima_vta.slice(0, 10)}`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
             <button

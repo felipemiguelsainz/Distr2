@@ -200,9 +200,11 @@ requiere importar direcciones reales.
     admin `fetchTotalKpis`, supervisor `fetchSupervisorKpis().totales`, vendedor
     `fetchVendedorKpis` → `avanceFromKpis()`.
   - **LLM** NO redacta texto: genera **action cards** en JSON (`generateCards`
-    + `parseCards` defensivo). Schema por card: `{tipo: RECUPERACIÓN|CRECIMIENTO|
-    COBERTURA|ALERTA, accion, metrica, detalle, pasos[], cta}`, máx 5, ordenadas
-    por impacto. El LLM no calcula números (salen del JSON de datos).
+    + `parseCards` defensivo, `maxTokens` alto para no truncar). Schema por card:
+    `{tipo, accion, metrica, detalle, pasos[], cta, pdv_ids[]}`, máx 5, ordenadas
+    por impacto. `pdv_ids` referencia los PDVs concretos (del `churn.top`) que la
+    acción menciona → el expand de la card lista esos clientes reales. El LLM no
+    calcula números (salen del JSON de datos).
   - Cache en `ai_insights` (mig. 030) por `scope_key` (`empresa:total` /
     `equipo:<x>` / `vendedor:<n>`) + período; payload = `{data, cards}`. GET lee
     cache, POST regenera. OJO: si cambiás el shape del payload, limpiá la tabla.

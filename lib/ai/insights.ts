@@ -101,6 +101,7 @@ export interface InsightCard {
   detalle: string;      // por qué (1-2 oraciones)
   pasos: string[];      // pasos sugeridos
   cta: string;          // "Ver clientes" | "Ver productos" | "Ver ruta" | "Ver detalle"
+  pdv_ids: number[];    // PDVs concretos a los que se refiere (del churn.top)
 }
 
 const CARD_TIPOS: CardTipo[] = ['RECUPERACIÓN', 'CRECIMIENTO', 'COBERTURA', 'ALERTA'];
@@ -124,6 +125,9 @@ function parseCards(raw: string): InsightCard[] {
       detalle: String(c.detalle ?? ''),
       pasos: Array.isArray(c.pasos) ? c.pasos.map((p) => String(p)).slice(0, 6) : [],
       cta: String(c.cta ?? 'Ver detalle'),
+      pdv_ids: Array.isArray(c.pdv_ids)
+        ? (c.pdv_ids as unknown[]).map((n) => Number(n)).filter((n) => Number.isFinite(n) && n > 0).slice(0, 8)
+        : [],
     }));
 }
 
@@ -136,15 +140,16 @@ export async function generateCards(data: InsightData): Promise<InsightCard[]> {
     'Analizá los datos y generá insights ACCIONABLES en español rioplatense.',
     'Usá SOLO los números del JSON; no inventes ni estimes nada que no esté.',
     'Respondé SOLO con un array JSON válido (sin markdown, sin texto extra) con este schema por item:',
-    '{ "tipo": "RECUPERACIÓN" | "CRECIMIENTO" | "COBERTURA" | "ALERTA", "accion": string, "metrica": string, "detalle": string, "pasos": string[], "cta": "Ver clientes" | "Ver productos" | "Ver ruta" | "Ver detalle" }',
+    '{ "tipo": "RECUPERACIÓN" | "CRECIMIENTO" | "COBERTURA" | "ALERTA", "accion": string, "metrica": string, "detalle": string, "pasos": string[], "cta": "Ver clientes" | "Ver productos" | "Ver ruta" | "Ver detalle", "pdv_ids": number[] }',
     '- accion: imperativa, 1 línea. metrica: etiqueta corta para un badge (ej: "5 clientes", "28 en riesgo").',
     '- detalle: 1-2 oraciones del porqué. pasos: 2 a 4 pasos concretos.',
+    '- pdv_ids: si la acción se refiere a clientes puntuales, listá los pdv_id EXACTOS tomados del churn.top de los datos (máximo 8). Si no aplica, dejá [].',
     'Máximo 5 insights, ordenados por impacto. Si no hay datos para algo, no lo incluyas.',
   ].join('\n');
   const res = await provider.chat({
     system,
     messages: [{ role: 'user', content: JSON.stringify(data) }],
-    maxTokens: 900,
+    maxTokens: 1400, // 5 cards con pasos + pdv_ids: evitar truncar el JSON
     temperature: 0.3,
   });
   return parseCards(res.text ?? '');
