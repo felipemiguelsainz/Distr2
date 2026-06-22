@@ -9,6 +9,7 @@
 // ---------------------------------------------------------------------------
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ToolDef } from './provider';
+import { fetchVendedorKpis, fetchTotalKpis, fetchSupervisorKpis } from '@/lib/calculations/queries/kpis';
 
 export interface UserContext {
   rol: 'admin' | 'supervisor' | 'vendedor' | string;
@@ -48,6 +49,25 @@ function monthsAgoISO(months: number): string {
   const d = new Date();
   d.setMonth(d.getMonth() - months);
   return d.toISOString().slice(0, 10);
+}
+
+const normName = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().trim();
+
+/** Resuelve un nombre de vendedor tipeado libre (sin acentos/casing) al nombre
+ *  canónico, dentro del alcance del usuario. Null si no lo encuentra. */
+async function resolveVendedor(svc: SupabaseClient, ctx: UserContext, input: string): Promise<string | null> {
+  const allowed = await resolveCarteras(svc, ctx);
+  let names: string[];
+  if (allowed === null) {
+    const { data } = await svc.from('vendedores').select('nombre').eq('activo', true);
+    names = (data ?? []).map((v: { nombre: string }) => v.nombre);
+  } else {
+    names = allowed;
+  }
+  const t = normName(input);
+  return names.find((n) => normName(n) === t)
+      ?? names.find((n) => normName(n).includes(t) || t.includes(normName(n)))
+      ?? null;
 }
 
 interface Tool {
@@ -117,6 +137,55 @@ const TOOLS: Tool[] = [
       }
       const ultima = await ultimaVtaMap(svc);
       return { ...p, ultima_vta: ultima.get(pdvId) ?? 'sin registro' };
+    },
+  },
+
+  // -------- Ventas / KPIs de un vendedor (o del alcance del usuario) -------
+  {
+    def: {
+      name: 'get_ventas',
+      description: 'Ventas de un vendedor en un mes: kilos (kg) y pesos ($) por rubro y total, más avance vs meta. Usar para "cuánto vendió X este mes / el mes pasado", en kg o $. Si no se especifica vendedor, da el total del alcance del usuario (empresa/equipo/su cartera).',
+      parameters: {
+        type: 'object',
+        properties: {
+          vendedor: { type: 'string', description: 'Nombre del vendedor/cartera (opcional). Si se omite, total del alcance.' },
+          mes: { type: 'string', enum: ['actual', 'pasado'], description: 'Mes a consultar. Default "actual".' },
+        },
+      },
+    },
+    async run(args, ctx, svc) {
+      const today = new Date();
+      let y = today.getFullYear(), m = today.getMonth() + 1;
+      if (args.mes === 'pasado') { const d = new Date(y, m - 2, 1); y = d.getFullYear(); m = d.getMonth() + 1; }
+
+      let kpis; let label: string;
+      const pedido = typeof args.vendedor === 'string' ? args.vendedor.trim() : '';
+
+      if (pedido) {
+        const vend = await resolveVendedor(svc, ctx, pedido);
+        if (!vend) return { error: `No encontré un vendedor «${pedido}» en tu alcance.` };
+        kpis = await fetchVendedorKpis(vend, y, m, today);
+        label = vend;
+      } else if (ctx.rol === 'admin') {
+        kpis = await fetchTotalKpis(y, m, today); label = 'Total Empresa';
+      } else if (ctx.rol === 'supervisor' && ctx.vendedor_nombre) {
+        const { data: v } = await svc.from('vendedores').select('equipo').eq('nombre', ctx.vendedor_nombre).single();
+        if (!v?.equipo) return { error: 'No tenés un equipo asignado.' };
+        kpis = (await fetchSupervisorKpis(v.equipo, y, m, today)).totales; label = `Equipo ${v.equipo}`;
+      } else if (ctx.rol === 'vendedor' && ctx.vendedor_nombre) {
+        kpis = await fetchVendedorKpis(ctx.vendedor_nombre, y, m, today); label = ctx.vendedor_nombre;
+      } else {
+        return { error: 'Sin alcance para consultar ventas.' };
+      }
+
+      const r0 = (n: number) => Math.round(n);
+      return {
+        alcance: label,
+        periodo: `${y}-${String(m).padStart(2, '0')}`,
+        total_kg: r0(kpis.reduce((a, k) => a + (k.acumulado || 0), 0)),
+        total_pesos: r0(kpis.reduce((a, k) => a + (k.neto_acumulado || 0), 0)),
+        por_rubro: kpis.map((k) => ({ rubro: k.rubro, kg: r0(k.acumulado), pesos: r0(k.neto_acumulado), avance_pct: r0(k.avance_pct) })),
+      };
     },
   },
 ];

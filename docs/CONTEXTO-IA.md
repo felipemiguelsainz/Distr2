@@ -174,7 +174,9 @@ requiere importar direcciones reales.
   `LLMProvider` agnóstica + OpenAI y Anthropic vía fetch, sin SDK; se elige con
   `AI_PROVIDER`, default openai; `getLLMProvider()` / `llmAvailable()`).
   `lib/ai/tools.ts` (tools read-only con scoping por rol: `get_pdvs_inactivos`,
-  `get_pdv_info`; `resolveCarteras` da las carteras visibles). La capa de DATOS
+  `get_pdv_info`, `get_ventas` [kg/$ por vendedor o alcance, mes actual/pasado,
+  reusa fetch*Kpis; `resolveVendedor` matchea el nombre tipeado sin acentos/casing];
+  `resolveCarteras` da las carteras visibles). La capa de DATOS
   está testeada contra la DB; la orquestación LLM se valida cuando haya key.
   - **Para activar:** `OPENAI_API_KEY` en `.env.local` (y en Vercel). Modelos:
     `OPENAI_MODEL` (default `gpt-4o-mini`). Para Claude: `AI_PROVIDER=anthropic`
