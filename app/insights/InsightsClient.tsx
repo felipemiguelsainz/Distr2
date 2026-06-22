@@ -7,16 +7,24 @@ import {
 } from 'lucide-react';
 
 type CardTipo = 'RECUPERACIÓN' | 'CRECIMIENTO' | 'COBERTURA' | 'ALERTA';
-interface ClienteRef { pdv_id: number; razon_social: string | null; localidad: string | null; ultima_vta: string }
+interface ClienteRef { pdv_id: number; razon_social: string | null; localidad: string | null; ultima_vta: string; valor_mensual: number }
 interface InsightCard {
   tipo: CardTipo; accion: string; metrica: string; detalle: string; pasos: string[]; cta: string; pdv_ids: number[];
 }
 interface InsightData {
   alcance: string;
   actividad: { total: number; activos: number; tibios: number; inactivos: number; pct_comprando: number };
-  churn: { count: number; top: ClienteRef[] };
+  churn: { count: number; valor_total: number; top: ClienteRef[] };
 }
 interface Payload { data: InsightData; cards: InsightCard[] }
+
+// $ compacto (es-AR): 164283 -> "$164 mil", 1500000 -> "$1,5 M"
+function fmtPesos(n: number): string {
+  if (!n) return '$0';
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1).replace('.', ',')} M`;
+  if (n >= 1_000) return `$${Math.round(n / 1000)} mil`;
+  return `$${n}`;
+}
 
 // Config visual por tipo de card (paleta del proyecto).
 const TIPO_CFG: Record<CardTipo, { icon: typeof RefreshCw; color: string; bg: string; border: string }> = {
@@ -71,8 +79,8 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
     { label: 'Total PDVs', val: d.actividad.total, icon: Users, accent: 'border-l-slate-400', num: 'text-slate-800', ic: 'text-slate-400' },
     { label: 'Activos ≤1m', val: d.actividad.activos, icon: UserCheck, accent: 'border-l-green-500', num: 'text-green-600', ic: 'text-green-500' },
     { label: 'Tibios 1-3m', val: d.actividad.tibios, icon: Clock, accent: 'border-l-yellow-500', num: 'text-yellow-600', ic: 'text-yellow-500' },
-    { label: 'En riesgo +3m', val: d.actividad.inactivos, icon: AlertTriangle, accent: 'border-l-red-500', num: 'text-red-600', ic: 'text-red-500' },
-  ] : [];
+    { label: 'En riesgo +3m', val: d.actividad.inactivos, icon: AlertTriangle, accent: 'border-l-red-500', num: 'text-red-600', ic: 'text-red-500', sub: d.churn.valor_total > 0 ? `${fmtPesos(d.churn.valor_total)}/mes en juego` : undefined },
+  ] as { label: string; val: number; icon: typeof Users; accent: string; num: string; ic: string; sub?: string }[] : [];
 
   return (
     <div>
@@ -130,6 +138,7 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
                   <Icon className={`w-4 h-4 ${c.ic}`} />
                 </div>
                 <p className={`text-4xl font-bold tabular-nums mt-1 ${c.num}`}>{c.val}</p>
+                {c.sub && <p className="text-[11px] text-red-500 font-medium mt-0.5">{c.sub}</p>}
               </div>
             );
           })}
@@ -230,11 +239,15 @@ function ActionCard({ card, when, vendedor, clientes }: { card: InsightCard; whe
                     <div key={c.pdv_id} className="flex items-center justify-between gap-2 px-3 py-1.5">
                       <span className="min-w-0">
                         <span className="block text-sm text-gray-900 truncate">#{c.pdv_id} — {c.razon_social ?? 's/n'}</span>
-                        <span className="block text-xs text-gray-500">{c.localidad ?? '—'}</span>
+                        <span className="block text-xs text-gray-500">
+                          {c.localidad ?? '—'} · {c.ultima_vta === 'sin registro' ? 'sin compras' : `últ: ${c.ultima_vta.slice(0, 10)}`}
+                        </span>
                       </span>
-                      <span className="shrink-0 text-xs text-gray-500">
-                        {c.ultima_vta === 'sin registro' ? 'sin compras' : `últ: ${c.ultima_vta.slice(0, 10)}`}
-                      </span>
+                      {c.valor_mensual > 0 && (
+                        <span className="shrink-0 text-xs font-semibold text-gray-700" title="Facturaba por mes">
+                          {fmtPesos(c.valor_mensual)}<span className="text-gray-400 font-normal">/mes</span>
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>

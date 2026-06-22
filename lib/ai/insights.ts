@@ -12,11 +12,15 @@ import type { KpiRubro } from '@/lib/types';
 export interface InsightAvance {
   rubro: string; avance_pct: number; acumulado: number; meta: number | null; tendencia: number | null;
 }
+export interface ChurnCliente {
+  pdv_id: number; razon_social: string | null; localidad: string | null; ultima_vta: string;
+  valor_mensual: number; // $ que facturaba por mes cuando compraba (últ. 12m)
+}
 export interface InsightData {
   alcance: string;            // etiqueta legible: nombre del vendedor o "Total Empresa"
   periodo: string;
   actividad: { total: number; activos: number; tibios: number; inactivos: number; pct_comprando: number };
-  churn: { count: number; top: { pdv_id: number; razon_social: string | null; localidad: string | null; ultima_vta: string }[] };
+  churn: { count: number; valor_total: number; top: ChurnCliente[] }; // valor_total = $/mes en juego
   avance: InsightAvance[];
 }
 
@@ -57,6 +61,13 @@ export async function buildInsightData(
   const m1 = monthsAgoISO(1);
   const m3 = monthsAgoISO(3);
 
+  // Valor mensual histórico por PDV (últ. 12m) para priorizar el churn por plata.
+  const { data: vd } = await svc.rpc('pdvs_valor_12m');
+  const valor = new Map<number, number>();
+  for (const r of (vd as { pdv_id: number; neto_12m: number; meses: number }[] | null) ?? []) {
+    if (r?.pdv_id != null) valor.set(r.pdv_id, Math.round(Number(r.neto_12m) / Math.max(1, Number(r.meses))));
+  }
+
   // Paginar para superar el límite de filas de PostgREST (la vista empresa
   // tiene ~7000 PDVs; sin paginar se cortaría en 1000 y subcontaría).
   const PAGE = 1000;
@@ -71,23 +82,27 @@ export async function buildInsightData(
   }
 
   let activos = 0, tibios = 0, inactivos = 0;
-  const rojos: InsightData['churn']['top'] = [];
+  const rojos: ChurnCliente[] = [];
   for (const p of pdvs ?? []) {
     const u = ult.get(p.id) ?? null;
     const d = u?.slice(0, 10);
     if (d && d >= m1) activos++;
     else if (d && d >= m3) tibios++;
-    else { inactivos++; rojos.push({ pdv_id: p.id, razon_social: p.razon_social, localidad: p.localidad, ultima_vta: u ?? 'sin registro' }); }
+    else {
+      inactivos++;
+      rojos.push({ pdv_id: p.id, razon_social: p.razon_social, localidad: p.localidad, ultima_vta: u ?? 'sin registro', valor_mensual: valor.get(p.id) ?? 0 });
+    }
   }
   const total = (pdvs ?? []).length;
-  const key = (s: string) => (s === 'sin registro' ? '0' : s);
-  rojos.sort((a, b) => key(a.ultima_vta).localeCompare(key(b.ultima_vta)));
+  // Ordenar por PLATA EN JUEGO (valor mensual histórico), no por fecha.
+  rojos.sort((a, b) => b.valor_mensual - a.valor_mensual);
+  const valorTotal = rojos.reduce((acc, r) => acc + r.valor_mensual, 0);
 
   return {
     alcance: label,
     periodo: today.toISOString().slice(0, 7),
     actividad: { total, activos, tibios, inactivos, pct_comprando: total > 0 ? Math.round(((activos + tibios) / total) * 100) : 0 },
-    churn: { count: inactivos, top: rojos.slice(0, 15) },
+    churn: { count: inactivos, valor_total: valorTotal, top: rojos.slice(0, 15) },
     avance,
   };
 }
@@ -139,6 +154,9 @@ export async function generateCards(data: InsightData): Promise<InsightCard[]> {
     `Los datos corresponden a: «${data.alcance}».`,
     'Analizá los datos y generá insights ACCIONABLES en español rioplatense.',
     'Usá SOLO los números del JSON; no inventes ni estimes nada que no esté.',
+    'PRIORIZÁ POR PLATA: churn.top viene ordenado por valor_mensual ($/mes que',
+    'facturaba cada cliente apagado). Enfocá las acciones en los de mayor valor y',
+    'cuantificá en $ (usá valor_mensual y churn.valor_total como "$/mes en juego").',
     'Respondé SOLO con un array JSON válido (sin markdown, sin texto extra) con este schema por item:',
     '{ "tipo": "RECUPERACIÓN" | "CRECIMIENTO" | "COBERTURA" | "ALERTA", "accion": string, "metrica": string, "detalle": string, "pasos": string[], "cta": "Ver clientes" | "Ver productos" | "Ver ruta" | "Ver detalle", "pdv_ids": number[] }',
     '- accion: imperativa, 1 línea. metrica: etiqueta corta para un badge (ej: "5 clientes", "28 en riesgo").',

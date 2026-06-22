@@ -194,6 +194,11 @@ requiere importar direcciones reales.
     (admin → "Total Empresa"; supervisor → su equipo; vendedor → su cartera).
     El selector arranca neutro ("Filtrar por vendedor…"); elegir uno cambia a
     esa cartera. El scope se respeta server-side (un vendedor NO ve la empresa).
+  - **Churn ponderado por plata:** el churn se ordena por `valor_mensual`
+    ($/mes histórico que facturaba cada apagado, RPC `pdvs_valor_12m` =
+    neto últ. 12m / meses con compra), no por fecha. `churn.valor_total` = $/mes
+    en juego (se muestra en la KPI "En riesgo" y en la lista de clientes). El
+    prompt le pide al LLM priorizar y cuantificar en $.
   - **Datos (SQL):** `lib/ai/insights.ts` → `buildInsightData(svc, {label,
     carteras, avance, today})`. `carteras=null` = empresa (PAGINA pdvs: ~7000
     superan el límite de 1000 de PostgREST). Avance se calcula afuera por rol:
