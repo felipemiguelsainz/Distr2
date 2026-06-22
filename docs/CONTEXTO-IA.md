@@ -135,9 +135,13 @@ requiere importar direcciones reales.
   (`travelmode=walking`). Google acepta ~10 puntos por link → se parte en
   **tramos continuos**. Además botón "Copiar coords" (lista ordenada).
 - **Clientes apagados cercanos** (sin IA): PDVs en rojo (sin compra +3 meses)
-  que quedan a ≤400 m de la ruta — proximidad geométrica, no LLM. El endpoint
-  los devuelve en `sugerencias`; el panel los muestra como lista clickeable
-  (centra el mapa con `FlyTo`) y como rombos rojos en el mapa.
+  a ≤ radio de la ruta — proximidad geométrica, no LLM. El endpoint los devuelve
+  en `sugerencias`; el panel los lista (clickeable → `FlyTo` centra el mapa) y
+  los dibuja como rombos rojos.
+  - **Radio ajustable**: param `radio` (m, clamp 100–2000, default 400); selector
+    en el panel. **Sumar a la ruta**: param `extra` (ids coma-separados) → esos
+    PDVs se agregan como paradas (flag `RutaStop.agregado`) y se re-optimiza todo;
+    el panel tiene botón "+ Sumar" por sugerencia y chips "Sumados" con quitar.
 
 ---
 

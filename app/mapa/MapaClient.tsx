@@ -306,14 +306,19 @@ export default function MapaClient() {
   const [rutaLoading, setRutaLoading] = useState(false);
   const [rutaError,   setRutaError]   = useState<string | null>(null);
   const [focusPoint,  setFocusPoint]  = useState<[number, number] | null>(null);
+  const [rutaRadio,   setRutaRadio]   = useState(400); // radio apagados cercanos (m)
+  const [rutaExtras,  setRutaExtras]  = useState<Set<number>>(new Set()); // PDVs sumados a mano
 
-  const armarRuta = useCallback(async () => {
+  // Fetch de la ruta con extras/radio explícitos (evita estado stale al sumar).
+  const fetchRutaWith = useCallback(async (extras: Set<number>, radio: number) => {
     const vend = rutaVend || (opts.vendedores.length === 1 ? opts.vendedores[0] : '');
     if (!vend) { setRutaError('Elegí un vendedor.'); return; }
     setRutaLoading(true);
     setRutaError(null);
     try {
-      const res = await fetch(`/api/ruta?vendedor=${encodeURIComponent(vend)}&dia=${rutaDia}`);
+      const params = new URLSearchParams({ vendedor: vend, dia: rutaDia, radio: String(radio) });
+      if (extras.size) params.set('extra', [...extras].join(','));
+      const res = await fetch(`/api/ruta?${params.toString()}`);
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
         throw new Error(j.error ?? 'No se pudo armar la ruta.');
@@ -329,7 +334,31 @@ export default function MapaClient() {
     }
   }, [rutaVend, rutaDia, opts.vendedores]);
 
-  const limpiarRuta = useCallback(() => { setRuta(null); setRutaError(null); }, []);
+  // Armar ruta desde cero: resetea los agregados manuales.
+  const armarRuta = useCallback(() => {
+    const fresh = new Set<number>();
+    setRutaExtras(fresh);
+    fetchRutaWith(fresh, rutaRadio);
+  }, [fetchRutaWith, rutaRadio]);
+
+  const sumarPdv = useCallback((pdvId: number) => {
+    const next = new Set(rutaExtras); next.add(pdvId);
+    setRutaExtras(next);
+    fetchRutaWith(next, rutaRadio);
+  }, [rutaExtras, rutaRadio, fetchRutaWith]);
+
+  const quitarPdv = useCallback((pdvId: number) => {
+    const next = new Set(rutaExtras); next.delete(pdvId);
+    setRutaExtras(next);
+    fetchRutaWith(next, rutaRadio);
+  }, [rutaExtras, rutaRadio, fetchRutaWith]);
+
+  const cambiarRadio = useCallback((r: number) => {
+    setRutaRadio(r);
+    if (ruta) fetchRutaWith(rutaExtras, r);
+  }, [ruta, rutaExtras, fetchRutaWith]);
+
+  const limpiarRuta = useCallback(() => { setRuta(null); setRutaError(null); setRutaExtras(new Set()); }, []);
 
   // Copiar las coordenadas en orden de visita (a prueba de errores: lat,lon).
   const [coordsCopied, setCoordsCopied] = useState(false);
@@ -553,6 +582,16 @@ export default function MapaClient() {
                 {DIA_ORDER.map(d => <option key={d} value={d}>{DIA_NAMES[d]}</option>)}
               </select>
             </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#71717a]">Radio apagados</label>
+              <select
+                value={rutaRadio}
+                onChange={e => cambiarRadio(Number(e.target.value))}
+                className="px-2.5 py-1.5 text-[12px] rounded-[8px] border border-[#e4e4e7] bg-white text-[#09090b]"
+              >
+                {[200, 300, 400, 600, 800, 1000, 1500].map(r => <option key={r} value={r}>{r} m</option>)}
+              </select>
+            </div>
             <button
               onClick={armarRuta}
               disabled={rutaLoading}
@@ -602,34 +641,62 @@ export default function MapaClient() {
               )}
             </div>
 
+            {/* PDVs sumados a mano a la ruta */}
+            {ruta && ruta.stops.some(s => s.agregado) && (
+              <div className="w-full mt-2 pt-2.5 border-t border-[rgba(12,92,171,0.15)]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#0c5cab] mb-1.5">
+                  Sumados a la ruta ({ruta.stops.filter(s => s.agregado).length})
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {ruta.stops.filter(s => s.agregado).map(s => (
+                    <span key={s.pdv_id} className="inline-flex items-center gap-1.5 text-[11px] bg-[rgba(12,92,171,0.08)] border border-[rgba(12,92,171,0.25)] text-[#09090b] pl-2 pr-1 py-0.5 rounded-full">
+                      #{s.pdv_id} — {(s.razon_social ?? 's/n').slice(0, 22)}
+                      <button
+                        onClick={() => quitarPdv(s.pdv_id)}
+                        title="Quitar de la ruta"
+                        className="w-4 h-4 flex items-center justify-center rounded-full text-[#71717a] hover:text-[#dc2626] hover:bg-[rgba(220,38,38,0.1)]"
+                      >×</button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Clientes apagados cercanos a la ruta */}
             {ruta && ruta.sugerencias.length > 0 && (
               <div className="w-full mt-2 pt-2.5 border-t border-[rgba(220,38,38,0.18)]">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#dc2626]">
-                  Clientes apagados cercanos ({ruta.sugerencias.length})
+                  Clientes apagados cercanos ({ruta.sugerencias.length}) · ≤{rutaRadio} m
                 </p>
                 <p className="text-[11px] text-[#71717a] mb-2">
                   Sin compra hace +3 meses, a pasos de tu recorrido — no te cuesta nada pasar.
                 </p>
                 <div className="flex flex-col gap-1 max-h-44 overflow-y-auto">
                   {ruta.sugerencias.map(s => (
-                    <button
+                    <div
                       key={s.pdv_id}
-                      onClick={() => setFocusPoint([s.lat, s.lon])}
-                      className="flex items-center justify-between gap-2 text-left px-2.5 py-1.5 rounded-[8px] bg-white border border-[rgba(220,38,38,0.2)] hover:border-[rgba(220,38,38,0.45)] transition-colors"
+                      className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-[8px] bg-white border border-[rgba(220,38,38,0.2)]"
                     >
-                      <span className="min-w-0">
+                      <button
+                        onClick={() => setFocusPoint([s.lat, s.lon])}
+                        className="min-w-0 text-left flex-1"
+                        title="Ver en el mapa"
+                      >
                         <span className="block text-[12px] font-medium text-[#09090b] truncate">
                           #{s.pdv_id} — {s.razon_social ?? 's/n'}
                         </span>
                         <span className="block text-[11px] text-[#71717a]">
-                          Última vta: {fmtDate(s.ultima_vta)} · Visita: {fmtDia(s.dia_visita)}
+                          Última vta: {fmtDate(s.ultima_vta)} · a {s.dist_m} m
                         </span>
-                      </span>
-                      <span className="shrink-0 text-[11px] font-semibold text-[#dc2626] bg-[rgba(220,38,38,0.08)] px-2 py-0.5 rounded-full">
-                        a {s.dist_m} m
-                      </span>
-                    </button>
+                      </button>
+                      <button
+                        onClick={() => sumarPdv(s.pdv_id)}
+                        disabled={rutaLoading}
+                        className="shrink-0 text-[11px] font-semibold text-white bg-[#0c5cab] hover:bg-[#0a4f95] px-2.5 py-1 rounded-[7px] transition-colors disabled:opacity-60"
+                      >
+                        + Sumar
+                      </button>
+                    </div>
                   ))}
                 </div>
               </div>

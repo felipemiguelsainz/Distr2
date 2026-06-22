@@ -29,6 +29,12 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const vendedorParam = (searchParams.get('vendedor') ?? '').trim();
   const dia = (searchParams.get('dia') ?? '').trim().toUpperCase();
+  // Radio para clientes apagados cercanos (m), ajustable. Clamp 100–2000.
+  const radio = Math.min(2000, Math.max(100, Number(searchParams.get('radio')) || SUGERENCIA_RADIO_M));
+  // PDVs agregados manualmente a la ruta ("sumar a la ruta"): ids separados por coma.
+  const extraIds = new Set(
+    (searchParams.get('extra') ?? '').split(',').map((s) => Number(s.trim())).filter((n) => Number.isFinite(n) && n > 0)
+  );
 
   if (!DIAS_VALIDOS.includes(dia)) {
     return NextResponse.json({ error: 'Día inválido' }, { status: 400 });
@@ -124,8 +130,12 @@ export async function GET(req: Request) {
     return !u || u.slice(0, 10) < desde3m;
   };
 
-  // --- PDVs de la ruta = los del día seleccionado ---
-  const ruta = candidatos.filter((c) => diasDe(c.dia_visita).includes(dia));
+  // --- PDVs de la ruta = los del día + los agregados manualmente ("sumar") ---
+  const delDia = candidatos.filter((c) => diasDe(c.dia_visita).includes(dia));
+  const enDia = new Set(delDia.map((c) => c.pdv_id));
+  const extras = candidatos.filter((c) => extraIds.has(c.pdv_id) && !enDia.has(c.pdv_id));
+  const agregadoSet = new Set(extras.map((c) => c.pdv_id));
+  const ruta = [...delDia, ...extras];
 
   const toStop = (c: GeoRow): RutaStop => ({
     pdv_id: c.pdv_id,
@@ -135,6 +145,7 @@ export async function GET(req: Request) {
     lat: c.lat,
     lon: c.lon,
     ultima_vta: ultimaMap.get(c.pdv_id) ?? null,
+    agregado: agregadoSet.has(c.pdv_id),
   });
 
   // Caso trivial: 0 o 1 parada
@@ -202,7 +213,7 @@ export async function GET(req: Request) {
         dist_m: Math.round(minKm * 1000),
       };
     })
-    .filter((s) => s.dist_m <= SUGERENCIA_RADIO_M)
+    .filter((s) => s.dist_m <= radio)
     .sort((a, b) => a.dist_m - b.dist_m)
     .slice(0, MAX_SUGERENCIAS);
 

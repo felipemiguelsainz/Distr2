@@ -22,6 +22,7 @@ export interface RutaStop {
   lat: number;
   lon: number;
   ultima_vta: string | null;
+  agregado?: boolean; // true si se sumó manualmente ("sumar a la ruta")
 }
 
 export interface RutaSugerencia {
