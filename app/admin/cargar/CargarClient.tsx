@@ -200,6 +200,8 @@ function VentasPreviewModal({
 
 interface GeoUploadResult {
   upserted: number;
+  corrected: number;
+  rejected: number;
   skipped_orphans: number;
   skipped_no_coords: number;
 }
@@ -317,9 +319,15 @@ function ResultBanner({ result, type }: { result: unknown; type: 'ventas' | 'pdv
         <p className="font-semibold text-[#16a34a] mb-1">Geolocalización actualizada</p>
         <p className="text-[#27272a]">
           <strong>{r.upserted}</strong> PDVs actualizados
+          {r.corrected > 0 && <span className="text-[#d97706]">, {r.corrected} corregidos al centro de su localidad</span>}
           {r.skipped_no_coords > 0 && <span className="text-[#71717a]">, {r.skipped_no_coords} ignorados sin coordenadas</span>}
           {r.skipped_orphans  > 0 && <span className="text-[#71717a]">, {r.skipped_orphans} ignorados (PDV no encontrado en base)</span>}
         </p>
+        {r.rejected > 0 && (
+          <p className="text-[#dc2626] mt-1">
+            ⚠ <strong>{r.rejected}</strong> rechazados por coordenada inválida sin forma de ubicarlos (sin localidad de referencia).
+          </p>
+        )}
       </div>
     );
   }

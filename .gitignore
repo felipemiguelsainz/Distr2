@@ -40,3 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .commit_msg_tmp
+
+# Backups de datos generados por scripts de mantenimiento
+scripts/*-backup-*.json
