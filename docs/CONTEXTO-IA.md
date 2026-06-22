@@ -1,0 +1,170 @@
+# Contexto para Claude — Lecciones de este proyecto (Candysur / Distr2)
+
+> **Cómo usar este archivo:** pasáselo a Claude al empezar a trabajar en esta app.
+> Resume decisiones y trampas que ya nos costó descubrir, para que todo quede
+> "joya" sin repetir el mismo aprendizaje. Es un documento **vivo**: cada vez que
+> resolvemos algo no obvio, se agrega acá.
+
+App de gestión de ventas para una distribuidora de Mondelez en el GBA.
+Stack: **Next.js 16 (App Router, Turbopack) + Supabase (Postgres) + Vercel**.
+Idioma del producto y de los textos: **español rioplatense**.
+
+---
+
+## 0. Principios que NO se negocian
+
+1. **Cálculo = algoritmo/SQL. Interpretación = IA.**
+   Rutas (TSP), KPIs, clasificaciones, distancias, geocoding → determinístico.
+   La IA (LLM) es para redactar/conversar/resumir, nunca para calcular números.
+   - **Un LLM NUNCA debe producir coordenadas, distancias ni totales**: los
+     inventa con seguridad. Para dirección→coords se usa un **geocoder real**
+     (Nominatim/OSM, Google), no un GPT.
+2. **El LLM nunca escribe SQL libre.** Si se hace un asistente, expone un set
+   acotado de tools read-only que ya aplican el scoping por rol.
+3. **Todo lo de IA corre server-side.** La API key vive en `.env.local` /
+   variables de Vercel. Jamás llega al cliente ni a un commit.
+4. **Validar contra la realidad antes de cantar victoria.** Probar queries y
+   RPCs contra la DB real, correr `tsc --noEmit`, y para mutaciones de datos:
+   **dry-run → backup → apply**.
+5. **Respetar el scoping por rol en CADA endpoint y tool** (ver §2).
+
+---
+
+## 1. Trampa de Next.js (¡leer primero!)
+
+`AGENTS.md` lo dice y es en serio: **esta versión de Next tiene breaking changes
+respecto de lo que un modelo "sabe" de memoria.** Antes de escribir código de
+Next, leer la guía relevante en `node_modules/next/dist/docs/`.
+- Favicon: convención `app/favicon.ico` (Next inyecta el `<link>` solo).
+- El mapa se carga con `dynamic(() => import(...), { ssr: false })` porque Leaflet
+  necesita `window` (no corre en SSR).
+
+---
+
+## 2. Modelo de datos y "verdades"
+
+Tablas clave:
+- `pdvs` — maestro de puntos de venta: `id, razon_social, domicilio, localidad,
+  zona, canal_venta, cartera, ultima_vta, activo, dia_visita` (CSV `LUN,MAR,…`).
+- `pdvs_geo` — geo: `pdv_id, latitud, longitud, partido, provincia, calle,
+  altura, ruteable`.
+- `ventas` — transaccional (fuente de verdad de actividad): `fecha, pdv_id,
+  neto, kilos, bultos, unidades, marca, rubro, sku, cartera, vendedor`.
+- `localidades_geo` — centroides por localidad (ver §4).
+- `vendedores`, `profiles` — roles y equipos.
+
+**Verdades aprendidas (no asumir lo contrario):**
+- **La actividad/recencia se calcula desde `ventas`, NO de campos cacheados.**
+  `pdvs.ultima_vta` viene **vacío** → no sirve. La última venta real se pivotea
+  con el RPC `pdvs_ultima_vta()` (`MAX(fecha)` por pdv_id).
+- **La ubicación verdadera de un PDV es `pdvs.localidad`** (lleno ~100%).
+  `pdvs_geo.partido` viene **casi todo null** tras los uploads → no confiar.
+- **Scoping por rol:** `vendedor` ve sólo su `cartera == vendedor_nombre`;
+  `supervisor` ve su `equipo`; `admin` ve todo. Se aplica **server-side** en
+  cada endpoint (`/api/mapa`, `/api/ruta`, etc.).
+- **`avance_pct` se calcula sobre tendencia**, no acumulado (cae a acumulado
+  sólo si tendencia es null = mes pasado).
+
+---
+
+## 3. Mapa: colores por recencia de compra
+
+Los PDVs del mapa se colorean por recencia (no por canal):
+- 🟢 verde = compró ≤ 1 mes · 🟡 amarillo = > 1 mes · 🔴 rojo = > 3 meses / nunca.
+- La fecha sale pivoteada de `ventas` (RPC `pdvs_ultima_vta`), no del campo
+  cacheado. `activo_3m` se deriva de esa misma fecha.
+- `/api/mapa` cachea por usuario 5 min (`Cache-Control: private, max-age=300`):
+  tras cambios, hace falta **Ctrl+Shift+R**.
+
+---
+
+## 4. Geolocalización: validación EN LA CARGA (no con scripts manuales)
+
+**El problema:** los uploads de PDVs pisan `pdvs_geo` con las coords crudas del
+CSV, que traen errores de geocoding (puntos en otras provincias, centroides de
+país). Antes había que correr un script a mano cada vez. **Eso no va.**
+
+**La solución (migración `029`):**
+- Tabla `localidades_geo` (localidad normalizada → centro lat/lng). La localidad
+  se normaliza: mayúsculas, trim, y `#` → `Ñ` (la Ñ viene mal codificada).
+- Centroides = **mediana de los puntos sanos (dentro del GBA) por localidad**
+  (`refresh_localidades_geo()`). Localidades chicas sin mediana se completan
+  geocodificando el nombre: `scripts/seed-localidades-geo.cjs`.
+- El RPC `bulk_upsert_pdvs_geo` valida **cada fila** con esta cascada:
+  | Caso | Acción |
+  |---|---|
+  | En GBA y ≤10 km del centro de su localidad (o sin centroide) | guarda tal cual |
+  | Lejos / fuera del GBA, con centroide | **corrige** al centro de la localidad |
+  | Sin localidad de referencia | **rechaza** y reporta |
+- Devuelve `{ upserted, corrected, rejected, skipped_* }` y el front lo muestra.
+
+**Bounding box GBA** (descartar coords corruptas): lat `[-35.6, -34.2]`,
+lng `[-59.2, -57.7]`.
+
+**Limitación honesta:** corregir al centro de la localidad da precisión de
+*barrio*, no de *calle* (los registros malos no traen dirección para geocodificar
+fino). Está bien para no tener puntos "en cualquier lado"; precisión de calle
+requiere importar direcciones reales.
+
+**Script de emergencia** (si hace falta arreglar data ya cargada):
+`scripts/fix-geo-outliers.cjs` (dry-run por defecto, `--apply` con backup).
+
+---
+
+## 5. Ruteo (Módulo 1): a pie, por calles
+
+- **Optimización**: TSP determinístico (vecino más cercano + 2-opt) en
+  `lib/routing/tsp.ts`, sobre matriz de distancias.
+- **Es TODO A PIE.** El ruteo peatón es el **default**, sin configurar nada:
+  - Router por defecto = **FOSSGIS público `routing.openstreetmap.de/routed-foot`**
+    (perfil `foot` real, gratis, sin API key — el mismo que usa openstreetmap.org
+    para caminar). Da **traza + distancia + tiempo peatonales de verdad** (cruza
+    por donde camina un peatón, ignora sentidos únicos; ~4,5 km/h).
+  - `lib/routing/osrm.ts`: `osrmTableFoot` (matriz para optimizar el orden) y
+    `osrmRouteGeometry` (traza + totales). Si el foot router falla, la geometría
+    cae al OSRM público de auto SOLO para no dibujar líneas rectas sobre manzanas
+    (en ese caso la distancia/tiempo se estiman a pie con haversine ~5 km/h).
+  - Ojo: el **demo `router.project-osrm.org` es solo auto e ignora el perfil**
+    `foot` — por eso NO se usa para distancias, solo como último fallback de traza.
+  - Para producción pesada o veredas propias: montar un OSRM con perfil `foot`
+    y setear `OSRM_URL` (+ `OSRM_PROFILE=foot`); el sistema lo toma solo.
+  - El servicio público de FOSSGIS es para uso razonable (equipo chico OK); no
+    abusar.
+- **Export a Google Maps**: SIEMPRE como **coordenadas** (`lat,lon`, precisión
+  completa, sin nombres → no confunde comercios) y en modo **caminando**
+  (`travelmode=walking`). Google acepta ~10 puntos por link → se parte en
+  **tramos continuos**. Además botón "Copiar coords" (lista ordenada).
+- **Capa "inteligente" sin IA**: sugiere PDVs en rojo (inactivos) que quedan
+  "de paso" (≤400 m de la ruta) — es proximidad geométrica, no LLM.
+
+---
+
+## 6. Secrets, uploads y operativa
+
+- Archivos grandes se cargan **corriendo la app local**, no por la URL pública
+  de Vercel (tope 4.5 MB + timeout).
+- Credenciales (OpenAI, etc.): el usuario las pone en `.env.local`; nunca pegarlas
+  en el chat ni commitearlas.
+- Migraciones: numeración correlativa en `supabase/migrations/` (última conocida:
+  `029_*`). Vercel **no** corre migraciones; se aplican aparte contra la DB.
+- Funciones `SECURITY DEFINER` de escritura: `REVOKE` a public/anon/authenticated
+  + `GRANT` a `service_role` (ver migración `024`).
+
+---
+
+## 7. Disciplina de validación (lo que hicimos bien)
+
+- Reproducir el problema con una query antes de "arreglar".
+- Mutaciones de datos: **dry-run → backup JSON → apply**, y re-verificar.
+- Probar RPCs en una transacción con `ROLLBACK` para no ensuciar datos.
+- `npx tsc --noEmit` antes de dar por cerrado un cambio de código.
+- Scripts puntuales de diagnóstico: crearlos en `scripts/`, correrlos y borrarlos.
+
+---
+
+## 8. Hooks de IA pendientes (cuando se quiera)
+
+- Capa LLM agnóstica de proveedor (OpenAI ahora, Claude después).
+- Asistente NL con tool-calling read-only (respeta scoping).
+- Resúmenes/insights por vendedor (datos de SQL; el LLM sólo redacta).
+- La narración de rutas se descartó por ahora (no aporta).
