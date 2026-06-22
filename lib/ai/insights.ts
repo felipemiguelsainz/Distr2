@@ -11,6 +11,8 @@ import type { KpiRubro } from '@/lib/types';
 
 export interface InsightAvance {
   rubro: string; avance_pct: number; acumulado: number; meta: number | null; tendencia: number | null;
+  acumulado_aa: number;  // mismo período del año anterior (KG)
+  vs_aa_pct: number;     // variación vs año anterior (%)
 }
 export interface ChurnCliente {
   pdv_id: number; razon_social: string | null; localidad: string | null; ultima_vta: string;
@@ -46,6 +48,8 @@ export function avanceFromKpis(kpis: KpiRubro[]): InsightAvance[] {
     acumulado: Math.round(k.acumulado),
     meta: k.meta != null ? Math.round(k.meta) : null,
     tendencia: k.tendencia != null ? Math.round(k.tendencia) : null,
+    acumulado_aa: Math.round(k.acumulado_aa ?? 0),
+    vs_aa_pct: Math.round(k.avance_vs_aa_pct ?? 0),
   }));
 }
 
@@ -211,6 +215,9 @@ export async function generateCards(data: InsightData): Promise<InsightCard[]> {
     'NO compran (n_no_compran clientes, valor_estimado de oportunidad mensual, y',
     'clientes ejemplo). Generá cards de venta nueva: "X clientes no te compran',
     '<rubro> → ~$Y/mes"; poné sus pdv_ids en la card.',
+    'TENDENCIA: avance trae vs_aa_pct (variación vs el año pasado por rubro).',
+    'Si un rubro cae fuerte (vs_aa_pct muy negativo) generá una ALERTA; si crece',
+    'fuerte, una de CRECIMIENTO. Mencioná el % vs año pasado.',
     'Respondé SOLO con un array JSON válido (sin markdown, sin texto extra) con este schema por item:',
     '{ "tipo": "RECUPERACIÓN" | "CRECIMIENTO" | "COBERTURA" | "ALERTA", "accion": string, "metrica": string, "detalle": string, "pasos": string[], "cta": "Ver clientes" | "Ver productos" | "Ver ruta" | "Ver detalle", "pdv_ids": number[] }',
     '- accion: imperativa, 1 línea. metrica: etiqueta corta para un badge (ej: "5 clientes", "28 en riesgo").',
