@@ -18,6 +18,7 @@ export interface TendenciaRubro {
 export interface ChurnCliente {
   pdv_id: number; razon_social: string | null; localidad: string | null; ultima_vta: string;
   valor_mensual: number; // $ que facturaba por mes cuando compraba (últ. 12m)
+  kg_mensual?: number;   // kg/mes (solo lo puebla computeEnfriandose)
 }
 export interface EnfriandoseCliente extends ChurnCliente {
   cadencia_dias: number; // cada cuántos días compra habitualmente
@@ -297,8 +298,13 @@ export async function computeEnfriandose(
 
   const [vdRes, cdRes] = await Promise.all([svc.rpc('pdvs_valor_12m'), svc.rpc('pdvs_cadencia')]);
   const valor = new Map<number, number>();
-  for (const r of (vdRes.data as { pdv_id: number; neto_12m: number; meses: number }[] | null) ?? []) {
-    if (r?.pdv_id != null) valor.set(r.pdv_id, Math.round(Number(r.neto_12m) / Math.max(1, Number(r.meses))));
+  const kilos = new Map<number, number>();
+  for (const r of (vdRes.data as { pdv_id: number; neto_12m: number; kilos_12m: number; meses: number }[] | null) ?? []) {
+    if (r?.pdv_id != null) {
+      const meses = Math.max(1, Number(r.meses));
+      valor.set(r.pdv_id, Math.round(Number(r.neto_12m) / meses));
+      kilos.set(r.pdv_id, Math.round(Number(r.kilos_12m ?? 0) / meses));
+    }
   }
   const cad = new Map<number, { cadencia: number; ultima: string }>();
   for (const r of (cdRes.data as { pdv_id: number; cadencia: number; ultima: string }[] | null) ?? []) {
@@ -312,7 +318,7 @@ export async function computeEnfriandose(
     if (!c) continue;
     const ds = diasDesde(c.ultima);
     if (esEnfriandose(c.cadencia, ds)) {
-      out.push({ pdv_id: p.id, razon_social: p.razon_social, localidad: p.localidad, cartera: p.cartera, ultima_vta: c.ultima, valor_mensual: valor.get(p.id) ?? 0, cadencia_dias: c.cadencia, dias_sin: ds });
+      out.push({ pdv_id: p.id, razon_social: p.razon_social, localidad: p.localidad, cartera: p.cartera, ultima_vta: c.ultima, valor_mensual: valor.get(p.id) ?? 0, kg_mensual: kilos.get(p.id) ?? 0, cadencia_dias: c.cadencia, dias_sin: ds });
     }
   }
   out.sort((a, b) => b.valor_mensual - a.valor_mensual);

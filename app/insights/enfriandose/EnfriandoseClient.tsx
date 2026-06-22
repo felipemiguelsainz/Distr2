@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Clock, ChevronDown, RefreshCw, MapPin } from 'lucide-react';
+import { Clock, ChevronDown, RefreshCw, MapPin, ClipboardList } from 'lucide-react';
 
 interface Cliente {
   pdv_id: number; razon_social: string | null; localidad: string | null; cartera: string | null;
-  ultima_vta: string; valor_mensual: number; cadencia_dias: number; dias_sin: number;
+  ultima_vta: string; valor_mensual: number; kg_mensual?: number; cadencia_dias: number; dias_sin: number;
 }
 
 function fmtPesos(n: number): string {
@@ -14,11 +14,21 @@ function fmtPesos(n: number): string {
   if (n >= 1_000) return `$${Math.round(n / 1000)} mil`;
   return `$${n}`;
 }
+const fmtKg = (n: number) => `${(n || 0).toLocaleString('es-AR')} kg`;
+
+// Color semántico según los días que faltan para entrar en zona roja (inactivo).
+function zonaRojaStyle(diasRestantes: number) {
+  if (diasRestantes <= 0) return { text: 'text-red-700', bg: 'bg-red-100', pulse: false, label: 'En zona roja' };
+  if (diasRestantes < 15) return { text: 'text-red-700', bg: 'bg-red-100', pulse: true, label: `${diasRestantes} días` };
+  if (diasRestantes <= 30) return { text: 'text-yellow-700', bg: 'bg-yellow-100', pulse: false, label: `${diasRestantes} días` };
+  return { text: 'text-green-700', bg: 'bg-green-100', pulse: false, label: `${diasRestantes} días` };
+}
 
 export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores: string[]; mostrarVendedor: boolean }) {
   const [vendedor, setVendedor] = useState('');
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [valorTotal, setValorTotal] = useState(0);
+  const [kgTotal, setKgTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,6 +41,7 @@ export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores:
       if (!res.ok) throw new Error(data.error ?? 'Error cargando clientes.');
       setClientes(data.clientes ?? []);
       setValorTotal(data.valor_total ?? 0);
+      setKgTotal(data.kg_total ?? 0);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -77,8 +88,8 @@ export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores:
         </div>
       </div>
 
-      {/* Resumen */}
-      <div className="flex flex-wrap gap-4 mb-5">
+      {/* KPI cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-amber-500 px-4 py-3">
           <p className="text-xs text-gray-500">Clientes enfriándose</p>
           <p className="text-3xl font-bold text-amber-600 tabular-nums">{clientes.length}</p>
@@ -86,6 +97,10 @@ export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores:
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-red-500 px-4 py-3">
           <p className="text-xs text-gray-500">$/mes en juego</p>
           <p className="text-3xl font-bold text-red-600 tabular-nums">{fmtPesos(valorTotal)}</p>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-slate-400 px-4 py-3">
+          <p className="text-xs text-gray-500">Kg/mes en juego</p>
+          <p className="text-3xl font-bold text-slate-700 tabular-nums">{fmtKg(kgTotal)}</p>
         </div>
       </div>
 
@@ -100,28 +115,63 @@ export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores:
       ) : (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[640px]">
+            <table className="w-full text-sm min-w-[680px]">
               <thead>
                 <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
                   <th className="px-4 py-2.5 font-medium">Cliente</th>
                   <th className="px-4 py-2.5 font-medium">Localidad</th>
-                  {mostrarVendedor && <th className="px-4 py-2.5 font-medium">Vendedor</th>}
-                  <th className="px-4 py-2.5 font-medium text-right">Compra cada</th>
+                  {mostrarVendedor && <th className="px-4 py-2.5 font-medium hidden md:table-cell">Vendedor</th>}
+                  <th className="px-4 py-2.5 font-medium text-right hidden md:table-cell">Compra cada</th>
                   <th className="px-4 py-2.5 font-medium text-right">Hace</th>
+                  <th className="px-4 py-2.5 font-medium text-center">Zona roja en</th>
                   <th className="px-4 py-2.5 font-medium text-right">$/mes</th>
+                  <th className="px-4 py-2.5 font-medium text-right">Kg/mes</th>
+                  <th className="px-4 py-2.5 font-medium text-center">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {clientes.map((c) => (
-                  <tr key={c.pdv_id} className="hover:bg-gray-50/60">
-                    <td className="px-4 py-2.5 text-gray-900">#{c.pdv_id} — {c.razon_social ?? 's/n'}</td>
-                    <td className="px-4 py-2.5 text-gray-500">{c.localidad ?? '—'}</td>
-                    {mostrarVendedor && <td className="px-4 py-2.5 text-gray-500">{c.cartera ?? '—'}</td>}
-                    <td className="px-4 py-2.5 text-right tabular-nums text-gray-700">{c.cadencia_dias} d</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums font-medium text-amber-700">{c.dias_sin} d</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-gray-900">{fmtPesos(c.valor_mensual)}</td>
-                  </tr>
-                ))}
+                {clientes.map((c) => {
+                  const zr = 90 - c.dias_sin;
+                  const s = zonaRojaStyle(zr);
+                  return (
+                    <tr key={c.pdv_id} className="hover:bg-gray-50">
+                      <td className="px-4 py-2.5 text-gray-900">#{c.pdv_id} — {c.razon_social ?? 's/n'}</td>
+                      <td className="px-4 py-2.5 text-gray-500">{c.localidad ?? '—'}</td>
+                      {mostrarVendedor && <td className="px-4 py-2.5 text-gray-500 hidden md:table-cell">{c.cartera ?? '—'}</td>}
+                      <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 hidden md:table-cell">{c.cadencia_dias} d</td>
+                      <td className={`px-4 py-2.5 text-right tabular-nums font-medium ${s.text}`}>{c.dias_sin} d</td>
+                      <td className="px-4 py-2.5 text-center">
+                        <span
+                          title={zr > 0 ? `Si no compra antes de ${zr} días, pasa a inactivo` : 'Ya superó su umbral de inactividad'}
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${s.bg} ${s.text} ${s.pulse ? 'animate-pulse' : ''}`}
+                        >
+                          {s.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-gray-900">{fmtPesos(c.valor_mensual)}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-gray-700">{fmtKg(c.kg_mensual ?? 0)}</td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <a
+                            href={`/mapa?pdvs=${c.pdv_id}${c.cartera ? `&vendedor=${encodeURIComponent(c.cartera)}` : ''}`}
+                            title="Ver en el mapa"
+                            className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition"
+                          >
+                            <MapPin className="w-4 h-4" />
+                          </a>
+                          <button
+                            type="button"
+                            title="Registrar visita (próximamente)"
+                            disabled
+                            className="p-1.5 rounded-lg text-gray-400 cursor-not-allowed"
+                          >
+                            <ClipboardList className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

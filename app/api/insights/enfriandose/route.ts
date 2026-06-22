@@ -33,6 +33,7 @@ export async function GET(req: Request) {
       clientes,
       total: clientes.length,
       valor_total: clientes.reduce((a, c) => a + c.valor_mensual, 0),
+      kg_total: clientes.reduce((a, c) => a + (c.kg_mensual ?? 0), 0),
     });
   } catch (e) {
     console.error('[enfriandose]', e);
