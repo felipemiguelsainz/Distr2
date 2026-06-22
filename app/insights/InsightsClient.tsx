@@ -17,6 +17,7 @@ interface InsightData {
   actividad: { total: number; activos: number; tibios: number; inactivos: number; pct_comprando: number };
   churn: { count: number; valor_total: number; top: ClienteRef[] };
   enfriandose: { count: number; valor_total: number; top: EnfriandoseRef[] };
+  cross_sell: { rubro: string; n_no_compran: number; valor_estimado: number; clientes: ClienteRef[] }[];
 }
 interface Payload { data: InsightData; cards: InsightCard[] }
 
@@ -174,7 +175,11 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
             <p className="text-sm text-gray-400">No hay acciones sugeridas para este período.</p>
           ) : (() => {
             const clientes = new Map<number, ClienteRef>(
-              [...(payload.data.churn.top ?? []), ...(payload.data.enfriandose?.top ?? [])].map((c) => [c.pdv_id, c])
+              [
+                ...(payload.data.churn.top ?? []),
+                ...(payload.data.enfriandose?.top ?? []),
+                ...(payload.data.cross_sell ?? []).flatMap((o) => o.clientes ?? []),
+              ].map((c) => [c.pdv_id, c])
             );
             return payload.cards.map((card, i) => (
               <ActionCard key={i} card={card} when={hace(generatedAt)} vendedor={vendedor} clientes={clientes} />

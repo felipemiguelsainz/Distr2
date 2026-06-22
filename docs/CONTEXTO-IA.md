@@ -204,6 +204,12 @@ requiere importar direcciones reales.
     compran regular (cadencia 3–35 d) pero hace >2x su cadencia que no compran y
     siguen dentro de 90 d (aún "activos" por el corte plano) → se están apagando
     AHORA. Ordenados por valor; banner ámbar + el LLM hace card para contactarlos.
+  - **Cross-sell por mix:** RPC `cross_sell(p_carteras)` → rubros fuertes (top 4
+    por penetración) que clientes ACTIVOS no compran: `n_no_compran`,
+    `valor_estimado` ($/mes potencial), y muestra de clientes (los de mayor valor).
+    El LLM hace cards CRECIMIENTO con esos clientes. Las 4 fuentes pesadas
+    (ultima_vta, valor_12m, cadencia, cross_sell) + el paginado de PDVs corren en
+    **paralelo** (Promise.all) porque cross_sell es lento (~8-10s).
   - **Datos (SQL):** `lib/ai/insights.ts` → `buildInsightData(svc, {label,
     carteras, avance, today})`. `carteras=null` = empresa (PAGINA pdvs: ~7000
     superan el límite de 1000 de PostgREST). Avance se calcula afuera por rol:

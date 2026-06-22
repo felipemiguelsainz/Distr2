@@ -27,6 +27,8 @@ export interface InsightData {
   churn: { count: number; valor_total: number; top: ChurnCliente[] }; // valor_total = $/mes en juego
   // Clientes que rompieron su frecuencia (todavía "activos" pero se enfrían):
   enfriandose: { count: number; valor_total: number; top: EnfriandoseCliente[] };
+  // Cross-sell: rubros fuertes que clientes activos no compran (oportunidad).
+  cross_sell: { rubro: string; n_no_compran: number; valor_estimado: number; clientes: ChurnCliente[] }[];
   avance: InsightAvance[];
 }
 
@@ -57,42 +59,45 @@ export async function buildInsightData(
   opts: { label: string; carteras: string[] | null; avance: InsightAvance[]; today: Date }
 ): Promise<InsightData> {
   const { label, carteras, avance, today } = opts;
-
-  // Recencia por PDV (desde ventas)
-  const { data: ud } = await svc.rpc('pdvs_ultima_vta');
-  const ult = new Map<number, string>();
-  for (const r of (ud as { pdv_id: number; ultima: string }[] | null) ?? []) {
-    if (r?.pdv_id != null && r.ultima) ult.set(r.pdv_id, r.ultima);
-  }
   const m1 = monthsAgoISO(1);
   const m3 = monthsAgoISO(3);
-
-  // Valor mensual histórico por PDV (últ. 12m) para priorizar el churn por plata.
-  const { data: vd } = await svc.rpc('pdvs_valor_12m');
-  const valor = new Map<number, number>();
-  for (const r of (vd as { pdv_id: number; neto_12m: number; meses: number }[] | null) ?? []) {
-    if (r?.pdv_id != null) valor.set(r.pdv_id, Math.round(Number(r.neto_12m) / Math.max(1, Number(r.meses))));
-  }
-
-  // Cadencia (días entre compras) por PDV para detectar quiebres de frecuencia.
-  const { data: cdRows } = await svc.rpc('pdvs_cadencia');
-  const cad = new Map<number, { cadencia: number; ultima: string }>();
-  for (const r of (cdRows as { pdv_id: number; cadencia: number; ultima: string }[] | null) ?? []) {
-    if (r?.pdv_id != null && r.cadencia) cad.set(r.pdv_id, { cadencia: Number(r.cadencia), ultima: r.ultima });
-  }
   const diasDesde = (iso: string) => Math.round((today.getTime() - new Date(iso).getTime()) / 86_400_000);
 
-  // Paginar para superar el límite de filas de PostgREST (la vista empresa
-  // tiene ~7000 PDVs; sin paginar se cortaría en 1000 y subcontaría).
-  const PAGE = 1000;
-  const pdvs: { id: number; razon_social: string | null; localidad: string | null }[] = [];
-  for (let from = 0; ; from += PAGE) {
-    let q = svc.from('pdvs').select('id, razon_social, localidad').eq('activo', true).range(from, from + PAGE - 1);
-    if (carteras !== null) q = q.in('cartera', carteras.length ? carteras : ['__none__']);
-    const { data } = await q;
-    if (!data || data.length === 0) break;
-    pdvs.push(...data);
-    if (data.length < PAGE) break;
+  // Paginado de PDVs del scope (supera el límite de 1000 de PostgREST).
+  const fetchPdvs = async () => {
+    const PAGE = 1000;
+    const acc: { id: number; razon_social: string | null; localidad: string | null }[] = [];
+    for (let from = 0; ; from += PAGE) {
+      let q = svc.from('pdvs').select('id, razon_social, localidad').eq('activo', true).range(from, from + PAGE - 1);
+      if (carteras !== null) q = q.in('cartera', carteras.length ? carteras : ['__none__']);
+      const { data } = await q;
+      if (!data || data.length === 0) break;
+      acc.push(...data);
+      if (data.length < PAGE) break;
+    }
+    return acc;
+  };
+
+  // Todas las fuentes son independientes → en paralelo (la generación es pesada).
+  const [udRes, vdRes, cdRes, csRes, pdvs] = await Promise.all([
+    svc.rpc('pdvs_ultima_vta'),
+    svc.rpc('pdvs_valor_12m'),
+    svc.rpc('pdvs_cadencia'),
+    svc.rpc('cross_sell', { p_carteras: carteras }),
+    fetchPdvs(),
+  ]);
+
+  const ult = new Map<number, string>();
+  for (const r of (udRes.data as { pdv_id: number; ultima: string }[] | null) ?? []) {
+    if (r?.pdv_id != null && r.ultima) ult.set(r.pdv_id, r.ultima);
+  }
+  const valor = new Map<number, number>();
+  for (const r of (vdRes.data as { pdv_id: number; neto_12m: number; meses: number }[] | null) ?? []) {
+    if (r?.pdv_id != null) valor.set(r.pdv_id, Math.round(Number(r.neto_12m) / Math.max(1, Number(r.meses))));
+  }
+  const cad = new Map<number, { cadencia: number; ultima: string }>();
+  for (const r of (cdRes.data as { pdv_id: number; cadencia: number; ultima: string }[] | null) ?? []) {
+    if (r?.pdv_id != null && r.cadencia) cad.set(r.pdv_id, { cadencia: Number(r.cadencia), ultima: r.ultima });
   }
 
   let activos = 0, tibios = 0, inactivos = 0;
@@ -122,12 +127,28 @@ export async function buildInsightData(
   rojos.sort((a, b) => b.valor_mensual - a.valor_mensual);
   enfri.sort((a, b) => b.valor_mensual - a.valor_mensual);
 
+  // Cross-sell: enriquecer los pdv_ids del RPC con nombre/localidad/valor.
+  const nameMap = new Map((pdvs ?? []).map((p) => [p.id, p]));
+  const cross_sell = ((csRes.data as { rubro: string; n_no_compran: number; valor_estimado: number; pdv_ids: number[] }[] | null) ?? [])
+    .map((o) => ({
+      rubro: o.rubro,
+      n_no_compran: o.n_no_compran,
+      valor_estimado: o.valor_estimado,
+      clientes: (o.pdv_ids ?? [])
+        .map((id) => {
+          const p = nameMap.get(id);
+          return p ? { pdv_id: id, razon_social: p.razon_social, localidad: p.localidad, ultima_vta: ult.get(id) ?? 'sin registro', valor_mensual: valor.get(id) ?? 0 } : null;
+        })
+        .filter((c): c is ChurnCliente => c !== null),
+    }));
+
   return {
     alcance: label,
     periodo: today.toISOString().slice(0, 7),
     actividad: { total, activos, tibios, inactivos, pct_comprando: total > 0 ? Math.round(((activos + tibios) / total) * 100) : 0 },
     churn: { count: inactivos, valor_total: rojos.reduce((a, r) => a + r.valor_mensual, 0), top: rojos.slice(0, 15) },
     enfriandose: { count: enfri.length, valor_total: enfri.reduce((a, r) => a + r.valor_mensual, 0), top: enfri.slice(0, 15) },
+    cross_sell,
     avance,
   };
 }
@@ -186,6 +207,10 @@ export async function generateCards(data: InsightData): Promise<InsightCard[]> {
     'rompieron su frecuencia (compran cada cadencia_dias y hace dias_sin que no).',
     'Generá una card para contactarlos YA y NO perderlos (es más fácil que recuperar',
     'un apagado); priorizá por valor_mensual y mencioná el $/mes en juego.',
+    'CROSS-SELL (CRECIMIENTO): cross_sell lista rubros fuertes que clientes activos',
+    'NO compran (n_no_compran clientes, valor_estimado de oportunidad mensual, y',
+    'clientes ejemplo). Generá cards de venta nueva: "X clientes no te compran',
+    '<rubro> → ~$Y/mes"; poné sus pdv_ids en la card.',
     'Respondé SOLO con un array JSON válido (sin markdown, sin texto extra) con este schema por item:',
     '{ "tipo": "RECUPERACIÓN" | "CRECIMIENTO" | "COBERTURA" | "ALERTA", "accion": string, "metrica": string, "detalle": string, "pasos": string[], "cta": "Ver clientes" | "Ver productos" | "Ver ruta" | "Ver detalle", "pdv_ids": number[] }',
     '- accion: imperativa, 1 línea. metrica: etiqueta corta para un badge (ej: "5 clientes", "28 en riesgo").',
