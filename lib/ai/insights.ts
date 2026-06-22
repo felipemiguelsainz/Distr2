@@ -91,6 +91,10 @@ export async function buildInsightData(
     fetchPdvs(),
   ]);
 
+  // Si la recencia falla (timeout), TODO caería como "en riesgo": abortar para
+  // no cachear un insight roto (el endpoint devuelve error y se puede reintentar).
+  if (udRes.error) throw new Error(`Recencia no disponible: ${udRes.error.message}`);
+
   const ult = new Map<number, string>();
   for (const r of (udRes.data as { pdv_id: number; ultima: string }[] | null) ?? []) {
     if (r?.pdv_id != null && r.ultima) ult.set(r.pdv_id, r.ultima);
