@@ -6,9 +6,12 @@ import { usePathname } from 'next/navigation';
 interface ShellLayoutProps {
   sidebar: React.ReactNode;
   children: React.ReactNode;
+  /** Contenido flotante (ej: chat) — se monta en la raíz, fuera del scroll y
+   *  de cualquier transform, para que `position: fixed` se ancle a la pantalla. */
+  floating?: React.ReactNode;
 }
 
-export function ShellLayout({ sidebar, children }: ShellLayoutProps) {
+export function ShellLayout({ sidebar, children, floating }: ShellLayoutProps) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
@@ -60,6 +63,9 @@ export function ShellLayout({ sidebar, children }: ShellLayoutProps) {
           {children}
         </div>
       </main>
+
+      {/* Flotante (chat): fuera del <main> scrolleable y del transform */}
+      {floating}
     </div>
   );
 }

@@ -41,9 +41,8 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   ) : null;
 
   return (
-    <ShellLayout sidebar={sidebar}>
+    <ShellLayout sidebar={sidebar} floating={profile && llmAvailable() ? <Asistente /> : null}>
       {children}
-      {profile && llmAvailable() && <Asistente />}
     </ShellLayout>
   );
 }
