@@ -115,7 +115,7 @@ export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores:
       ) : (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[680px]">
+            <table className="w-full text-sm min-w-[680px] [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap">
               <thead>
                 <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
                   <th className="px-4 py-2.5 font-medium">Cliente</th>
