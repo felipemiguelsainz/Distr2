@@ -16,7 +16,7 @@ export default async function InsightsPage() {
   const svc = createServiceClient();
   const carteras = await resolveCarteras(svc, { rol: profile.rol, vendedor_nombre: profile.vendedor_nombre });
 
-  // Lista de vendedores seleccionables según el alcance del usuario.
+  // Vendedores seleccionables según alcance. Admin (carteras null) → todos.
   let vendedores: string[];
   if (carteras === null) {
     const { data } = await svc.from('vendedores').select('nombre').eq('activo', true).order('nombre');
@@ -27,18 +27,19 @@ export default async function InsightsPage() {
 
   return (
     <AppShell>
-      <div className="max-w-[820px] mx-auto">
-        <h1 className="text-[22px] font-bold tracking-[-0.02em] text-[#09090b]">Insights</h1>
-        <p className="text-[13px] text-[#71717a] mt-0.5 mb-5">
-          Resumen del mes, clientes en riesgo y acciones sugeridas por vendedor.
-        </p>
-        {!llmAvailable() ? (
-          <p className="text-[13px] text-[#dc2626] bg-[#dc2626]/[0.08] border border-[#dc2626]/20 px-3 py-2 rounded-[10px]">
-            Los insights no están configurados (falta la API key del proveedor de IA).
-          </p>
-        ) : (
-          <InsightsClient vendedores={vendedores} />
-        )}
+      <div className="bg-gray-50 -mx-4 -my-6 lg:-mx-6 lg:-my-8 min-h-full px-4 py-6 lg:px-8 lg:py-8">
+        <div className="max-w-4xl mx-auto">
+          {!llmAvailable() ? (
+            <>
+              <h1 className="text-3xl font-bold tracking-tight text-gray-900">Insights</h1>
+              <p className="mt-4 text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-xl">
+                Los insights no están configurados (falta la API key del proveedor de IA).
+              </p>
+            </>
+          ) : (
+            <InsightsClient vendedores={vendedores} />
+          )}
+        </div>
       </div>
     </AppShell>
   );

@@ -182,12 +182,25 @@ requiere importar direcciones reales.
   - **OJO en producción:** hay que cargar `OPENAI_API_KEY` en las env vars de
     Vercel; si no, el widget no aparece (degrada).
 - **Módulo 3 — insights (HECHO):** página propia `/insights` (link en sidebar).
-  `lib/ai/insights.ts` arma los datos por vendedor (actividad/recencia, churn,
-  avance vs meta reutilizando `fetchVendedorKpis`) y el LLM SOLO los redacta.
-  Cacheado en tabla `ai_insights` (migración 030) por `vendedor:<n>` + período;
-  GET lee del cache, POST regenera (force). `app/insights` + `InsightsClient`.
-  Validado: datos por SQL + narrativa sin alucinar; cache verificado (14s cold
-  → 0,8s cacheado). Endpoints con `maxDuration = 60` para no cortar en Vercel.
+  - **Flujo:** por default muestra la vista AGREGADA del alcance del usuario
+    (admin → "Total Empresa"; supervisor → su equipo; vendedor → su cartera).
+    El selector arranca neutro ("Filtrar por vendedor…"); elegir uno cambia a
+    esa cartera. El scope se respeta server-side (un vendedor NO ve la empresa).
+  - **Datos (SQL):** `lib/ai/insights.ts` → `buildInsightData(svc, {label,
+    carteras, avance, today})`. `carteras=null` = empresa (PAGINA pdvs: ~7000
+    superan el límite de 1000 de PostgREST). Avance se calcula afuera por rol:
+    admin `fetchTotalKpis`, supervisor `fetchSupervisorKpis().totales`, vendedor
+    `fetchVendedorKpis` → `avanceFromKpis()`.
+  - **LLM** solo redacta (no calcula). Cache en `ai_insights` (mig. 030) por
+    `scope_key` (`empresa:total` / `equipo:<x>` / `vendedor:<n>`) + período.
+    GET lee cache, POST regenera. OJO: el payload usa `data.alcance` (no
+    `vendedor`); si cambiás el shape, limpiá la tabla.
+  - **UI:** `InsightsClient` con lucide-react (Users/UserCheck/Clock/
+    AlertTriangle/RefreshCw), KPI cards con borde-izq de color, churn como chips
+    rojos, avance con progress bars (rojo<50/amarillo<80/verde). Tailwind.
+  - Endpoints con `maxDuration = 60`. **Generación fría ~17s** (KPIs empresa +
+    LLM); en Vercel hobby (tope 10s) puede cortar la 1ª vez → conviene Pro o
+    pre-calentar el cache. Cacheado después es instantáneo.
 - La narración de rutas se descartó (no aporta).
 
 ## 9. Notas de costo/operación de IA
