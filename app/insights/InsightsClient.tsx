@@ -295,13 +295,24 @@ function ActionCard({ card, when, vendedor, clientes }: { card: InsightCard; whe
                 </div>
               </div>
             )}
-            <button
-              onClick={() => { setDone((v) => !v); setOpen(false); }}
-              className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition"
-            >
-              <Check className="w-4 h-4" />
-              {done ? 'Marcar como pendiente' : 'Marcar como gestionado'}
-            </button>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {refClientes.length > 0 && (
+                <a
+                  href={`/mapa?pdvs=${refClientes.map((c) => c.pdv_id).join(',')}${vendedor ? `&vendedor=${encodeURIComponent(vendedor)}` : ''}`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
+                >
+                  <MapPin className="w-4 h-4" />
+                  Ver en mapa
+                </a>
+              )}
+              <button
+                onClick={() => { setDone((v) => !v); setOpen(false); }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition"
+              >
+                <Check className="w-4 h-4" />
+                {done ? 'Marcar como pendiente' : 'Marcar como gestionado'}
+              </button>
+            </div>
           </div>
         </div>
       </div>

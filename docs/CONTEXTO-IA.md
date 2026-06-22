@@ -236,6 +236,9 @@ requiere importar direcciones reales.
   - Endpoints con `maxDuration = 60`. **Generación fría ~17s** (KPIs empresa +
     LLM); en Vercel hobby (tope 10s) puede cortar la 1ª vez → conviene Pro o
     pre-calentar el cache. Cacheado después es instantáneo.
+- **Insight → terreno:** el expand de cada card tiene "Ver en mapa" que abre
+  `/mapa?pdvs=<ids>&vendedor=<n>`; el mapa lee esos params al cargar y pre-filtra
+  (selPdvs/selVendedores). Cierra el círculo insight → acción.
 - La narración de rutas se descartó (no aporta).
 
 ## 9. Notas de costo/operación de IA

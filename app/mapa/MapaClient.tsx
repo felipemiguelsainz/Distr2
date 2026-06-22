@@ -298,6 +298,15 @@ export default function MapaClient() {
   const [ruteable,       setRuteable]       = useState<RuteableFilter>('todos');
   const [clienteActivo,  setClienteActivo]  = useState(false);
 
+  // Deep-link desde Insights: /mapa?pdvs=1,2,3&vendedor=NOMBRE → pre-filtra.
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const pdvs = sp.get('pdvs');
+    const vend = sp.get('vendedor');
+    if (pdvs) setSelPdvs(new Set(pdvs.split(',').map(s => s.trim()).filter(Boolean)));
+    if (vend) setSelVendedores(new Set([vend]));
+  }, []);
+
   // --- Ruteo (Módulo 1) ---
   const [rutaOpen,    setRutaOpen]    = useState(false);
   const [rutaVend,    setRutaVend]    = useState('');
