@@ -50,11 +50,8 @@ export function ShellLayout({ sidebar, children }: ShellLayoutProps) {
             </svg>
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-[7px] flex items-center justify-center shrink-0" style={{background: 'linear-gradient(135deg, #0c5cab, #0c5cab)'}}>
-              <svg width="12" height="12" fill="white" viewBox="0 0 20 20">
-                <path d="M15.5 2A1.5 1.5 0 0014 3.5v13a1.5 1.5 0 003 0v-13A1.5 1.5 0 0015.5 2zM9.5 6A1.5 1.5 0 008 7.5v9a1.5 1.5 0 003 0v-9A1.5 1.5 0 009.5 6zM3.5 10A1.5 1.5 0 002 11.5v5a1.5 1.5 0 003 0v-5A1.5 1.5 0 003.5 10z"/>
-              </svg>
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/logo-candysur.png" alt="Candysur" className="w-6 h-6 object-contain shrink-0" />
             <span className="text-[14px] font-bold text-[#09090b]">Candysur</span>
           </div>
         </div>

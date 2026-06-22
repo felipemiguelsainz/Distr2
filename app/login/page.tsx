@@ -33,11 +33,8 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#fafafa] px-4 animate-rise">
       {/* Logo mark */}
       <div className="mb-8 flex flex-col items-center gap-3">
-        <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center shadow-lg shadow-blue-500/30" style={{background: 'linear-gradient(135deg, #0c5cab, #0c5cab)'}}>
-          <svg width="20" height="20" fill="white" viewBox="0 0 20 20">
-            <path d="M15.5 2A1.5 1.5 0 0014 3.5v13a1.5 1.5 0 003 0v-13A1.5 1.5 0 0015.5 2zM9.5 6A1.5 1.5 0 008 7.5v9a1.5 1.5 0 003 0v-9A1.5 1.5 0 009.5 6zM3.5 10A1.5 1.5 0 002 11.5v5a1.5 1.5 0 003 0v-5A1.5 1.5 0 003.5 10z"/>
-          </svg>
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/assets/logo-candysur.png" alt="Candysur" className="w-[56px] h-[56px] object-contain" />
         <div className="text-center">
           <h1 className="text-[22px] font-bold tracking-[-0.01em] text-[#09090b]">Candysur</h1>
           <p className="text-[13px] text-[#71717a] mt-0.5">Dashboard de Ventas</p>

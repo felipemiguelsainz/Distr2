@@ -146,9 +146,9 @@ export function Sidebar({
       {/* Brand */}
       <div className="px-5 py-6">
         <div className="flex items-center gap-2.5">
-          <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center shrink-0 shadow-lg" style={{background: 'linear-gradient(135deg, #0c5cab, #0c5cab)'}}>
-            <ChartIcon />
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/assets/logo-candysur.png" alt="Candysur" className="w-[38px] h-[38px] object-contain shrink-0" />
+
           <div>
             <span className="text-[15px] font-bold tracking-[-0.01em] text-[#09090b] block leading-tight">Candysur</span>
             <span className="text-[11px] text-[#71717a] leading-tight block">Dashboard de Ventas</span>
