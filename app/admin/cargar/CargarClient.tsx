@@ -87,7 +87,7 @@ function VentasPreviewModal({
         )}
 
         {/* Field mapping */}
-        <div className="rounded-xl border border-[#e4e4e7] overflow-hidden text-[12px] mb-4">
+        <div className="rounded-xl border border-[#e4e4e7] overflow-x-auto text-[12px] mb-4">
           <table className="min-w-full">
             <thead>
               <tr className="bg-[#f4f4f5]/80 border-b border-[#e4e4e7]">

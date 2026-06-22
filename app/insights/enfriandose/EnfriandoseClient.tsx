@@ -58,21 +58,21 @@ export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores:
   return (
     <div className="mt-2">
       {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
-        <div className="flex items-center gap-2">
-          <Clock className="w-7 h-7 text-amber-500" />
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Clientes enfriándose</h1>
+      <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:justify-between gap-3 mb-6">
+        <div className="flex items-center gap-2 min-w-0">
+          <Clock className="w-6 h-6 sm:w-7 sm:h-7 text-amber-500 shrink-0" />
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">Clientes enfriándose</h1>
             <p className="text-sm text-gray-500 mt-0.5">Todavía compran pero rompieron su frecuencia habitual. Contactalos antes de que se apaguen.</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           {vendedores.length > 1 && (
-            <div className="relative">
+            <div className="relative flex-1 sm:flex-none min-w-[150px]">
               <select
                 value={vendedor}
                 onChange={(e) => setVendedor(e.target.value)}
-                className="appearance-none cursor-pointer pl-3 pr-8 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-lg shadow-sm hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition"
+                className="w-full appearance-none cursor-pointer pl-3 pr-8 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-lg shadow-sm hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition"
               >
                 <option value="">Todos los vendedores</option>
                 {vendedores.map((v) => <option key={v} value={v}>{v}</option>)}

@@ -198,7 +198,7 @@ function RubroCard({ preview }: { preview: MetaPreviewRubro }) {
 
           {/* Distribución por vendedor */}
           {preview.vendedores.length > 0 ? (
-            <div className="rounded-lg border border-[#e4e4e7] overflow-hidden bg-[#ffffff]">
+            <div className="rounded-lg border border-[#e4e4e7] overflow-x-auto bg-[#ffffff]">
               <table className="min-w-full text-[12px]">
                 <thead>
                   <tr className="bg-[#f4f4f5]/80 border-b border-[#e4e4e7]">

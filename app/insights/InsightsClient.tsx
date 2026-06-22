@@ -89,28 +89,28 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
   return (
     <div>
       {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-3 mb-8">
-        <div className="flex items-center gap-2">
-          {esEmpresa && <Building2 className="w-7 h-7 text-blue-600" />}
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:justify-between gap-3 mb-8">
+        <div className="flex items-center gap-2 min-w-0">
+          {esEmpresa && <Building2 className="w-6 h-6 sm:w-7 sm:h-7 text-blue-600 shrink-0" />}
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 break-words">
               Insights{d ? ` — ${d.alcance}` : ''}
             </h1>
             <p className="text-sm text-gray-500 mt-0.5">Acciones priorizadas por impacto.</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           {generatedAt && !loading && (
             <span className="text-xs text-gray-500 bg-white border border-gray-200 rounded-full px-2.5 py-1">
               {hace(generatedAt)}
             </span>
           )}
-          <div className="relative">
+          <div className="relative flex-1 sm:flex-none min-w-[150px]">
             <select
               value={vendedor}
               onChange={(e) => setVendedor(e.target.value)}
-              className="appearance-none cursor-pointer pl-3 pr-8 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-lg shadow-sm hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition"
+              className="w-full appearance-none cursor-pointer pl-3 pr-8 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-lg shadow-sm hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition"
             >
               <option value="">Filtrar por vendedor…</option>
               {vendedores.map((v) => <option key={v} value={v}>{v}</option>)}
@@ -141,7 +141,7 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
                   <span className="text-xs text-gray-500">{c.label}</span>
                   <Icon className={`w-4 h-4 ${c.ic}`} />
                 </div>
-                <p className={`text-4xl font-bold tabular-nums mt-1 ${c.num}`}>{c.val}</p>
+                <p className={`text-3xl sm:text-4xl font-bold tabular-nums mt-1 ${c.num}`}>{c.val}</p>
                 {c.sub && <p className="text-[11px] text-red-500 font-medium mt-0.5">{c.sub}</p>}
               </div>
             );
