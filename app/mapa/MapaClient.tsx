@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-markercluster';
 import L from 'leaflet';
-import type { PdvGeo } from './types';
+import type { PdvGeo, RutaResponse } from './types';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -48,6 +48,47 @@ function makeIcon(color: string) {
     iconAnchor: [9, 9],
     popupAnchor: [0, -11],
   });
+}
+
+// Marcador numerado para las paradas de una ruta (color = recencia del PDV).
+function makeNumberedIcon(n: number, color: string) {
+  return L.divIcon({
+    html: `<div style="
+      width:26px;height:26px;border-radius:50%;background:${color};
+      border:2.5px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,0.55);
+      color:#fff;font-size:12px;font-weight:700;line-height:1;
+      display:flex;align-items:center;justify-content:center;
+      font-family:'Plus Jakarta Sans',sans-serif;
+    ">${n}</div>`,
+    className: '',
+    iconSize: [26, 26],
+    iconAnchor: [13, 13],
+    popupAnchor: [0, -14],
+  });
+}
+
+// Marcador para PDVs inactivos sugeridos "de paso" (rombo rojo punteado).
+const suggestionIcon = L.divIcon({
+  html: `<div style="
+    width:18px;height:18px;background:#dc2626;border:2px dashed #fff;
+    border-radius:4px;transform:rotate(45deg);box-shadow:0 1px 6px rgba(0,0,0,0.5);
+  "></div>`,
+  className: '',
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+  popupAnchor: [0, -10],
+});
+
+// Encuadra el mapa sobre la ruta cuando cambia (key = signature).
+function FitBounds({ positions, sig }: { positions: [number, number][]; sig: string }) {
+  const map = useMap();
+  useEffect(() => {
+    if (positions.length >= 1) {
+      map.fitBounds(positions as L.LatLngBoundsExpression, { padding: [50, 50] });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sig]);
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -248,6 +289,76 @@ export default function MapaClient() {
   const [ruteable,       setRuteable]       = useState<RuteableFilter>('todos');
   const [clienteActivo,  setClienteActivo]  = useState(false);
 
+  // --- Ruteo (Módulo 1) ---
+  const [rutaOpen,    setRutaOpen]    = useState(false);
+  const [rutaVend,    setRutaVend]    = useState('');
+  const [rutaDia,     setRutaDia]     = useState('LUN');
+  const [ruta,        setRuta]        = useState<RutaResponse | null>(null);
+  const [rutaLoading, setRutaLoading] = useState(false);
+  const [rutaError,   setRutaError]   = useState<string | null>(null);
+
+  const armarRuta = useCallback(async () => {
+    const vend = rutaVend || (opts.vendedores.length === 1 ? opts.vendedores[0] : '');
+    if (!vend) { setRutaError('Elegí un vendedor.'); return; }
+    setRutaLoading(true);
+    setRutaError(null);
+    try {
+      const res = await fetch(`/api/ruta?vendedor=${encodeURIComponent(vend)}&dia=${rutaDia}`);
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error ?? 'No se pudo armar la ruta.');
+      }
+      const data = (await res.json()) as RutaResponse;
+      setRuta(data);
+      if (data.stops.length === 0) setRutaError(data.resumen);
+    } catch (e) {
+      setRuta(null);
+      setRutaError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRutaLoading(false);
+    }
+  }, [rutaVend, rutaDia, opts.vendedores]);
+
+  const limpiarRuta = useCallback(() => { setRuta(null); setRutaError(null); }, []);
+
+  // Copiar las coordenadas en orden de visita (a prueba de errores: lat,lon).
+  const [coordsCopied, setCoordsCopied] = useState(false);
+  const copiarCoords = useCallback(async () => {
+    if (!ruta || ruta.stops.length === 0) return;
+    const txt = ruta.stops.map(s => `${s.lat},${s.lon}`).join('\n');
+    try {
+      await navigator.clipboard.writeText(txt);
+      setCoordsCopied(true);
+      setTimeout(() => setCoordsCopied(false), 1500);
+    } catch { /* clipboard no disponible */ }
+  }, [ruta]);
+
+  // Links a Google Maps con las paradas en orden, en modo CAMINANDO. Google
+  // Maps acepta ~10 puntos por link, así que partimos en tramos continuos
+  // (cada tramo arranca donde terminó el anterior) respetando el orden óptimo.
+  const gmapsLinks = useMemo(() => {
+    if (!ruta || ruta.stops.length === 0) return [] as string[];
+    const coords = ruta.stops.map(s => `${s.lat},${s.lon}`);
+    const MAX = 10; // origen + hasta 8 intermedios + destino
+    const buildUrl = (chunk: string[]) => {
+      const origin = chunk[0];
+      const destination = chunk[chunk.length - 1];
+      const waypoints = chunk.slice(1, -1).join('|');
+      const params = new URLSearchParams({ api: '1', origin, destination, travelmode: 'walking' });
+      if (waypoints) params.set('waypoints', waypoints);
+      return `https://www.google.com/maps/dir/?${params.toString()}`;
+    };
+    const links: string[] = [];
+    if (coords.length <= MAX) {
+      links.push(buildUrl(coords));
+    } else {
+      for (let i = 0; i < coords.length - 1; i += MAX - 1) {
+        links.push(buildUrl(coords.slice(i, i + MAX)));
+      }
+    }
+    return links;
+  }, [ruta]);
+
   const filtered = useMemo(() => {
     return puntos.filter(p => {
       if (selPdvs.size      > 0 && !selPdvs.has(String(p.pdv_id)))                        return false;
@@ -393,7 +504,95 @@ export default function MapaClient() {
               Limpiar filtros
             </button>
           )}
+
+          {/* Armar ruta */}
+          <button
+            onClick={() => setRutaOpen(o => !o)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium rounded-[8px] border transition-all whitespace-nowrap ${
+              rutaOpen || ruta
+                ? 'bg-[rgba(12,92,171,0.15)] border-[rgba(12,92,171,0.4)] text-[#09090b]'
+                : 'bg-[rgba(0,0,0,0.03)] border-[#e4e4e7] text-[#71717a] hover:text-[#09090b] hover:border-[#d4d4d8]'
+            }`}
+          >
+            🧭 Armar ruta
+          </button>
         </div>
+
+        {/* ── Panel de ruta ── */}
+        {rutaOpen && (
+          <div className="flex flex-wrap items-end gap-2 mt-3 p-3 rounded-[12px] border border-[#e4e4e7] bg-[rgba(12,92,171,0.04)]">
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#71717a]">Vendedor</label>
+              <select
+                value={rutaVend || (opts.vendedores.length === 1 ? opts.vendedores[0] : '')}
+                onChange={e => setRutaVend(e.target.value)}
+                disabled={opts.vendedores.length === 1}
+                className="px-2.5 py-1.5 text-[12px] rounded-[8px] border border-[#e4e4e7] bg-white text-[#09090b] min-w-[180px] disabled:opacity-70"
+              >
+                <option value="">Elegí vendedor…</option>
+                {opts.vendedores.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#71717a]">Día</label>
+              <select
+                value={rutaDia}
+                onChange={e => setRutaDia(e.target.value)}
+                className="px-2.5 py-1.5 text-[12px] rounded-[8px] border border-[#e4e4e7] bg-white text-[#09090b]"
+              >
+                {DIA_ORDER.map(d => <option key={d} value={d}>{DIA_NAMES[d]}</option>)}
+              </select>
+            </div>
+            <button
+              onClick={armarRuta}
+              disabled={rutaLoading}
+              className="px-3.5 py-1.5 text-[12px] font-semibold rounded-[8px] bg-[#0c5cab] text-white hover:bg-[#0a4f95] transition-colors disabled:opacity-60"
+            >
+              {rutaLoading ? 'Calculando…' : 'Armar ruta'}
+            </button>
+            {ruta && ruta.stops.length > 0 && (
+              <>
+                {gmapsLinks.map((url, i) => (
+                  <a
+                    key={url}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium rounded-[8px] border border-[#e4e4e7] bg-white text-[#0c5cab] hover:border-[#d4d4d8] transition-colors"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1112 6.5a2.5 2.5 0 010 5z"/></svg>
+                    {gmapsLinks.length === 1 ? 'Abrir en Google Maps' : `Maps · tramo ${i + 1}/${gmapsLinks.length}`}
+                  </a>
+                ))}
+                <button
+                  onClick={copiarCoords}
+                  className="px-3 py-1.5 text-[12px] font-medium rounded-[8px] border border-[#e4e4e7] bg-white text-[#0c5cab] hover:border-[#d4d4d8] transition-colors"
+                >
+                  {coordsCopied ? '✓ Copiado' : 'Copiar coords'}
+                </button>
+                <button
+                  onClick={limpiarRuta}
+                  className="px-3 py-1.5 text-[12px] font-medium text-[#dc2626] bg-[rgba(220,38,38,0.08)] border border-[rgba(220,38,38,0.2)] rounded-[8px] hover:bg-[rgba(220,38,38,0.14)] transition-colors"
+                >
+                  Limpiar ruta
+                </button>
+              </>
+            )}
+
+            {/* Resumen / estado */}
+            <div className="w-full flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] mt-1">
+              {rutaError && <span className="text-[#dc2626]">{rutaError}</span>}
+              {ruta && ruta.stops.length > 0 && (
+                <>
+                  <span className="text-[#09090b] font-semibold">{ruta.resumen}</span>
+                  <span className="text-[#71717a]">
+                    {ruta.source === 'osrm' ? 'a pie · veredas reales' : 'a pie · distancia estimada · traza por calles'}
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Map ── */}
@@ -417,6 +616,7 @@ export default function MapaClient() {
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
+            {!ruta && (
             <MarkerClusterGroup chunkedLoading>
               {filtered.map(p => (
                 <Marker
@@ -452,6 +652,62 @@ export default function MapaClient() {
                 </Marker>
               ))}
             </MarkerClusterGroup>
+            )}
+
+            {/* ── Ruta activa ── */}
+            {ruta && ruta.stops.length > 0 && (
+              <>
+                <FitBounds
+                  positions={ruta.stops.map(s => [s.lat, s.lon] as [number, number])}
+                  sig={`${ruta.vendedor}|${ruta.dia}|${ruta.stops.length}`}
+                />
+                {ruta.geometry.length >= 2 && (
+                  <Polyline
+                    positions={ruta.geometry}
+                    pathOptions={{ color: '#0c5cab', weight: 4, opacity: 0.75 }}
+                  />
+                )}
+                {/* Sugerencias (PDVs inactivos de paso) */}
+                {ruta.sugerencias.map(s => (
+                  <Marker key={`sug-${s.pdv_id}`} position={[s.lat, s.lon]} icon={suggestionIcon}>
+                    <Popup minWidth={200}>
+                      <div style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', lineHeight: 1.5 }}>
+                        <p style={{ fontWeight: 700, fontSize: 12, marginBottom: 2, color: '#dc2626' }}>
+                          Inactivo de paso · {s.dist_m} m
+                        </p>
+                        <p style={{ fontWeight: 700, fontSize: 13, marginBottom: 4, color: '#09090b' }}>
+                          #{s.pdv_id} — {s.razon_social ?? '—'}
+                        </p>
+                        <p style={{ fontSize: 11, color: '#71717a', margin: 0 }}>
+                          Última vta: {fmtDate(s.ultima_vta)} · Visita: {fmtDia(s.dia_visita)}
+                        </p>
+                      </div>
+                    </Popup>
+                  </Marker>
+                ))}
+                {/* Paradas numeradas */}
+                {ruta.stops.map((s, i) => (
+                  <Marker
+                    key={`stop-${s.pdv_id}`}
+                    position={[s.lat, s.lon]}
+                    icon={makeNumberedIcon(i + 1, recencyColor(s.ultima_vta))}
+                    zIndexOffset={1000}
+                  >
+                    <Popup minWidth={220}>
+                      <div style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', lineHeight: 1.5 }}>
+                        <p style={{ fontWeight: 700, fontSize: 13, marginBottom: 4, color: '#09090b' }}>
+                          {i + 1}. #{s.pdv_id} — {s.razon_social ?? '—'}
+                        </p>
+                        <p style={{ fontSize: 11, color: '#71717a', margin: 0 }}>
+                          {s.canal_venta ?? '—'} · {s.partido ?? '—'}<br />
+                          Última vta: {fmtDate(s.ultima_vta)}
+                        </p>
+                      </div>
+                    </Popup>
+                  </Marker>
+                ))}
+              </>
+            )}
           </MapContainer>
         </div>
       </div>
