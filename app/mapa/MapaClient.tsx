@@ -12,30 +12,41 @@ import type { PdvGeo } from './types';
 type RuteableFilter = 'todos' | 'solo';
 
 // ---------------------------------------------------------------------------
-// Canal → color mapping
+// Recencia de compra → color
+//   verde   = activo (compró hace ≤ 1 mes)
+//   amarillo = sin compra hace > 1 mes
+//   rojo    = sin compra hace > 3 meses (o nunca compró)
+// La fecha de última venta viene pivoteada desde la base de ventas (API).
 // ---------------------------------------------------------------------------
-function canalColor(canal: string | null): string {
-  if (!canal) return '#71717a';
-  const c = canal.toUpperCase();
-  if (c.includes('SUPERMERCADO')) return '#7c3aed';           // purple
-  if (c.startsWith('AUTOSERVICIO') || c.includes('1 CAJA'))  return '#16a34a'; // teal/green
-  if (c.includes('KIOSCO') || c.includes('MAXI KIOSCO'))     return '#d97706'; // orange
-  if (c.includes('TRADICIONAL'))                              return '#0c5cab'; // blue
-  return '#71717a'; // gray
+const COLOR_ACTIVO   = '#16a34a'; // verde
+const COLOR_TIBIO    = '#eab308'; // amarillo
+const COLOR_INACTIVO = '#dc2626'; // rojo
+
+function monthsAgoISO(months: number): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() - months);
+  return d.toISOString().slice(0, 10);
 }
 
-function makeIcon(canal: string | null) {
-  const color = canalColor(canal);
+function recencyColor(ultimaVta: string | null): string {
+  if (!ultimaVta) return COLOR_INACTIVO; // nunca compró
+  const last = ultimaVta.slice(0, 10);
+  if (last >= monthsAgoISO(1)) return COLOR_ACTIVO;   // ≤ 1 mes
+  if (last >= monthsAgoISO(3)) return COLOR_TIBIO;    // > 1 mes y ≤ 3 meses
+  return COLOR_INACTIVO;                              // > 3 meses
+}
+
+function makeIcon(color: string) {
   return L.divIcon({
     html: `<div style="
-      width:12px;height:12px;border-radius:50%;
-      background:${color};border:2px solid rgba(255,255,255,0.85);
-      box-shadow:0 1px 5px rgba(0,0,0,0.45);
+      width:18px;height:18px;border-radius:50%;
+      background:${color};border:2.5px solid rgba(255,255,255,0.9);
+      box-shadow:0 1px 6px rgba(0,0,0,0.5);
     "></div>`,
     className: '',
-    iconSize: [12, 12],
-    iconAnchor: [6, 6],
-    popupAnchor: [0, -8],
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+    popupAnchor: [0, -11],
   });
 }
 
@@ -180,11 +191,9 @@ function MultiSelect({
 // Legend
 // ---------------------------------------------------------------------------
 const LEGEND_ITEMS = [
-  { color: '#0c5cab', label: 'Tradicionales' },
-  { color: '#d97706', label: 'Kiosco' },
-  { color: '#16a34a', label: 'Autoservicio' },
-  { color: '#7c3aed', label: 'Supermercado' },
-  { color: '#71717a', label: 'Otros' },
+  { color: COLOR_ACTIVO,   label: 'Activo (≤ 1 mes)' },
+  { color: COLOR_TIBIO,    label: 'Sin compra +1 mes' },
+  { color: COLOR_INACTIVO, label: 'Sin compra +3 meses' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -269,15 +278,14 @@ export default function MapaClient() {
     setClienteActivo(false);
   }, []);
 
-  // Memoised icons per canal to avoid recreating on every render
+  // Un ícono por color de recencia (3 en total) — se reutilizan en todos los puntos
   const iconCache = useMemo(() => {
     const m = new Map<string, L.DivIcon>();
-    for (const p of puntos) {
-      const key = p.canal_venta ?? '';
-      if (!m.has(key)) m.set(key, makeIcon(p.canal_venta));
+    for (const color of [COLOR_ACTIVO, COLOR_TIBIO, COLOR_INACTIVO]) {
+      m.set(color, makeIcon(color));
     }
     return m;
-  }, [puntos]);
+  }, []);
 
   return (
     <div className="flex flex-col h-full bg-[#fafafa]">
@@ -414,7 +422,7 @@ export default function MapaClient() {
                 <Marker
                   key={p.pdv_id}
                   position={[p.latitud, p.longitud]}
-                  icon={iconCache.get(p.canal_venta ?? '') ?? makeIcon(null)}
+                  icon={iconCache.get(recencyColor(p.ultima_vta)) ?? makeIcon(COLOR_INACTIVO)}
                 >
                   <Popup minWidth={220} maxWidth={280}>
                     <div style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', lineHeight: 1.5 }}>

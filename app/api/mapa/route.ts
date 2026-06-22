@@ -19,12 +19,19 @@ export async function GET() {
 
   const svc = createServiceClient();
 
-  // Active clients from ventas (last 3 months) — source of truth
+  // Última venta real por PDV (pivot desde la base de ventas) — fuente de
+  // verdad para la recencia de compra. Reemplaza el campo cacheado
+  // pdvs.ultima_vta, que puede estar desactualizado.
+  const { data: ultimaData } = await svc.rpc('pdvs_ultima_vta');
+  const ultimaVtaMap = new Map<number, string>();
+  for (const row of (ultimaData as { pdv_id: number; ultima: string }[] | null) ?? []) {
+    if (row?.pdv_id != null && row.ultima) ultimaVtaMap.set(row.pdv_id, row.ultima);
+  }
+
+  // Cliente activo = compró en los últimos 3 meses (derivado de la última venta)
   const cutoff3m = new Date();
   cutoff3m.setMonth(cutoff3m.getMonth() - 3);
   const desde3m = cutoff3m.toISOString().slice(0, 10);
-  const { data: activosData } = await svc.rpc('pdvs_activos_ids', { p_desde: desde3m });
-  const activos3mSet = new Set<number>((activosData as number[] | null) ?? []);
 
   // Load all geo points — paginate to bypass PostgREST row limit
   const PAGE = 1000;
@@ -64,6 +71,8 @@ export async function GET() {
     })
     .map((r) => {
       const pdv = r.pdvs as Record<string, unknown>;
+      // Última venta real desde ventas; fallback al campo cacheado del PDV.
+      const ultima = ultimaVtaMap.get(r.pdv_id) ?? (pdv?.ultima_vta as string) ?? null;
       return {
         pdv_id:      r.pdv_id,
         latitud:     round5(Number(r.latitud)),
@@ -74,8 +83,8 @@ export async function GET() {
         cartera:     (pdv?.cartera as string) ?? null,
         canal_venta: (pdv?.canal_venta as string) ?? null,
         zona:        (pdv?.zona as string) ?? null,
-        ultima_vta:  (pdv?.ultima_vta as string) ?? null,
-        activo_3m:   activos3mSet.has(r.pdv_id),
+        ultima_vta:  ultima,
+        activo_3m:   ultima != null && ultima.slice(0, 10) >= desde3m,
         dia_visita:  (pdv?.dia_visita as string) ?? null,
       };
     });
