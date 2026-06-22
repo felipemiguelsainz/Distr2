@@ -191,13 +191,18 @@ requiere importar direcciones reales.
     superan el límite de 1000 de PostgREST). Avance se calcula afuera por rol:
     admin `fetchTotalKpis`, supervisor `fetchSupervisorKpis().totales`, vendedor
     `fetchVendedorKpis` → `avanceFromKpis()`.
-  - **LLM** solo redacta (no calcula). Cache en `ai_insights` (mig. 030) por
-    `scope_key` (`empresa:total` / `equipo:<x>` / `vendedor:<n>`) + período.
-    GET lee cache, POST regenera. OJO: el payload usa `data.alcance` (no
-    `vendedor`); si cambiás el shape, limpiá la tabla.
-  - **UI:** `InsightsClient` con lucide-react (Users/UserCheck/Clock/
-    AlertTriangle/RefreshCw), KPI cards con borde-izq de color, churn como chips
-    rojos, avance con progress bars (rojo<50/amarillo<80/verde). Tailwind.
+  - **LLM** NO redacta texto: genera **action cards** en JSON (`generateCards`
+    + `parseCards` defensivo). Schema por card: `{tipo: RECUPERACIÓN|CRECIMIENTO|
+    COBERTURA|ALERTA, accion, metrica, detalle, pasos[], cta}`, máx 5, ordenadas
+    por impacto. El LLM no calcula números (salen del JSON de datos).
+  - Cache en `ai_insights` (mig. 030) por `scope_key` (`empresa:total` /
+    `equipo:<x>` / `vendedor:<n>`) + período; payload = `{data, cards}`. GET lee
+    cache, POST regenera. OJO: si cambiás el shape del payload, limpiá la tabla.
+  - **UI:** `InsightsClient` con lucide-react. KPI cards (Users/UserCheck/Clock/
+    AlertTriangle) con borde-izq de color. Debajo, **action cards** expandibles:
+    ícono+color por tipo (RECUPERACIÓN/RefreshCw, CRECIMIENTO/TrendingUp,
+    COBERTURA/MapPin, ALERTA/AlertTriangle), badge de métrica, CTA que despliega
+    detalle+pasos y "Marcar como gestionado" (estado local). Tailwind.
   - Endpoints con `maxDuration = 60`. **Generación fría ~17s** (KPIs empresa +
     LLM); en Vercel hobby (tope 10s) puede cortar la 1ª vez → conviene Pro o
     pre-calentar el cache. Cacheado después es instantáneo.

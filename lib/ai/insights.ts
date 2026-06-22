@@ -92,31 +92,65 @@ export async function buildInsightData(
   };
 }
 
-/** El LLM redacta el informe a partir de los datos (no calcula nada). */
-export async function redactInsight(data: InsightData): Promise<string> {
+// --- Action cards (salida estructurada del LLM) ----------------------------
+export type CardTipo = 'RECUPERACIÓN' | 'CRECIMIENTO' | 'COBERTURA' | 'ALERTA';
+export interface InsightCard {
+  tipo: CardTipo;
+  accion: string;       // acción concreta, imperativa, 1 línea
+  metrica: string;      // etiqueta corta para el badge
+  detalle: string;      // por qué (1-2 oraciones)
+  pasos: string[];      // pasos sugeridos
+  cta: string;          // "Ver clientes" | "Ver productos" | "Ver ruta" | "Ver detalle"
+}
+
+const CARD_TIPOS: CardTipo[] = ['RECUPERACIÓN', 'CRECIMIENTO', 'COBERTURA', 'ALERTA'];
+
+// Parseo defensivo: el modelo puede envolver el JSON en ```...``` o agregar texto.
+function parseCards(raw: string): InsightCard[] {
+  let s = raw.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+  const start = s.indexOf('[');
+  const end = s.lastIndexOf(']');
+  if (start >= 0 && end > start) s = s.slice(start, end + 1);
+  let arr: unknown;
+  try { arr = JSON.parse(s); } catch { return []; }
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .filter((c): c is Record<string, unknown> => !!c && typeof (c as Record<string, unknown>).accion === 'string')
+    .slice(0, 5)
+    .map((c) => ({
+      tipo: CARD_TIPOS.includes(c.tipo as CardTipo) ? (c.tipo as CardTipo) : 'ALERTA',
+      accion: String(c.accion),
+      metrica: String(c.metrica ?? ''),
+      detalle: String(c.detalle ?? ''),
+      pasos: Array.isArray(c.pasos) ? c.pasos.map((p) => String(p)).slice(0, 6) : [],
+      cta: String(c.cta ?? 'Ver detalle'),
+    }));
+}
+
+/** El LLM genera action cards (JSON) a partir de los datos. No calcula números. */
+export async function generateCards(data: InsightData): Promise<InsightCard[]> {
   const provider = getLLMProvider();
   const system = [
-    'Sos analista de ventas de Candysur (distribuidora de Mondelez en el GBA).',
-    `El informe corresponde a: «${data.alcance}» (puede ser un vendedor puntual o el total de la empresa).`,
-    'Redactá un informe BREVE en español rioplatense a partir del JSON de datos.',
+    'Sos un asistente comercial para un equipo de ventas de distribución (Candysur / Mondelez, GBA).',
+    `Los datos corresponden a: «${data.alcance}».`,
+    'Analizá los datos y generá insights ACCIONABLES en español rioplatense.',
     'Usá SOLO los números del JSON; no inventes ni estimes nada que no esté.',
-    'Estructura en markdown con estas secciones y bullets concisos:',
-    '## Resumen de actividad',
-    '## Clientes en riesgo (cuántos y a cuáles priorizar)',
-    '## Avance vs meta (si hay datos)',
-    '## Acciones sugeridas para la semana',
-    'Si una sección no tiene datos, decilo en una línea en vez de inventar.',
+    'Respondé SOLO con un array JSON válido (sin markdown, sin texto extra) con este schema por item:',
+    '{ "tipo": "RECUPERACIÓN" | "CRECIMIENTO" | "COBERTURA" | "ALERTA", "accion": string, "metrica": string, "detalle": string, "pasos": string[], "cta": "Ver clientes" | "Ver productos" | "Ver ruta" | "Ver detalle" }',
+    '- accion: imperativa, 1 línea. metrica: etiqueta corta para un badge (ej: "5 clientes", "28 en riesgo").',
+    '- detalle: 1-2 oraciones del porqué. pasos: 2 a 4 pasos concretos.',
+    'Máximo 5 insights, ordenados por impacto. Si no hay datos para algo, no lo incluyas.',
   ].join('\n');
   const res = await provider.chat({
     system,
     messages: [{ role: 'user', content: JSON.stringify(data) }],
-    maxTokens: 700,
+    maxTokens: 900,
     temperature: 0.3,
   });
-  return res.text ?? '';
+  return parseCards(res.text ?? '');
 }
 
-export interface InsightPayload { data: InsightData; narrative: string }
+export interface InsightPayload { data: InsightData; cards: InsightCard[] }
 
 /** Lee del cache o regenera (force). */
 export async function getOrCreateInsight(
@@ -136,8 +170,8 @@ export async function getOrCreateInsight(
   }
 
   const data = await buildInsightData(svc, opts);
-  const narrative = await redactInsight(data);
-  const payload: InsightPayload = { data, narrative };
+  const cards = await generateCards(data);
+  const payload: InsightPayload = { data, cards };
   const generated_at = new Date().toISOString();
   await svc.from('ai_insights').upsert({ scope_key: opts.scopeKey, periodo, payload, generated_at });
   return { payload, generated_at };

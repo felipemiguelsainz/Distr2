@@ -1,58 +1,40 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Users, UserCheck, Clock, AlertTriangle, RefreshCw, Building2, ChevronDown } from 'lucide-react';
+import {
+  Users, UserCheck, Clock, AlertTriangle, RefreshCw, TrendingUp, MapPin,
+  ChevronDown, ArrowRight, Check, Building2,
+} from 'lucide-react';
 
-interface Avance { rubro: string; avance_pct: number; acumulado: number; meta: number | null; tendencia: number | null }
+type CardTipo = 'RECUPERACIÓN' | 'CRECIMIENTO' | 'COBERTURA' | 'ALERTA';
+interface InsightCard {
+  tipo: CardTipo; accion: string; metrica: string; detalle: string; pasos: string[]; cta: string;
+}
 interface InsightData {
   alcance: string;
-  periodo: string;
   actividad: { total: number; activos: number; tibios: number; inactivos: number; pct_comprando: number };
-  churn: { count: number; top: { pdv_id: number; razon_social: string | null; localidad: string | null; ultima_vta: string }[] };
-  avance: Avance[];
+  churn: { count: number };
 }
-interface Payload { data: InsightData; narrative: string }
+interface Payload { data: InsightData; cards: InsightCard[] }
 
-// --- Helpers ---------------------------------------------------------------
-function parseSections(md: string): Record<string, string[]> {
-  const out: Record<string, string[]> = {};
-  let cur = '';
-  for (const ln of md.split('\n')) {
-    if (ln.startsWith('## ')) { cur = ln.slice(3).trim().toLowerCase(); out[cur] = []; }
-    else if (cur) out[cur].push(ln);
-  }
-  return out;
-}
-function sectionText(sections: Record<string, string[]>, includes: string): string[] {
-  const k = Object.keys(sections).find((x) => x.includes(includes));
-  return k ? sections[k].filter((l) => l.trim() !== '') : [];
-}
-function inlineBold(s: string, base = 'text-gray-700') {
-  return s.split(/(\*\*[^*]+\*\*)/g).map((part, j) =>
-    part.startsWith('**') && part.endsWith('**')
-      ? <strong key={j} className="font-semibold text-gray-900">{part.slice(2, -2)}</strong>
-      : <span key={j} className={base}>{part}</span>);
-}
-function Prose({ lines }: { lines: string[] }) {
-  if (lines.length === 0) return <p className="text-sm text-gray-400">Sin datos para este período.</p>;
-  return (
-    <ul className="space-y-1.5">
-      {lines.map((ln, i) => (
-        <li key={i} className="text-sm leading-relaxed flex gap-2">
-          <span className="text-blue-400 mt-0.5">•</span>
-          <span>{inlineBold(ln.replace(/^[-*]\s*/, ''))}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-function avanceColor(pct: number) {
-  if (pct < 50) return { bar: '#dc2626', text: 'text-red-600' };
-  if (pct < 80) return { bar: '#eab308', text: 'text-yellow-600' };
-  return { bar: '#16a34a', text: 'text-green-600' };
+// Config visual por tipo de card (paleta del proyecto).
+const TIPO_CFG: Record<CardTipo, { icon: typeof RefreshCw; color: string; bg: string; border: string }> = {
+  'RECUPERACIÓN': { icon: RefreshCw,     color: '#d97706', bg: 'bg-amber-50',   border: 'border-l-amber-500' },
+  'CRECIMIENTO':  { icon: TrendingUp,    color: '#16a34a', bg: 'bg-green-50',   border: 'border-l-green-500' },
+  'COBERTURA':    { icon: MapPin,        color: '#0c5cab', bg: 'bg-blue-50',    border: 'border-l-blue-500' },
+  'ALERTA':       { icon: AlertTriangle, color: '#dc2626', bg: 'bg-red-50',     border: 'border-l-red-500' },
+};
+
+function hace(iso: string | null): string {
+  if (!iso) return '';
+  const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (min < 1) return 'recién';
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `hace ${h} h`;
+  return `hace ${Math.round(h / 24)} d`;
 }
 
-// --- Componente ------------------------------------------------------------
 export function InsightsClient({ vendedores }: { vendedores: string[] }) {
   const [vendedor, setVendedor] = useState(''); // '' = vista agregada (empresa/equipo)
   const [payload, setPayload] = useState<Payload | null>(null);
@@ -82,7 +64,6 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
   useEffect(() => { load(false); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [vendedor]);
 
   const d = payload?.data;
-  const sections = payload ? parseSections(payload.narrative) : {};
   const esEmpresa = !vendedor;
 
   const kpis = d ? [
@@ -102,17 +83,16 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
             <h1 className="text-3xl font-bold tracking-tight text-gray-900">
               Insights{d ? ` — ${d.alcance}` : ''}
             </h1>
-            <p className="text-sm text-gray-500 mt-0.5">Resumen del mes, clientes en riesgo y acciones sugeridas.</p>
+            <p className="text-sm text-gray-500 mt-0.5">Acciones priorizadas por impacto.</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           {generatedAt && !loading && (
             <span className="text-xs text-gray-500 bg-white border border-gray-200 rounded-full px-2.5 py-1">
-              {new Date(generatedAt).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+              {hace(generatedAt)}
             </span>
           )}
-          {/* Selector de vendedor (neutro por default) */}
           <div className="relative">
             <select
               value={vendedor}
@@ -159,80 +139,89 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
       {loading && !payload && (
         <div className="flex items-center gap-2.5 text-sm text-gray-500 py-10 justify-center">
           <RefreshCw className="w-4 h-4 animate-spin" />
-          Generando informe con IA…
+          Generando acciones con IA…
         </div>
       )}
 
-      {/* Cuerpo del insight */}
-      {d && (
-        <div className="space-y-6">
-          {/* Resumen de actividad */}
-          <SectionCard title="Resumen de actividad">
-            <Prose lines={sectionText(sections, 'actividad')} />
-          </SectionCard>
-
-          {/* Clientes en riesgo → chips */}
-          <SectionCard title={`Clientes en riesgo (${d.churn.count})`}>
-            {d.churn.top.length === 0 ? (
-              <p className="text-sm text-gray-400">Sin clientes en riesgo. 🎉</p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {d.churn.top.map((c) => (
-                  <span key={c.pdv_id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-50 text-red-700 text-xs border border-red-100">
-                    <span className="font-medium">{c.razon_social ?? `#${c.pdv_id}`}</span>
-                    {c.localidad && <span className="text-red-400">· {c.localidad}</span>}
-                  </span>
-                ))}
-                {d.churn.count > d.churn.top.length && (
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-gray-100 text-gray-600 text-xs">
-                    +{d.churn.count - d.churn.top.length} más
-                  </span>
-                )}
-              </div>
-            )}
-          </SectionCard>
-
-          {/* Avance vs meta → progress bars */}
-          <SectionCard title="Avance vs meta">
-            {d.avance.length === 0 ? (
-              <p className="text-sm text-gray-400">Sin metas cargadas para este período.</p>
-            ) : (
-              <div className="space-y-3.5">
-                {d.avance.map((a) => {
-                  const col = avanceColor(a.avance_pct);
-                  return (
-                    <div key={a.rubro}>
-                      <div className="flex justify-between items-baseline text-sm mb-1">
-                        <span className="font-medium text-gray-800">{a.rubro}</span>
-                        <span className={`font-semibold tabular-nums ${col.text}`}>{a.avance_pct}%</span>
-                      </div>
-                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-2 rounded-full transition-all" style={{ width: `${Math.min(100, Math.max(0, a.avance_pct))}%`, background: col.bar }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </SectionCard>
-
-          {/* Acciones sugeridas */}
-          <SectionCard title="Acciones sugeridas para la semana">
-            <Prose lines={sectionText(sections, 'acci')} />
-          </SectionCard>
+      {/* Action cards */}
+      {payload && (
+        <div className="space-y-3">
+          {payload.cards.length === 0 ? (
+            <p className="text-sm text-gray-400">No hay acciones sugeridas para este período.</p>
+          ) : (
+            payload.cards.map((card, i) => <ActionCard key={i} card={card} when={hace(generatedAt)} />)
+          )}
         </div>
       )}
     </div>
   );
 }
 
-function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+function ActionCard({ card, when }: { card: InsightCard; when: string }) {
+  const [open, setOpen] = useState(false);
+  const [done, setDone] = useState(false);
+  const cfg = TIPO_CFG[card.tipo];
+  const Icon = cfg.icon;
+
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-      <div className="px-5 py-3 border-b border-gray-100">
-        <h2 className="text-base font-semibold text-gray-900">{title}</h2>
+    <div className={`bg-white rounded-xl shadow-sm border border-gray-100 border-l-4 ${cfg.border} overflow-hidden transition-all ${done ? 'opacity-50' : 'hover:shadow-md'}`}>
+      <div className="p-4">
+        <div className="flex items-center gap-2 mb-1.5">
+          <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg" style={{ background: cfg.color + '14' }}>
+            <Icon className="w-4 h-4" style={{ color: cfg.color }} />
+          </span>
+          <span className="text-xs font-semibold tracking-wide" style={{ color: cfg.color }}>{card.tipo}</span>
+          {when && <span className="text-xs text-gray-400">• {when}</span>}
+        </div>
+
+        <p className={`text-base font-semibold text-gray-900 ${done ? 'line-through' : ''}`}>{card.accion}</p>
+
+        <div className="flex items-center justify-between mt-2.5">
+          {card.metrica
+            ? <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium" style={{ background: cfg.color + '14', color: cfg.color }}>{card.metrica}</span>
+            : <span />}
+          <button
+            onClick={() => setOpen((o) => !o)}
+            className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700 transition"
+          >
+            {card.cta}
+            <ArrowRight className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-90' : ''}`} />
+          </button>
+        </div>
       </div>
-      <div className="px-5 py-4">{children}</div>
+
+      {/* Panel expandible */}
+      <div className={`grid transition-all duration-300 ease-in-out ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+        <div className="overflow-hidden">
+          <div className="px-4 pb-4 pt-1 border-t border-gray-100">
+            {card.detalle && (
+              <p className="text-sm text-gray-600 mt-3">
+                <span className="font-semibold text-gray-800">Por qué: </span>{card.detalle}
+              </p>
+            )}
+            {card.pasos.length > 0 && (
+              <div className="mt-3">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Pasos sugeridos</p>
+                <ol className="space-y-1">
+                  {card.pasos.map((p, j) => (
+                    <li key={j} className="text-sm text-gray-700 flex gap-2">
+                      <span className="font-semibold text-gray-400">{j + 1}.</span>
+                      <span>{p}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+            <button
+              onClick={() => { setDone((v) => !v); setOpen(false); }}
+              className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition"
+            >
+              <Check className="w-4 h-4" />
+              {done ? 'Marcar como pendiente' : 'Marcar como gestionado'}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
