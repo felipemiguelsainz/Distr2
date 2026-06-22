@@ -134,8 +134,10 @@ requiere importar direcciones reales.
   completa, sin nombres → no confunde comercios) y en modo **caminando**
   (`travelmode=walking`). Google acepta ~10 puntos por link → se parte en
   **tramos continuos**. Además botón "Copiar coords" (lista ordenada).
-- **Capa "inteligente" sin IA**: sugiere PDVs en rojo (inactivos) que quedan
-  "de paso" (≤400 m de la ruta) — es proximidad geométrica, no LLM.
+- **Clientes apagados cercanos** (sin IA): PDVs en rojo (sin compra +3 meses)
+  que quedan a ≤400 m de la ruta — proximidad geométrica, no LLM. El endpoint
+  los devuelve en `sugerencias`; el panel los muestra como lista clickeable
+  (centra el mapa con `FlyTo`) y como rombos rojos en el mapa.
 
 ---
 

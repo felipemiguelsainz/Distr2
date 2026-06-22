@@ -91,6 +91,15 @@ function FitBounds({ positions, sig }: { positions: [number, number][]; sig: str
   return null;
 }
 
+// Centra el mapa en un punto puntual (al clickear un cliente apagado de la lista).
+function FlyTo({ point }: { point: [number, number] | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (point) map.flyTo(point, Math.max(map.getZoom(), 16), { duration: 0.6 });
+  }, [point, map]);
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Day abbreviation → full name mapping
 // ---------------------------------------------------------------------------
@@ -296,6 +305,7 @@ export default function MapaClient() {
   const [ruta,        setRuta]        = useState<RutaResponse | null>(null);
   const [rutaLoading, setRutaLoading] = useState(false);
   const [rutaError,   setRutaError]   = useState<string | null>(null);
+  const [focusPoint,  setFocusPoint]  = useState<[number, number] | null>(null);
 
   const armarRuta = useCallback(async () => {
     const vend = rutaVend || (opts.vendedores.length === 1 ? opts.vendedores[0] : '');
@@ -591,6 +601,39 @@ export default function MapaClient() {
                 </>
               )}
             </div>
+
+            {/* Clientes apagados cercanos a la ruta */}
+            {ruta && ruta.sugerencias.length > 0 && (
+              <div className="w-full mt-2 pt-2.5 border-t border-[rgba(220,38,38,0.18)]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#dc2626]">
+                  Clientes apagados cercanos ({ruta.sugerencias.length})
+                </p>
+                <p className="text-[11px] text-[#71717a] mb-2">
+                  Sin compra hace +3 meses, a pasos de tu recorrido — no te cuesta nada pasar.
+                </p>
+                <div className="flex flex-col gap-1 max-h-44 overflow-y-auto">
+                  {ruta.sugerencias.map(s => (
+                    <button
+                      key={s.pdv_id}
+                      onClick={() => setFocusPoint([s.lat, s.lon])}
+                      className="flex items-center justify-between gap-2 text-left px-2.5 py-1.5 rounded-[8px] bg-white border border-[rgba(220,38,38,0.2)] hover:border-[rgba(220,38,38,0.45)] transition-colors"
+                    >
+                      <span className="min-w-0">
+                        <span className="block text-[12px] font-medium text-[#09090b] truncate">
+                          #{s.pdv_id} — {s.razon_social ?? 's/n'}
+                        </span>
+                        <span className="block text-[11px] text-[#71717a]">
+                          Última vta: {fmtDate(s.ultima_vta)} · Visita: {fmtDia(s.dia_visita)}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-[11px] font-semibold text-[#dc2626] bg-[rgba(220,38,38,0.08)] px-2 py-0.5 rounded-full">
+                        a {s.dist_m} m
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -661,6 +704,7 @@ export default function MapaClient() {
                   positions={ruta.stops.map(s => [s.lat, s.lon] as [number, number])}
                   sig={`${ruta.vendedor}|${ruta.dia}|${ruta.stops.length}`}
                 />
+                <FlyTo point={focusPoint} />
                 {ruta.geometry.length >= 2 && (
                   <Polyline
                     positions={ruta.geometry}
@@ -673,7 +717,7 @@ export default function MapaClient() {
                     <Popup minWidth={200}>
                       <div style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', lineHeight: 1.5 }}>
                         <p style={{ fontWeight: 700, fontSize: 12, marginBottom: 2, color: '#dc2626' }}>
-                          Inactivo de paso · {s.dist_m} m
+                          Cliente apagado cercano · a {s.dist_m} m
                         </p>
                         <p style={{ fontWeight: 700, fontSize: 13, marginBottom: 4, color: '#09090b' }}>
                           #{s.pdv_id} — {s.razon_social ?? '—'}

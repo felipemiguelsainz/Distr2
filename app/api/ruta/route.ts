@@ -209,7 +209,7 @@ export async function GET(req: Request) {
   const resumen =
     `${stops.length} paradas · ${total_km.toFixed(1)} km a pie · ~${Math.round(total_min)} min` +
     (sugerencias.length
-      ? ` · ${sugerencias.length} PDV(s) inactivos de paso para sumar`
+      ? ` · ${sugerencias.length} cliente(s) apagado(s) cercano(s)`
       : '');
 
   const resp: RutaResponse = {
