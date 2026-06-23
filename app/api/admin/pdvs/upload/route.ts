@@ -69,11 +69,23 @@ export async function POST(request: NextRequest) {
         };
       });
 
-    // If not confirmed and there are reasignaciones, return them for review
-    if (!confirmed && reasignaciones.length > 0) {
+    // Cuántos PDVs activos quedarían dados de baja (no vienen en el archivo).
+    const idsInFile = new Set(rows.map((r) => r.id));
+    const { data: activeBefore } = await supabase.from('pdvs').select('id').eq('activo', true);
+    const activosAntes = (activeBefore ?? []).map((p) => p.id as number);
+    const bajas = activosAntes.filter((id) => !idsInFile.has(id)).length;
+    // Guardrail: dar de baja a >30% de los activos casi siempre es un archivo
+    // parcial/equivocado → pedir confirmación explícita.
+    const bajaMasiva = activosAntes.length > 0 && bajas > activosAntes.length * 0.3;
+
+    // Pedir confirmación si hay reasignaciones de cartera o una baja masiva.
+    if (!confirmed && (reasignaciones.length > 0 || bajaMasiva)) {
       return NextResponse.json({
         requires_confirmation: true,
         reasignaciones,
+        bajas,
+        baja_masiva: bajaMasiva,
+        activos_antes: activosAntes.length,
         total: rows.length,
       });
     }
@@ -103,23 +115,23 @@ export async function POST(request: NextRequest) {
     }
 
     // Reemplazo completo: marcar activo=false los PDVs que NO vinieron en este archivo.
-    // No los borramos físicamente porque ventas.pdv_id es FK; preservamos la historia.
-    const idsInFile = new Set(rows.map((r) => r.id));
-    const { data: allActive } = await supabase
-      .from('pdvs')
-      .select('id')
-      .eq('activo', true);
-    const toDeactivate = (allActive ?? [])
-      .map((p) => p.id as number)
-      .filter((id) => !idsInFile.has(id));
-
+    // No los borramos físicamente porque ventas.pdv_id es FK; preservamos la historia
+    // (las ventas NO se tocan). Reutilizamos activosAntes calculado arriba.
+    const toDeactivate = activosAntes.filter((id) => !idsInFile.has(id));
     let deactivated = 0;
-    if (toDeactivate.length > 0) {
-      const { error: deactErr } = await supabase
-        .from('pdvs')
-        .update({ activo: false })
-        .in('id', toDeactivate);
-      if (!deactErr) deactivated = toDeactivate.length;
+    for (let i = 0; i < toDeactivate.length; i += CHUNK) {
+      const chunk = toDeactivate.slice(i, i + CHUNK);
+      const { error: deactErr } = await supabase.from('pdvs').update({ activo: false }).in('id', chunk);
+      if (!deactErr) deactivated += chunk.length;
+    }
+
+    // Limpiar la geo de los PDVs que quedaron inactivos (pdvs_geo solo con vigentes).
+    let geo_eliminada = 0;
+    try {
+      const { data: ge } = await supabase.rpc('cleanup_pdvs_geo_inactivos');
+      geo_eliminada = typeof ge === 'number' ? ge : 0;
+    } catch (e) {
+      console.error('[pdvs-upload] cleanup geo', e);
     }
 
     // Record asignaciones for cartera changes
@@ -153,6 +165,7 @@ export async function POST(request: NextRequest) {
       updated,
       reasignaciones,
       deactivated,
+      geo_eliminada,
     };
 
     return NextResponse.json(result);

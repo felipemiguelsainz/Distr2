@@ -139,6 +139,7 @@ export interface PdvsUploadResult {
   inserted: number;
   updated: number;
   deactivated: number;   // PDVs marcados como inactivos (no estaban en el archivo)
+  geo_eliminada?: number; // filas de pdvs_geo borradas por quedar inactivas
   reasignaciones: Reasignacion[];
 }
 

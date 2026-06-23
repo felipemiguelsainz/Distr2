@@ -286,7 +286,8 @@ function ResultBanner({ result, type }: { result: unknown; type: 'ventas' | 'pdv
         <p className="font-semibold text-[#16a34a] mb-1">Clientes actualizados</p>
         <p className="text-[#27272a]">
           Total: {r.total} | Nuevos: {r.inserted} | Actualizados: {r.updated}
-          {r.deactivated > 0 && <> | <span className="text-[#dc2626]">Desactivados: {r.deactivated}</span></>}
+          {r.deactivated > 0 && <> | <span className="text-[#dc2626]">Dados de baja: {r.deactivated}</span></>}
+          {(r.geo_eliminada ?? 0) > 0 && <> | <span className="text-[#71717a]">geo limpiada: {r.geo_eliminada}</span></>}
         </p>
         {r.reasignaciones.length > 0 && (
           <div className="mt-2">
@@ -335,13 +336,29 @@ function ResultBanner({ result, type }: { result: unknown; type: 'ventas' | 'pdv
 }
 
 function ReasignacionModal({
-  reasignaciones, onConfirm, onCancel,
-}: { reasignaciones: Reasignacion[]; onConfirm: () => void; onCancel: () => void }) {
+  reasignaciones, bajas, bajaMasiva, activosAntes, onConfirm, onCancel,
+}: { reasignaciones: Reasignacion[]; bajas: number; bajaMasiva: boolean; activosAntes: number; onConfirm: () => void; onCancel: () => void }) {
+  const pctBaja = activosAntes > 0 ? Math.round((bajas / activosAntes) * 100) : 0;
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-[#ffffff] rounded-2xl border border-[#e4e4e7] shadow-[0_16px_48px_rgba(0,0,0,0.18)] max-w-lg w-full p-6">
-        <h3 className="text-[17px] font-semibold text-[#09090b] mb-2">Confirmar reasignaciones de cartera</h3>
-        <p className="text-[13px] text-[#71717a] mb-4">Se detectaron los siguientes cambios de cartera. ¿Confirmar?</p>
+        <h3 className="text-[17px] font-semibold text-[#09090b] mb-2">Confirmar carga de clientes</h3>
+
+        {/* Aviso de bajas masivas (guardrail) */}
+        {bajaMasiva && (
+          <div className="mb-4 rounded-xl border border-[#dc2626]/30 bg-[#dc2626]/[0.07] px-4 py-3 text-[13px]">
+            <p className="font-semibold text-[#dc2626]">⚠ Esta carga daría de baja a {bajas} PDVs ({pctBaja}% de {activosAntes}).</p>
+            <p className="text-[#71717a] mt-1">
+              Esos PDVs van a dejar de aparecer en el mapa, dashboards e insights (el historial de
+              ventas se conserva). Si subiste un archivo parcial o equivocado, cancelá. Si la base
+              nueva es correcta, confirmá.
+            </p>
+          </div>
+        )}
+
+        {reasignaciones.length > 0 && (
+          <>
+        <p className="text-[13px] text-[#71717a] mb-2">Cambios de cartera detectados:</p>
         <div className="max-h-64 overflow-y-auto rounded-xl border border-[#e4e4e7] divide-y divide-[#e4e4e7] text-[13px]">
           {reasignaciones.map((r, i) => (
             <div key={i} className="px-4 py-2.5">
@@ -354,6 +371,8 @@ function ReasignacionModal({
             </div>
           ))}
         </div>
+          </>
+        )}
         <div className="mt-5 flex gap-2.5 justify-end">
           <button
             onClick={onCancel}
@@ -387,6 +406,9 @@ export function CargarClient() {
   const [pdvsError, setPdvsError] = useState('');
   const [pdvsPendingRows, setPdvsPendingRows] = useState<unknown[] | null>(null);
   const [reasignaciones, setReasignaciones] = useState<Reasignacion[]>([]);
+  const [pdvsBajas, setPdvsBajas] = useState(0);
+  const [pdvsBajaMasiva, setPdvsBajaMasiva] = useState(false);
+  const [pdvsActivosAntes, setPdvsActivosAntes] = useState(0);
 
   const [maestrosLoading, setMaestrosLoading] = useState(false);
   const [maestrosResult, setMaestrosResult] = useState<MaestrosUploadResult | null>(null);
@@ -472,7 +494,11 @@ export function CargarClient() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Error al procesar clientes.');
       if (data.requires_confirmation) {
-        setPdvsPendingRows(rows); setReasignaciones(data.reasignaciones);
+        setPdvsPendingRows(rows);
+        setReasignaciones(data.reasignaciones ?? []);
+        setPdvsBajas(data.bajas ?? 0);
+        setPdvsBajaMasiva(data.baja_masiva ?? false);
+        setPdvsActivosAntes(data.activos_antes ?? 0);
         setPdvsLoading(false); return;
       }
       setPdvsResult(data);
@@ -490,7 +516,7 @@ export function CargarClient() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Error al guardar clientes.');
-      setPdvsResult(data); setReasignaciones([]); setPdvsPendingRows(null);
+      setPdvsResult(data); setReasignaciones([]); setPdvsPendingRows(null); setPdvsBajaMasiva(false);
     } catch (e) { setPdvsError(e instanceof Error ? e.message : String(e)); }
     finally { setPdvsLoading(false); }
   }
@@ -632,11 +658,14 @@ export function CargarClient() {
         />
       )}
 
-      {reasignaciones.length > 0 && (
+      {pdvsPendingRows !== null && (
         <ReasignacionModal
           reasignaciones={reasignaciones}
+          bajas={pdvsBajas}
+          bajaMasiva={pdvsBajaMasiva}
+          activosAntes={pdvsActivosAntes}
           onConfirm={confirmPdvsUpload}
-          onCancel={() => { setReasignaciones([]); setPdvsPendingRows(null); }}
+          onCancel={() => { setReasignaciones([]); setPdvsPendingRows(null); setPdvsBajaMasiva(false); }}
         />
       )}
     </div>

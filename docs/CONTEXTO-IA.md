@@ -154,6 +154,14 @@ requiere importar direcciones reales.
 
 - Archivos grandes se cargan **corriendo la app local**, no por la URL pública
   de Vercel (tope 4.5 MB + timeout).
+- **Carga del maestro de PDVs (`/api/admin/pdvs/upload`) = reemplazo por baja
+  lógica:** upsert de lo que viene + los que NO vienen se marcan `activo=false`
+  (NO se borran: `ventas.pdv_id` es FK, se preserva el historial → los kg/$ NO
+  cambian). Todo lo que filtra `activo=true` (mapa, dashboards, insights) deja de
+  verlos y de contarlos. Además: limpia la geo de inactivos
+  (`cleanup_pdvs_geo_inactivos`, mig. `037`) y tiene **guardrail**: si una carga
+  daría de baja a >30% de los activos, pide confirmación (posible archivo
+  parcial). También confirma reasignaciones de cartera.
 - Credenciales (OpenAI, etc.): el usuario las pone en `.env.local`; nunca pegarlas
   en el chat ni commitearlas.
 - Migraciones: numeración correlativa en `supabase/migrations/` (última: `036_*`).
