@@ -54,6 +54,18 @@ Tablas clave:
 - `localidades_geo` — centroides por localidad (ver §4).
 - `vendedores`, `profiles` — roles y equipos.
 
+**⚠️ Dos conceptos de "activo" que NO hay que confundir:**
+- **`pdvs.activo` (padrón / alta-baja):** el PDV está en la base actual. Si una
+  carga de maestro no lo incluye → `activo=false` (baja): **desaparece de TODO**
+  (mapa, dashboards, insights filtran `activo=true`). Es interno; en la UI se dice
+  **"baja / dado de baja / padrón"**, NUNCA "inactivo".
+- **"Cliente activo / inactivo" (recencia, negocio):** compró ≤3 meses (activo)
+  vs +3 meses (inactivo / "en riesgo" / rojo). Sale de `ventas`
+  (`pdvs_ultima_vta`), NO de `pdvs.activo`. Un PDV puede estar **en el padrón
+  (`activo=true`) y a la vez ser "cliente inactivo"** (en rojo). Son ortogonales.
+- Regla de naming: reservá "activo/inactivo" para la **recencia**; para el flag
+  de padrón usá "alta/baja/vigente".
+
 **Verdades aprendidas (no asumir lo contrario):**
 - **La actividad/recencia se calcula desde `ventas`, NO de campos cacheados.**
   `pdvs.ultima_vta` viene **vacío** → no sirve. La última venta real se pivotea

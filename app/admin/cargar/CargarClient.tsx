@@ -347,11 +347,12 @@ function ReasignacionModal({
         {/* Aviso de bajas masivas (guardrail) */}
         {bajaMasiva && (
           <div className="mb-4 rounded-xl border border-[#dc2626]/30 bg-[#dc2626]/[0.07] px-4 py-3 text-[13px]">
-            <p className="font-semibold text-[#dc2626]">⚠ Esta carga daría de baja a {bajas} PDVs ({pctBaja}% de {activosAntes}).</p>
+            <p className="font-semibold text-[#dc2626]">⚠ Esta carga daría de baja a {bajas} de {activosAntes} PDVs del padrón ({pctBaja}%).</p>
             <p className="text-[#71717a] mt-1">
-              Esos PDVs van a dejar de aparecer en el mapa, dashboards e insights (el historial de
-              ventas se conserva). Si subiste un archivo parcial o equivocado, cancelá. Si la base
-              nueva es correcta, confirmá.
+              Dar de baja = el PDV sale del padrón y deja de aparecer en el mapa, dashboards e
+              insights (NO confundir con &quot;cliente inactivo&quot;, que es el que no compró hace +3 meses
+              pero sigue en el padrón). El historial de ventas se conserva. Si subiste un archivo
+              parcial o equivocado, cancelá. Si la base nueva es correcta, confirmá.
             </p>
           </div>
         )}
