@@ -9,6 +9,7 @@ App de gestión de ventas para una distribuidora de Mondelez en el GBA.
 Stack: **Next.js 16 (App Router, Turbopack) + Supabase (Postgres) + Vercel**.
 Idioma del producto y de los textos: **español rioplatense**.
 Producción: **https://distr2.vercel.app** (auto-deploy desde `main`).
+_Última actualización: 2026-06-23 · migraciones hasta `037`._
 
 ---
 
@@ -300,3 +301,33 @@ requiere importar direcciones reales.
 - Insights cacheados por mes (no se regeneran salvo "Regenerar").
 - Asistente: historial acotado a 12 msgs y máx 5 turnos de tools.
 - En Vercel: cargar `OPENAI_API_KEY` en env vars o la IA no aparece (degrada).
+
+---
+
+## 10. Mapa de archivos clave (dónde está cada cosa)
+
+**IA**
+- `lib/ai/provider.ts` — capa LLM agnóstica (OpenAI/Anthropic), `getLLMProvider`, `llmAvailable`.
+- `lib/ai/tools.ts` — tools del asistente + `resolveCarteras` / `resolveVendedor`.
+- `lib/ai/insights.ts` — datos de insights, action cards, `computeEnfriandose`, `esEnfriandose`.
+- `app/api/asistente/route.ts` — chat (tool-calling). `components/asistente/Asistente.tsx` — widget.
+- `app/api/insights/route.ts` + `app/insights/` — página de insights.
+- `app/api/insights/enfriandose/route.ts` + `app/insights/enfriandose/` — página de enfriándose.
+
+**Mapa / Ruteo**
+- `app/mapa/MapaClient.tsx` (+ `/api/mapa`) — mapa, filtros, panel de ruta, deep-link `?pdvs=&vendedor=`.
+- `lib/routing/tsp.ts` (optimización) · `lib/routing/osrm.ts` (router peatón) · `app/api/ruta/route.ts`.
+
+**Carga / geo**
+- `app/admin/cargar/CargarClient.tsx` — UI de cargas. Endpoints en `app/api/admin/{ventas,pdvs,pdvs-geo,maestros}/upload`.
+- `scripts/fix-geo-outliers.cjs` · `scripts/seed-localidades-geo.cjs` — mantenimiento de geo.
+
+**Cálculos (reusados por dashboards e insights)**
+- `lib/calculations/queries/kpis.ts` — `fetchTotalKpis` / `fetchSupervisorKpis` / `fetchVendedorKpis`.
+
+**RPCs de Supabase (en `supabase/migrations/`, todos con `SET statement_timeout='30s'` los pesados)**
+- `pdvs_ultima_vta` (028) · `bulk_upsert_pdvs_geo` + `localidades_geo` (029) · `ai_insights` (030)
+- `pdvs_valor_12m` (031, +kilos en 036) · `pdvs_cadencia` (032) · `cross_sell` (033)
+- `tendencia_anual` (035) · `cleanup_pdvs_geo_inactivos` (037)
+
+**Para aplicar una migración** (Vercel no las corre): script `.cjs` con `pg` leyendo `DATABASE_URL` de `.env.local`.
