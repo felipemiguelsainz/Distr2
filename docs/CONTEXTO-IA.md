@@ -331,3 +331,90 @@ requiere importar direcciones reales.
 - `tendencia_anual` (035) · `cleanup_pdvs_geo_inactivos` (037)
 
 **Para aplicar una migración** (Vercel no las corre): script `.cjs` con `pg` leyendo `DATABASE_URL` de `.env.local`.
+
+---
+
+## 11. Negocio / dominio (lo que vende y cómo se mide)
+
+- Distribuidora de **Mondelez en el GBA** (~10 partidos). Le vende a PDVs:
+  kioscos, autoservicios, supermercados, tradicionales (`canal_venta`).
+- **Rubros** (de `ventas.rubro`): Biscuits, Chocolates, Beverages, Gums, Candies,
+  Dry Mixes, TERCEROS, GENOMA, Others. Los dashboards agrupan por rubro.
+- Se mide en **KG** (volumen, base de las metas) y en **$ neto** (`ventas.neto`).
+- **Cartera** = el conjunto de clientes de un vendedor (`pdvs.cartera == vendedores.nombre`).
+- **CCC = "Clientes Con Compra"**: cuántos PDVs compraron en el mes vs la
+  `cartera_activa_3m` (los que compraron en los últimos 3m) → **penetración**.
+- **Cobertura**: % de PDVs que compraron cada **SKU** clave (no rubro, SKU puntual).
+
+## 12. Roles, auth y cuentas
+
+- Roles: `admin | supervisor | vendedor` (`profiles.rol`). `profiles` linkea el
+  usuario con `vendedor_nombre` y `equipo`.
+- **`proxy.ts` (NO `middleware.ts`)**: en **Next 16 el middleware se llama `proxy`**.
+  Hace el gate de auth con **`getClaims()`** (verifica el JWT localmente, ES256,
+  sin round-trip al Auth server — esto era el cuello de performance vs `getUser()`).
+  Solo fast-rejecta combos obvios; cada page re-chequea el rol server-side.
+- **Landing por rol** (`app/page.tsx`): admin→`/dashboard/total`,
+  supervisor→`/dashboard/supervisor`, vendedor→`/dashboard/vendedor/<nombre>`.
+- **`must_change_password`**: primer login con clave temporal → `AppShell`
+  redirige a `/perfil/cambiar-password` (no es middleware). `profiles.activo`
+  (cuenta habilitada) ≠ `pdvs.activo` (padrón) — otro "activo" más, ojo.
+- Gestión de usuarios: `/admin/usuarios`. Helpers RLS reales:
+  `get_user_vendedor` / `get_user_equipo`.
+
+## 13. Dashboards y KPIs
+
+- Páginas: `/dashboard/total` (admin), `/dashboard/supervisor/[nombre]`,
+  `/dashboard/vendedor/[nombre]`, `/dashboard/consolidado(/[nombre])`,
+  `/dashboard/consolidado-productos(/[nombre])`.
+- **`KpiRubro`** (por rubro, en KG y $): `meta`, `acumulado`, `avance_pct`,
+  `tendencia` (proyección a fin de mes = acumulado/días_trab × días_laborables),
+  `media_real`, `media_necesaria`, `acumulado_aa`/`avance_vs_aa_pct` (vs año
+  anterior), `mismo_dia_minus7/14`. `meta`/`tendencia` = null en meses pasados.
+- `config_meses` → **días laborables** del mes (base de tendencia y media necesaria).
+- `metas` (kilos meta por vendedor/rubro/mes) · `metas_ccc` (objetivo de clientes;
+  cascadeo con RPC `calcular_preset_ccc`, se recalcula en el upload de PDVs y NO
+  pisa lo editado por el supervisor, `es_preset=false`).
+- Componentes: `KpiTable`, `ClientesTable` (CCC), `CoberturaTable`, `CccCard`,
+  `TrendChart` / `AvanceBarChart` (recharts, lazy en `LazyCharts`).
+
+## 14. Pipeline de carga + recálculo (4 archivos)
+
+`/admin/cargar` (`CargarClient`) → endpoints `app/api/admin/{ventas,pdvs,maestros,pdvs-geo}/upload`.
+- **Ventas**: dedup por unique `(fecha,pdv_id,comprobante,sku)`; confirma
+  "huérfanos" (vendedores en ventas que no están en el maestro). Tras cargar →
+  `recalcular_resumen_diario`.
+- **Maestro PDVs**: reemplazo por baja lógica + limpieza de geo + guardrail (§6).
+- **Maestro vendedores** y **Geo** (§4).
+- Tablas materializadas que alimentan dashboards (se recalculan con RPCs
+  `recalcular_*`): `resumen_diario`, `resumen_clientes_pdv`, `catalogo_productos`,
+  `consolidado_productos`. **Zona de peligro**: borrar-mes + recalcular-resumen.
+- Parser de Excel en `lib/excel/parser` (xlsx/exceljs); archivos grandes → cargar local.
+
+## 15. Diseño / UI (convenciones)
+
+- Tema "shadcn light" **hand-rolled con hex hardcodeado** (no design tokens en la
+  mayoría). Paleta: bg `#fafafa`, card `#fff`, texto `#09090b`, primario azul
+  `#0c5cab`, muted `#71717a`, borde `#e4e4e7`; semánticos verde `#16a34a`,
+  amarillo `#eab308`/`#d97706`, rojo `#dc2626`.
+- Fuentes: **IBM Plex Sans** (body) y **JetBrains Mono** (números/labels mono).
+- El dashboard usa tamaños chicos hardcodeados (`text-[11px]`..`text-[22px]`) +
+  SVG inline. Las páginas nuevas (insights/enfriándose) usan **escala Tailwind +
+  lucide-react** — al tocar esas, seguí ese estilo; en el resto, imitá el hex.
+- Mobile: sidebar hamburguesa + top-bar (`ShellLayout`); tablas con
+  `overflow-x-auto + min-w-[…]`; headers `flex-col sm:flex-row`.
+
+## 16. Performance / caching
+
+- `fetch*Kpis` usan `unstable_cache`; tras una carga se invalida con
+  `revalidateTag('kpis')`.
+- Auth: `getClaims()` local (ES256) en `proxy.ts` en vez de `getUser()` (era el
+  cuello). DB rápida (~3.5ms las queries simples).
+- `/api/mapa` cachea 5 min por usuario; insights cacheados por mes en `ai_insights`.
+
+## Comandos
+
+- `npm run dev` (Next + Turbopack) · `npm run build` · `npm run lint` · `npx tsc --noEmit`.
+- Migraciones: aplicarlas con un script `.cjs` + `pg` leyendo `DATABASE_URL` de
+  `.env.local` (Vercel NO las corre). Scripts de carga: `npm run load:historical`,
+  `npm run load:pdvs`.
