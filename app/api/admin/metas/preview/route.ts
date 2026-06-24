@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     const { data: profile } = await authClient.from('profiles').select('rol').eq('id', user.id).single();
     if (profile?.rol !== 'admin') return NextResponse.json({ error: 'Prohibido.' }, { status: 403 });
 
-    const { anio, mes, objetivosMondelez } = await request.json();
+    const { anio, mes, objetivosMondelez, vendedoresExcluidos } = await request.json();
     const a = Number(anio), m = Number(mes);
     if (!Number.isInteger(a) || a < 2000 || a > 2100) {
       return NextResponse.json({ error: 'Año inválido.' }, { status: 400 });
@@ -18,10 +18,14 @@ export async function POST(request: NextRequest) {
     if (!Number.isInteger(m) || m < 1 || m > 12) {
       return NextResponse.json({ error: 'Mes inválido (1-12).' }, { status: 400 });
     }
+    const excluidos: string[] = Array.isArray(vendedoresExcluidos)
+      ? vendedoresExcluidos.filter((v): v is string => typeof v === 'string')
+      : [];
     const preview = await calcularMetasPreview(
       a,
       m,
       objetivosMondelez ?? {},
+      excluidos,
     );
     return NextResponse.json({ preview });
   } catch (err) {

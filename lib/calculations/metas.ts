@@ -115,13 +115,17 @@ async function totalesAnualesPorRubro(anio: number): Promise<Map<string, Aggrega
 function pesoVendedoresPorRubro(
   porVendRubro: Map<string, Map<string, Aggregate>>,
   rubro: string,
+  excluidos: Set<string> = new Set(),
 ): Map<string, number> {
   const byVend = porVendRubro.get(rubro);
   if (!byVend) return new Map();
-  const total = [...byVend.values()].reduce((s, v) => s + v.kilos, 0);
+  // Excluir vendedores no operativos (ej: puntos de acopio) ANTES de calcular el
+  // total, para que su porción se redistribuya entre los vendedores reales.
+  const filtrado = new Map([...byVend].filter(([v]) => !excluidos.has(v)));
+  const total = [...filtrado.values()].reduce((s, v) => s + v.kilos, 0);
   if (total <= 0) return new Map();
   const out = new Map<string, number>();
-  for (const [v, agg] of byVend) {
+  for (const [v, agg] of filtrado) {
     if (agg.kilos > 0) out.set(v, agg.kilos / total);
   }
   return out;
@@ -134,7 +138,9 @@ export async function calcularMetasPreview(
   anio: number,
   mes:  number,
   objetivosMondelez: Record<string, number>, // { rubro: monto_pesos }
+  vendedoresExcluidos: string[] = [],         // vendedores que NO reciben meta
 ): Promise<MetaPreviewRubro[]> {
+  const excluidos = new Set(vendedoresExcluidos);
   const ant   = prevMonth(anio, mes);
   const aaTar = { anio: anio - 1, mes };
   const aaAnt = prevMonth(aaTar.anio, aaTar.mes);
@@ -195,7 +201,7 @@ export async function calcularMetasPreview(
       dolar_kg            = dpk > 0 ? dpk : undefined;
     }
 
-    const pesos = pesoVendedoresPorRubro(porVendRubro, rubro);
+    const pesos = pesoVendedoresPorRubro(porVendRubro, rubro, excluidos);
     const vendedores: MetaPreviewVendedor[] = [...pesos.entries()]
       .map(([vendedor, peso]) => ({
         vendedor,

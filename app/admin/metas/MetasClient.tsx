@@ -15,12 +15,22 @@ const inputCls = [
   'transition-all text-right text-[#09090b]',
 ].join(' ');
 
-export function MetasClient({ defaultAnio, defaultMes }: { defaultAnio: number; defaultMes: number }) {
+export function MetasClient({ defaultAnio, defaultMes, vendedores = [] }: { defaultAnio: number; defaultMes: number; vendedores?: string[] }) {
   const [anio, setAnio] = useState(defaultAnio);
   const [mes,  setMes]  = useState(defaultMes);
   const [objetivos, setObjetivos] = useState<Record<string, string>>(
     Object.fromEntries(MONDELEZ_RUBROS.map(r => [r, '']))
   );
+  const [excluidos, setExcluidos] = useState<Set<string>>(new Set());
+  const [excluidosOpen, setExcluidosOpen] = useState(false);
+
+  function toggleExcluido(v: string) {
+    setExcluidos(prev => {
+      const next = new Set(prev);
+      if (next.has(v)) next.delete(v); else next.add(v);
+      return next;
+    });
+  }
 
   const [preview, setPreview]   = useState<MetaPreviewRubro[] | null>(null);
   const [loading, setLoading]   = useState(false);
@@ -35,7 +45,7 @@ export function MetasClient({ defaultAnio, defaultMes }: { defaultAnio: number; 
     );
     const res = await fetch('/api/admin/metas/preview', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ anio, mes, objetivosMondelez: parsed }),
+      body: JSON.stringify({ anio, mes, objetivosMondelez: parsed, vendedoresExcluidos: [...excluidos] }),
     });
     const data = await res.json();
     setLoading(false);
@@ -95,6 +105,49 @@ export function MetasClient({ defaultAnio, defaultMes }: { defaultAnio: number; 
               />
             </div>
           ))}
+        </div>
+
+        {/* Vendedores excluidos del cálculo */}
+        <div className="mt-5 pt-5 border-t border-[#e4e4e7]">
+          <button
+            type="button"
+            onClick={() => setExcluidosOpen(o => !o)}
+            className="flex items-center justify-between w-full text-left"
+          >
+            <span className="text-[13px] font-semibold text-[#09090b]">
+              Vendedores excluidos del cálculo
+              {excluidos.size > 0 && (
+                <span className="ml-2 text-[12px] font-medium text-[#0c5cab]">
+                  ({excluidos.size} excluido{excluidos.size > 1 ? 's' : ''})
+                </span>
+              )}
+            </span>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className={`text-[#71717a] transition-transform ${excluidosOpen ? 'rotate-180' : ''}`}>
+              <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <p className="text-[12px] text-[#71717a] mt-0.5">
+            No reciben meta; su parte se redistribuye entre los vendedores reales (ej: puntos de acopio).
+          </p>
+          {excluidosOpen && (
+            vendedores.length === 0
+              ? <p className="mt-3 text-[12px] text-[#a1a1aa]">No hay vendedores activos.</p>
+              : (
+                <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5 max-h-64 overflow-y-auto pr-1">
+                  {vendedores.map(v => (
+                    <label key={v} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={excluidos.has(v)}
+                        onChange={() => toggleExcluido(v)}
+                        className="accent-[#0c5cab] shrink-0"
+                      />
+                      <span className="text-[12px] text-[#27272a] truncate" title={v}>{v}</span>
+                    </label>
+                  ))}
+                </div>
+              )
+          )}
         </div>
 
         <div className="mt-5 flex items-center gap-3">
