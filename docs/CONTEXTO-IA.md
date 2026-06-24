@@ -361,6 +361,13 @@ requiere importar direcciones reales.
   (cuenta habilitada) ≠ `pdvs.activo` (padrón) — otro "activo" más, ojo.
 - Gestión de usuarios: `/admin/usuarios`. Helpers RLS reales:
   `get_user_vendedor` / `get_user_equipo`.
+- **⚠️ El equipo del supervisor sale de `profiles.equipo`, NO de `vendedores`.**
+  Un supervisor normalmente **NO es una fila en `vendedores`** (no vende), así
+  que derivar su equipo con `vendedores.eq('nombre', vendedor_nombre)` devuelve
+  vacío → el supervisor veía TODO vacío (o, en el mapa viejo, ¡veía TODA la
+  empresa!). Siempre usar `profiles.equipo` y luego `vendedores.eq('equipo', …)`.
+  `UserContext` lleva `equipo`; `resolveCarteras` lo usa. (mapa/ruta/insights/
+  asistente/enfriándose ya corregidos).
 
 ## 13. Dashboards y KPIs
 

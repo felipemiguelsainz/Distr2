@@ -46,7 +46,7 @@ export async function GET(req: Request) {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('rol, vendedor_nombre')
+    .select('rol, vendedor_nombre, equipo')
     .eq('id', user.id)
     .single();
   if (!profile) return NextResponse.json({ error: 'Sin perfil' }, { status: 403 });
@@ -61,18 +61,14 @@ export async function GET(req: Request) {
     }
     vendedor = profile.vendedor_nombre; // ignora el param: solo su propia cartera
   } else if (profile.rol === 'supervisor') {
-    if (!profile.vendedor_nombre) {
+    // El equipo sale de profiles.equipo (el supervisor no siempre es un vendedor).
+    if (!profile.equipo) {
       return NextResponse.json({ error: 'Sin equipo asignado' }, { status: 403 });
     }
-    const { data: vData } = await svc
-      .from('vendedores')
-      .select('equipo')
-      .eq('nombre', profile.vendedor_nombre)
-      .single();
     const { data: equipoVends } = await svc
       .from('vendedores')
       .select('nombre')
-      .eq('equipo', vData?.equipo ?? '___')
+      .eq('equipo', profile.equipo)
       .eq('activo', true);
     const nombres = new Set((equipoVends ?? []).map((v: { nombre: string }) => v.nombre));
     if (!nombres.has(vendedor)) {

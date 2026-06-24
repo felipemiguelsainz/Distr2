@@ -10,11 +10,11 @@ export default async function EnfriandosePage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
   const { data: profile } = await supabase
-    .from('profiles').select('rol, vendedor_nombre').eq('id', user.id).single();
+    .from('profiles').select('rol, vendedor_nombre, equipo').eq('id', user.id).single();
   if (!profile) redirect('/login');
 
   const svc = createServiceClient();
-  const carteras = await resolveCarteras(svc, { rol: profile.rol, vendedor_nombre: profile.vendedor_nombre });
+  const carteras = await resolveCarteras(svc, { rol: profile.rol, vendedor_nombre: profile.vendedor_nombre, equipo: profile.equipo });
 
   let vendedores: string[];
   if (carteras === null) {

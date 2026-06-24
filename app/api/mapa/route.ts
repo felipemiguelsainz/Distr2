@@ -12,7 +12,7 @@ export async function GET() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('rol, vendedor_nombre')
+    .select('rol, vendedor_nombre, equipo')
     .eq('id', user.id)
     .single();
   if (!profile) return NextResponse.json({ error: 'Sin perfil' }, { status: 403 });
@@ -92,21 +92,18 @@ export async function GET() {
   // Role-based filtering (applied server-side)
   if (profile.rol === 'vendedor' && profile.vendedor_nombre) {
     puntos = puntos.filter((p) => p.cartera === profile.vendedor_nombre);
-  } else if (profile.rol === 'supervisor' && profile.vendedor_nombre) {
-    const { data: vData } = await svc
-      .from('vendedores')
-      .select('equipo')
-      .eq('nombre', profile.vendedor_nombre)
-      .single();
-
-    if (vData?.equipo) {
+  } else if (profile.rol === 'supervisor') {
+    // El equipo sale de profiles.equipo (el supervisor no siempre es un vendedor).
+    if (profile.equipo) {
       const { data: equipoVends } = await svc
         .from('vendedores')
         .select('nombre')
-        .eq('equipo', vData.equipo)
+        .eq('equipo', profile.equipo)
         .eq('activo', true);
       const nombres = new Set((equipoVends ?? []).map((v: { nombre: string }) => v.nombre));
       puntos = puntos.filter((p) => p.cartera != null && nombres.has(p.cartera));
+    } else {
+      puntos = []; // supervisor sin equipo → no ve nada (en vez de ver todo)
     }
   }
 

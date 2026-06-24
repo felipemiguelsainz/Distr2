@@ -22,10 +22,10 @@ async function resolveScope(svc: SvcClient, vendedorParam: string | null):
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'No autenticado', status: 401 };
-  const { data: profile } = await supabase.from('profiles').select('rol, vendedor_nombre').eq('id', user.id).single();
+  const { data: profile } = await supabase.from('profiles').select('rol, vendedor_nombre, equipo').eq('id', user.id).single();
   if (!profile) return { error: 'Sin perfil', status: 403 };
 
-  const ctx: UserContext = { rol: profile.rol, vendedor_nombre: profile.vendedor_nombre };
+  const ctx: UserContext = { rol: profile.rol, vendedor_nombre: profile.vendedor_nombre, equipo: profile.equipo };
   const allowed = await resolveCarteras(svc, ctx);
   const today = new Date();
   const y = today.getFullYear(), m = today.getMonth() + 1;
@@ -42,9 +42,8 @@ async function resolveScope(svc: SvcClient, vendedorParam: string | null):
     const avance = avanceFromKpis(await fetchTotalKpis(y, m, today));
     return { scope: { scopeKey: 'empresa:total', label: 'Total Empresa', carteras: null, avance, today } };
   }
-  if (ctx.rol === 'supervisor' && ctx.vendedor_nombre) {
-    const { data: v } = await svc.from('vendedores').select('equipo').eq('nombre', ctx.vendedor_nombre).single();
-    const equipo = v?.equipo;
+  if (ctx.rol === 'supervisor') {
+    const equipo = ctx.equipo;
     if (!equipo) return { error: 'Sin equipo asignado', status: 403 };
     const sup = await fetchSupervisorKpis(equipo, y, m, today);
     return { scope: { scopeKey: `equipo:${equipo}`, label: `Equipo ${equipo}`, carteras: allowed, avance: avanceFromKpis(sup.totales), today } };

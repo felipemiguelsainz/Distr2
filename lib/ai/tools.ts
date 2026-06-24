@@ -14,6 +14,7 @@ import { fetchVendedorKpis, fetchTotalKpis, fetchSupervisorKpis } from '@/lib/ca
 export interface UserContext {
   rol: 'admin' | 'supervisor' | 'vendedor' | string;
   vendedor_nombre: string | null;
+  equipo?: string | null; // del profile; fuente canónica del equipo del supervisor
 }
 
 /**
@@ -26,10 +27,16 @@ export async function resolveCarteras(
 ): Promise<string[] | null> {
   if (ctx.rol === 'admin') return null;
   if (ctx.rol === 'vendedor') return ctx.vendedor_nombre ? [ctx.vendedor_nombre] : [];
-  if (ctx.rol === 'supervisor' && ctx.vendedor_nombre) {
-    const { data: v } = await svc.from('vendedores').select('equipo').eq('nombre', ctx.vendedor_nombre).single();
-    if (!v?.equipo) return [];
-    const { data: eq } = await svc.from('vendedores').select('nombre').eq('equipo', v.equipo).eq('activo', true);
+  if (ctx.rol === 'supervisor') {
+    // El equipo del supervisor sale de profiles.equipo (canónico); el supervisor
+    // NO siempre es una fila en vendedores, así que no se puede derivar por nombre.
+    let equipo = ctx.equipo ?? null;
+    if (!equipo && ctx.vendedor_nombre) {
+      const { data: v } = await svc.from('vendedores').select('equipo').eq('nombre', ctx.vendedor_nombre).single();
+      equipo = v?.equipo ?? null;
+    }
+    if (!equipo) return [];
+    const { data: eq } = await svc.from('vendedores').select('nombre').eq('equipo', equipo).eq('activo', true);
     return (eq ?? []).map((r: { nombre: string }) => r.nombre);
   }
   return [];

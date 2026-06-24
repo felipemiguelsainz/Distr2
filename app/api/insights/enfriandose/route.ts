@@ -12,11 +12,11 @@ export async function GET(req: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
-  const { data: profile } = await supabase.from('profiles').select('rol, vendedor_nombre').eq('id', user.id).single();
+  const { data: profile } = await supabase.from('profiles').select('rol, vendedor_nombre, equipo').eq('id', user.id).single();
   if (!profile) return NextResponse.json({ error: 'Sin perfil' }, { status: 403 });
 
   const svc = createServiceClient();
-  const ctx: UserContext = { rol: profile.rol, vendedor_nombre: profile.vendedor_nombre };
+  const ctx: UserContext = { rol: profile.rol, vendedor_nombre: profile.vendedor_nombre, equipo: profile.equipo };
   const allowed = await resolveCarteras(svc, ctx);
 
   let carteras: string[] | null = allowed; // null = empresa (admin)

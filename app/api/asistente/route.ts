@@ -40,7 +40,7 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
 
   const { data: profile } = await supabase
-    .from('profiles').select('rol, vendedor_nombre').eq('id', user.id).single();
+    .from('profiles').select('rol, vendedor_nombre, equipo').eq('id', user.id).single();
   if (!profile) return NextResponse.json({ error: 'Sin perfil' }, { status: 403 });
 
   const body = await req.json().catch(() => ({}));
@@ -51,7 +51,7 @@ export async function POST(req: Request) {
   // Acotar el historial para controlar tokens/costo.
   const trimmed = incoming.slice(-12);
 
-  const ctx: UserContext = { rol: profile.rol, vendedor_nombre: profile.vendedor_nombre };
+  const ctx: UserContext = { rol: profile.rol, vendedor_nombre: profile.vendedor_nombre, equipo: profile.equipo };
   const svc = createServiceClient();
   const provider = getLLMProvider();
 
