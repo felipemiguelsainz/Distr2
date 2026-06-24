@@ -131,7 +131,7 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
           {kpis.map((c) => {
             const Icon = c.icon;
             return (
-              <div key={c.label} className={`bg-white rounded-xl shadow-sm border border-gray-100 border-l-4 ${c.accent} p-4 hover:shadow-md transition-shadow`}>
+              <div key={c.label} className={`bg-white rounded-2xl border border-[#e4e4e7] shadow-xl shadow-black/5 border-l-4 ${c.accent} p-4 hover:shadow-md transition-shadow`}>
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-500">{c.label}</span>
                   <Icon className={`w-4 h-4 ${c.ic}`} />
@@ -161,7 +161,7 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
 
       {/* Tendencia vs año pasado (por rubro, a igual día del mes) */}
       {d && (d.tendencia ?? []).some((a) => a.pct != null) && (
-        <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-100 px-5 py-3.5">
+        <div className="mb-6 bg-white rounded-2xl border border-[#e4e4e7] shadow-xl shadow-black/5 px-5 py-3.5">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Tendencia vs año pasado <span className="normal-case font-normal text-gray-400">(a igual día del mes)</span></p>
           <div className="flex flex-wrap gap-2">
             {(d.tendencia ?? []).filter((a) => a.pct != null).map((a) => {
@@ -171,7 +171,7 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
                 <span key={a.rubro} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${up ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
                   <Icon className="w-3.5 h-3.5" />
                   <span className="text-gray-700">{a.rubro}</span>
-                  <span className="font-semibold tabular-nums">{up ? '+' : ''}{a.pct}%</span>
+                  <span className="text-[13px] font-semibold tabular-nums">{up ? '+' : ''}{a.pct}%</span>
                 </span>
               );
             })}
@@ -218,7 +218,7 @@ function ActionCard({ card, when, vendedor, clientes }: { card: InsightCard; whe
   const Icon = cfg.icon;
 
   return (
-    <div className={`bg-white rounded-xl shadow-sm border border-gray-100 border-l-4 ${cfg.border} overflow-hidden transition-all ${done ? 'opacity-50' : 'hover:shadow-md'}`}>
+    <div className={`bg-white rounded-2xl border border-[#e4e4e7] shadow-xl shadow-black/5 border-l-4 ${cfg.border} overflow-hidden transition-all ${done ? 'opacity-50' : 'hover:shadow-md'}`}>
       <div className="p-4">
         <div className="flex items-center gap-2 mb-1.5">
           <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg" style={{ background: cfg.color + '14' }}>

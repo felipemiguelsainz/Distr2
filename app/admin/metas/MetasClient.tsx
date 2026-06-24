@@ -93,7 +93,10 @@ export function MetasClient({ defaultAnio, defaultMes, vendedores = [] }: { defa
         <div className="flex flex-col gap-2">
           {MONDELEZ_RUBROS.map(rubro => (
             <div key={rubro} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-[#e4e4e7]">
-              <span className="text-[13px] font-medium text-[#27272a]">{rubro}</span>
+              <span className="flex items-center gap-2 min-w-0">
+                <span className="w-2 h-2 rounded-full bg-[#0c5cab] shrink-0" />
+                <span className="text-[13px] font-medium text-[#27272a] truncate">{rubro}</span>
+              </span>
               <input
                 type="number"
                 min={0}
@@ -177,6 +180,15 @@ export function MetasClient({ defaultAnio, defaultMes, vendedores = [] }: { defa
             {preview.map(p => (
               <RubroCard key={p.rubro} preview={p} />
             ))}
+          </div>
+
+          {/* Total general destacado */}
+          <div className="rounded-xl border-2 border-[#0c5cab]/20 bg-[#0c5cab]/5 px-4 py-3 flex items-center justify-between flex-wrap gap-2">
+            <span className="text-[13px] font-bold text-[#0c5cab]">Total general</span>
+            <div className="flex items-center gap-5 text-[13px]">
+              <span className="text-[#71717a]">Mondelez <strong className="text-[#09090b] tabular-nums">{formatKg(totalMondelez)} kg</strong></span>
+              <span className="text-[#0c5cab] font-bold tabular-nums text-[15px]">{formatKg(totalGeneral)} kg</span>
+            </div>
           </div>
 
           <div className="flex items-center gap-3 pt-3 border-t border-[#e4e4e7]">

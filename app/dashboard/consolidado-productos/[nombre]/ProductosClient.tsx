@@ -67,7 +67,7 @@ function VendedorTable({
               </tr>
             ))}
             {data.length > 0 && (
-              <tr className="bg-[#f4f4f5]/70 border-t-2 border-t-[#e4e4e7]">
+              <tr className="bg-[#f4f4f5] border-t-2 border-t-[#d4d4d8]">
                 <td className="px-3 py-2 text-[10px] text-[#09090b] font-bold" style={MONO}>TOTAL</td>
                 {cols.map((c, i) => (
                   <td key={c.label} className="px-3 py-2 text-right tabular-nums text-[#09090b] font-bold" style={MONO}>
@@ -179,21 +179,23 @@ function ProductoSelector({
                     </span>
                   </button>
                 </div>
-                {isOpen && (
-                  <div className="px-3 py-1.5 space-y-0.5">
-                    {visibles.map((a) => (
-                      <label key={a} className="flex items-center gap-2 py-0.5 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={seleccionados.has(a)}
-                          onChange={() => onToggleArticulo(a)}
-                          className="accent-[#0c5cab]"
-                        />
-                        <span className="text-[11.5px] text-[#27272a] truncate">{a}</span>
-                      </label>
-                    ))}
+                <div className={`grid transition-all duration-200 ease-in-out ${isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                  <div className="overflow-hidden">
+                    <div className="px-3 py-1.5 space-y-0.5">
+                      {visibles.map((a) => (
+                        <label key={a} className="flex items-center gap-2 py-0.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={seleccionados.has(a)}
+                            onChange={() => onToggleArticulo(a)}
+                            className="accent-[#0c5cab]"
+                          />
+                          <span className="text-[11.5px] text-[#27272a] truncate">{a}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
             );
           })}
