@@ -11,6 +11,17 @@ import {
   Reasignacion,
 } from '@/lib/types';
 
+// Toma el id de PDV de una fila de Excel: SIEMPRE prioriza la columna "PDV"
+// (en cualquier mayúscula/espaciado); sólo cae a "Cod. Cliente" si no hay PDV.
+// Clave para que pdvs, ventas y geo queden indexados por la MISMA columna.
+function pickPdvId(r: Record<string, unknown>): number {
+  const norm = (s: string) => s.toLowerCase().replace(/[\s._]/g, '');
+  const keys = Object.keys(r);
+  const pdvKey = keys.find((k) => norm(k) === 'pdv');
+  const codKey = keys.find((k) => norm(k).includes('codcliente'));
+  return parseInt(String(r[pdvKey ?? codKey ?? ''] ?? ''), 10);
+}
+
 async function parsePdvFile(buffer: ArrayBuffer) {
   const XLSX = await import('xlsx');
   const workbook = XLSX.read(buffer, { cellDates: false, type: 'array' });
@@ -34,7 +45,7 @@ async function parsePdvFile(buffer: ArrayBuffer) {
 
   return raw
     .map((r) => {
-      const id = parseInt(String(r['PDV'] ?? r['Cod. Cliente'] ?? r['COD_CLIENTE'] ?? ''), 10);
+      const id = pickPdvId(r);
       if (!id || isNaN(id)) return null;
       const activoRaw = r['Activo'] ?? r['ACTIVO'];
       const activo = activoRaw === undefined
@@ -226,7 +237,7 @@ async function parseGeoFile(buffer: ArrayBuffer) {
 
   return raw
     .map((r) => {
-      const pdv_id = parseInt(String(r['Cod. Cliente'] ?? r['PDV'] ?? ''), 10);
+      const pdv_id = pickPdvId(r);
       if (!pdv_id || isNaN(pdv_id)) return null;
       const lat = parseFloat(String(r['LATITUD'] ?? ''));
       const lng = parseFloat(String(r['LONGITUD'] ?? ''));

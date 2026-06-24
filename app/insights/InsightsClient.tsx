@@ -117,14 +117,9 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
             </select>
             <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
-          <button
-            onClick={() => load(true)}
-            disabled={loading}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg bg-blue-600 text-white shadow-sm hover:bg-blue-700 disabled:opacity-60 transition"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Regenerar
-          </button>
+          <span className="text-xs text-gray-400 whitespace-nowrap" title="Los insights se recalculan automáticamente con la carga diaria de ventas.">
+            Actualiza con la carga de ventas
+          </span>
         </div>
       </div>
 

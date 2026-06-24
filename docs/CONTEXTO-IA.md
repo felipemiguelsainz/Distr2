@@ -176,6 +176,13 @@ requiere importar direcciones reales.
 
 - Archivos grandes se cargan **corriendo la app local**, no por la URL pública
   de Vercel (tope 4.5 MB + timeout).
+- **Identificador de cliente = columna `PDV`** (= `pdvs.id`). Los parsers
+  (`pickPdvId` en CargarClient + ventas) priorizan SIEMPRE la columna "PDV"
+  sobre "Cod. Cliente". Antes el parser de geo prefería Cod. Cliente → si difería
+  del PDV, la geo no matcheaba. Importante: re-subir los 3 archivos (ventas,
+  maestro PDVs, geo) con la columna PDV para que todo quede indexado igual.
+- **Carga de ventas** dispara: recálculo de resumen + invalida KPIs + **borra
+  `ai_insights`** (insights se refrescan con el día). Mapa/enfriándose son en vivo.
 - **Carga del maestro de PDVs (`/api/admin/pdvs/upload`) = reemplazo por baja
   lógica:** upsert de lo que viene + los que NO vienen se marcan `activo=false`
   (NO se borran: `ventas.pdv_id` es FK, se preserva el historial → los kg/$ NO
@@ -291,7 +298,10 @@ requiere importar direcciones reales.
     calcula números (salen del JSON de datos).
   - Cache en `ai_insights` (mig. 030) por `scope_key` (`empresa:total` /
     `equipo:<x>` / `vendedor:<n>`) + período; payload = `{data, cards}`. GET lee
-    cache, POST regenera. OJO: si cambiás el shape del payload, limpiá la tabla.
+    cache. **NO hay regeneración on-demand** (se quitó el botón "Regenerar"): el
+    cache `ai_insights` se **borra en la carga de ventas** (`/api/admin/ventas/
+    upload`) y los insights se regeneran lazy con los datos del día. Sin cron
+    (corre junto al upload = gratis). OJO: si cambiás el shape del payload, limpiá la tabla.
   - **UI:** `InsightsClient` con lucide-react. KPI cards (Users/UserCheck/Clock/
     AlertTriangle) con borde-izq de color. Debajo, **action cards** expandibles:
     ícono+color por tipo (RECUPERACIÓN/RefreshCw, CRECIMIENTO/TrendingUp,
@@ -307,7 +317,7 @@ requiere importar direcciones reales.
 
 ## 9. Notas de costo/operación de IA
 - Modelo default barato (`gpt-4o-mini`). Subir a `gpt-4o` solo si hace falta.
-- Insights cacheados por mes (no se regeneran salvo "Regenerar").
+- Insights: cache se borra en la carga de ventas → regen lazy (sin botón ni cron).
 - Asistente: historial acotado a 12 msgs y máx 5 turnos de tools.
 - En Vercel: cargar `OPENAI_API_KEY` en env vars o la IA no aparece (degrada).
 

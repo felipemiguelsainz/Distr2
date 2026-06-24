@@ -147,6 +147,16 @@ export async function POST(request: NextRequest) {
     // Invalidate cached KPI queries — data just changed
     revalidateTag('kpis', { expire: 0 });
 
+    // Refrescar los insights con la carga del día: borrar el cache de IA para
+    // que se regeneren (lazy) con las ventas nuevas. Así no hace falta cron ni
+    // el botón "Regenerar" — los insights se actualizan con la subida de ventas.
+    // (El mapa y la página de enfriándose ya leen en vivo, se corrigen solos.)
+    try {
+      await supabase.from('ai_insights').delete().not('scope_key', 'is', null);
+    } catch (e) {
+      console.error('[ventas-upload] limpiar ai_insights:', e);
+    }
+
     const result: VentasUploadResult = {
       inserted,
       skipped,
