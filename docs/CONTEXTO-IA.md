@@ -9,7 +9,7 @@ App de gestión de ventas para una distribuidora de Mondelez en el GBA.
 Stack: **Next.js 16 (App Router, Turbopack) + Supabase (Postgres) + Vercel**.
 Idioma del producto y de los textos: **español rioplatense**.
 Producción: **https://distr2.vercel.app** (auto-deploy desde `main`).
-_Última actualización: 2026-06-24 · migraciones hasta `037`._
+_Última actualización: 2026-06-24 · migraciones hasta `037` · UI sin emojis, tema claro._
 
 ---
 
@@ -438,6 +438,15 @@ requiere importar direcciones reales.
   lucide-react** — al tocar esas, seguí ese estilo; en el resto, imitá el hex.
 - Mobile: sidebar hamburguesa + top-bar (`ShellLayout`); tablas con
   `overflow-x-auto + min-w-[…]`; headers `flex-col sm:flex-row`.
+- **SIN EMOJIS en la UI.** Nada de 🧭/🎉/⚠/✅ en pantalla — usar texto plano +
+  color, o íconos lucide/SVG. (Regla del usuario, no negociable.)
+- **Cards del sistema**: `rounded-2xl border border-[#e4e4e7] shadow-xl
+  shadow-black/5 bg-white`; KPIs con `border-l-4` de color semántico.
+- **Gotcha tab bar**: `overflow-x-auto` fuerza `overflow-y` a `auto`; combinado
+  con `-mb-px` (subrayado de tab activa) genera una barrita de scroll de 1px.
+  Para barras de pestañas usar **`flex-wrap`** (ver `AdminTabs`), no overflow-x-auto.
+- **OJO**: algunos prompts traen un "design system dark `#060c1a`/`#3b82f6`" que
+  NO es el de este proyecto (es claro). Seguir SIEMPRE los hex reales de arriba.
 
 ## 16. Performance / caching
 
