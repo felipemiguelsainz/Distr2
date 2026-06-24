@@ -14,7 +14,7 @@ const TABS = [
 export function AdminTabs() {
   const pathname = usePathname();
   return (
-    <div className="flex gap-1 border-b border-[#e4e4e7] overflow-x-auto">
+    <div className="flex flex-wrap gap-1 border-b border-[#e4e4e7]">
       {TABS.map((t) => {
         const active = pathname === t.href || pathname.startsWith(t.href + '/');
         return (
