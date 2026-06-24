@@ -575,7 +575,7 @@ export default function MapaClient() {
                 : 'bg-[rgba(0,0,0,0.03)] border-[#e4e4e7] text-[#71717a] hover:text-[#09090b] hover:border-[#d4d4d8]'
             }`}
           >
-            🧭 Armar ruta
+            Armar ruta
           </button>
         </div>
 

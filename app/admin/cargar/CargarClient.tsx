@@ -93,7 +93,7 @@ function VentasPreviewModal({
 
         {missing.length > 0 && (
           <div className="mb-4 px-3.5 py-2.5 rounded-[10px] bg-[#dc2626]/[0.08] border border-[#dc2626]/30 text-[12px] text-[#dc2626] font-medium">
-            ⚠ Campos requeridos no encontrados: {missing.map(m => m.label).join(', ')}
+            Campos requeridos no encontrados: {missing.map(m => m.label).join(', ')}
           </div>
         )}
 
@@ -277,7 +277,7 @@ function ResultBanner({ result, type }: { result: unknown; type: 'ventas' | 'pdv
         <p className="text-[#71717a] mt-0.5">Fechas afectadas: {r.fechas_afectadas.join(', ')}</p>
         {r.resumen_warning && (
           <div className="mt-2 p-2.5 rounded-xl bg-[#d97706]/[0.08] border border-[#d97706]/20">
-            <p className="text-[#d97706] font-semibold">⚠ Advertencia</p>
+            <p className="text-[#d97706] font-semibold">Advertencia</p>
             <p className="text-[#27272a] mt-0.5">{r.resumen_warning}</p>
           </div>
         )}
@@ -337,7 +337,7 @@ function ResultBanner({ result, type }: { result: unknown; type: 'ventas' | 'pdv
         </p>
         {r.rejected > 0 && (
           <p className="text-[#dc2626] mt-1">
-            ⚠ <strong>{r.rejected}</strong> rechazados por coordenada inválida sin forma de ubicarlos (sin localidad de referencia).
+            <strong>{r.rejected}</strong> rechazados por coordenada inválida sin forma de ubicarlos (sin localidad de referencia).
           </p>
         )}
       </div>
@@ -358,7 +358,7 @@ function ReasignacionModal({
         {/* Aviso de bajas masivas (guardrail) */}
         {bajaMasiva && (
           <div className="mb-4 rounded-xl border border-[#dc2626]/30 bg-[#dc2626]/[0.07] px-4 py-3 text-[13px]">
-            <p className="font-semibold text-[#dc2626]">⚠ Esta carga daría de baja a {bajas} de {activosAntes} PDVs del padrón ({pctBaja}%).</p>
+            <p className="font-semibold text-[#dc2626]">Esta carga daría de baja a {bajas} de {activosAntes} PDVs del padrón ({pctBaja}%).</p>
             <p className="text-[#71717a] mt-1">
               Dar de baja = el PDV sale del padrón y deja de aparecer en el mapa, dashboards e
               insights (NO confundir con &quot;cliente inactivo&quot;, que es el que no compró hace +3 meses

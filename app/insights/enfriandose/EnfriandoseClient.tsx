@@ -111,7 +111,7 @@ export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores:
           <RefreshCw className="w-4 h-4 animate-spin" /> Calculando…
         </div>
       ) : clientes.length === 0 ? (
-        <p className="text-sm text-gray-400 py-6">No hay clientes enfriándose en este alcance. 🎉</p>
+        <p className="text-sm text-gray-400 py-6">No hay clientes enfriándose en este alcance.</p>
       ) : (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
