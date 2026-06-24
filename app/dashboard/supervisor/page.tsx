@@ -12,7 +12,8 @@ export default async function SupervisorIndexPage() {
     .eq('id', user.id)
     .single();
 
-  const destino = profile?.vendedor_nombre ?? profile?.equipo;
+  // El segmento de /dashboard/supervisor/[nombre] es el EQUIPO → preferir equipo.
+  const destino = profile?.equipo ?? profile?.vendedor_nombre;
   if (destino) {
     redirect(`/dashboard/supervisor/${encodeURIComponent(destino)}`);
   }

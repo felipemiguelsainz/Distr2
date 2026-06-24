@@ -366,8 +366,11 @@ requiere importar direcciones reales.
   que derivar su equipo con `vendedores.eq('nombre', vendedor_nombre)` devuelve
   vacío → el supervisor veía TODO vacío (o, en el mapa viejo, ¡veía TODA la
   empresa!). Siempre usar `profiles.equipo` y luego `vendedores.eq('equipo', …)`.
-  `UserContext` lleva `equipo`; `resolveCarteras` lo usa. (mapa/ruta/insights/
-  asistente/enfriándose ya corregidos).
+  `UserContext` lleva `equipo`; `resolveCarteras` lo usa. **Patrón correcto en
+  TODOS lados:** `let eq = profile.equipo ?? ''; if (!eq) { lookup vendedores }`.
+  Barrido hecho: mapa, ruta, insights, asistente (`get_ventas`), enfriándose,
+  dashboard `vendedor/[nombre]`, API `consolidado-productos`, e índice
+  `/dashboard/supervisor` (el segmento de esa ruta = el EQUIPO, no el vendedor).
 
 ## 13. Dashboards y KPIs
 

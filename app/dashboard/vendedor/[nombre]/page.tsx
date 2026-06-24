@@ -41,7 +41,7 @@ export default async function VendedorDashboardPage({
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('rol, vendedor_nombre')
+    .select('rol, vendedor_nombre, equipo')
     .eq('id', user.id)
     .single();
 
@@ -52,19 +52,19 @@ export default async function VendedorDashboardPage({
     redirect(`/dashboard/vendedor/${encodeURIComponent(profile.vendedor_nombre ?? '')}`);
   }
 
-  // Supervisors can only see vendedores from their equipo
+  // Supervisors can only see vendedores from their equipo.
+  // El equipo del supervisor sale de profiles.equipo (NO de vendedores: el
+  // supervisor no suele ser una fila ahí → daría null y bloquearía todo).
   if (profile.rol === 'supervisor') {
-    const { data: supervisorVendedor } = await supabase
-      .from('vendedores')
-      .select('equipo')
-      .eq('nombre', profile.vendedor_nombre ?? '')
-      .single();
+    let myEquipo = profile.equipo ?? '';
+    if (!myEquipo && profile.vendedor_nombre) {
+      const { data: me } = await supabase
+        .from('vendedores').select('equipo').eq('nombre', profile.vendedor_nombre).single();
+      myEquipo = me?.equipo ?? '';
+    }
     const { data: targetVendedor } = await supabase
-      .from('vendedores')
-      .select('equipo')
-      .eq('nombre', vendedor)
-      .single();
-    if (supervisorVendedor?.equipo !== targetVendedor?.equipo) redirect('/');
+      .from('vendedores').select('equipo').eq('nombre', vendedor).single();
+    if (!myEquipo || myEquipo !== targetVendedor?.equipo) redirect('/');
   }
 
   const today = new Date();

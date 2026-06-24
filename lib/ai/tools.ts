@@ -175,10 +175,14 @@ const TOOLS: Tool[] = [
         label = vend;
       } else if (ctx.rol === 'admin') {
         kpis = await fetchTotalKpis(y, m, today); label = 'Total Empresa';
-      } else if (ctx.rol === 'supervisor' && ctx.vendedor_nombre) {
-        const { data: v } = await svc.from('vendedores').select('equipo').eq('nombre', ctx.vendedor_nombre).single();
-        if (!v?.equipo) return { error: 'No tenés un equipo asignado.' };
-        kpis = (await fetchSupervisorKpis(v.equipo, y, m, today)).totales; label = `Equipo ${v.equipo}`;
+      } else if (ctx.rol === 'supervisor') {
+        let equipo = ctx.equipo ?? '';
+        if (!equipo && ctx.vendedor_nombre) {
+          const { data: v } = await svc.from('vendedores').select('equipo').eq('nombre', ctx.vendedor_nombre).single();
+          equipo = v?.equipo ?? '';
+        }
+        if (!equipo) return { error: 'No tenés un equipo asignado.' };
+        kpis = (await fetchSupervisorKpis(equipo, y, m, today)).totales; label = `Equipo ${equipo}`;
       } else if (ctx.rol === 'vendedor' && ctx.vendedor_nombre) {
         kpis = await fetchVendedorKpis(ctx.vendedor_nombre, y, m, today); label = ctx.vendedor_nombre;
       } else {

@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
 
     const { data: profile } = await authClient
       .from('profiles')
-      .select('rol, vendedor_nombre')
+      .select('rol, vendedor_nombre, equipo')
       .eq('id', user.id)
       .single();
     if (!profile) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
@@ -26,14 +26,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Parámetros inválidos.' }, { status: 400 });
     }
 
-    // Un supervisor solo puede consultar su propio equipo
+    // Un supervisor solo puede consultar su propio equipo (de profiles.equipo).
     if (profile.rol === 'supervisor') {
-      const { data: me } = await authClient
-        .from('vendedores')
-        .select('equipo')
-        .eq('nombre', profile.vendedor_nombre ?? '')
-        .single();
-      if ((me?.equipo ?? '') !== equipo) {
+      let myEquipo = profile.equipo ?? '';
+      if (!myEquipo && profile.vendedor_nombre) {
+        const { data: me } = await authClient
+          .from('vendedores').select('equipo').eq('nombre', profile.vendedor_nombre).single();
+        myEquipo = me?.equipo ?? '';
+      }
+      if (!myEquipo || myEquipo !== equipo) {
         return NextResponse.json({ error: 'Prohibido.' }, { status: 403 });
       }
     }
