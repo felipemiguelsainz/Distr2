@@ -249,10 +249,10 @@ function MultiSelect({
 // Legend
 // ---------------------------------------------------------------------------
 const LEGEND_ITEMS = [
-  { color: COLOR_ACTIVO,      label: 'Activo (≤ 1 mes)' },
-  { color: COLOR_TIBIO,       label: 'Sin compra +1 mes' },
-  { color: COLOR_ENFRIANDOSE, label: 'Enfriándose (rompió cadencia)' },
-  { color: COLOR_INACTIVO,    label: 'Sin compra +3 meses' },
+  { color: COLOR_ACTIVO,      label: 'Compró hace menos de 1 mes' },
+  { color: COLOR_TIBIO,       label: 'Compró hace 1 a 3 meses' },
+  { color: COLOR_ENFRIANDOSE, label: 'Enfriándose: rompió su frecuencia de compra' },
+  { color: COLOR_INACTIVO,    label: 'No compra hace más de 3 meses' },
 ];
 
 // ---------------------------------------------------------------------------
