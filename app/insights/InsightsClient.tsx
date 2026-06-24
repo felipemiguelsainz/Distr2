@@ -117,9 +117,6 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
             </select>
             <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
-          <span className="text-xs text-gray-400 whitespace-nowrap" title="Los insights se recalculan automáticamente con la carga diaria de ventas.">
-            Actualiza con la carga de ventas
-          </span>
         </div>
       </div>
 
