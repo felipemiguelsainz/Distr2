@@ -401,6 +401,12 @@ requiere importar direcciones reales.
   `media_real`, `media_necesaria`, `acumulado_aa`/`avance_vs_aa_pct` (vs año
   anterior), `mismo_dia_minus7/14`. `meta`/`tendencia` = null en meses pasados.
 - `config_meses` → **días laborables** del mes (base de tendencia y media necesaria).
+- **Metas** (`/admin/metas`): admin carga objetivos Mondelez en $; el sistema
+  calcula kg meta y los **distribuye por peso histórico** (kg de cada vendedor
+  sobre el total del rubro, últ. 4 meses) vía `calcularMetasPreview`. Se pueden
+  **excluir vendedores no operativos** (ej: "VENTA OFICINA F.VA", puntos de
+  acopio) — `vendedoresExcluidos` filtra ANTES de calcular el total y su parte se
+  redistribuye entre los reales. Flujo: preview → guardar (persiste el preview).
 - `metas` (kilos meta por vendedor/rubro/mes) · `metas_ccc` (objetivo de clientes;
   cascadeo con RPC `calcular_preset_ccc`, se recalcula en el upload de PDVs y NO
   pisa lo editado por el supervisor, `es_preset=false`).
