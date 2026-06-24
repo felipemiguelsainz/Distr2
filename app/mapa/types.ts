@@ -11,6 +11,7 @@ export interface PdvGeo {
   ultima_vta: string | null;
   activo_3m: boolean;
   dia_visita: string | null;
+  enfriandose?: boolean; // rompió su cadencia, aún dentro de 90 días
 }
 
 // --- Ruteo (Módulo 1) -------------------------------------------------------

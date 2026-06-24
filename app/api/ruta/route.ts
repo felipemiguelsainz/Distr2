@@ -192,10 +192,13 @@ export async function GET(req: Request) {
     }
   }
 
-  // --- Sugerencias: PDVs inactivos (rojo) de paso, no incluidos en la ruta ---
+  // --- Sugerencias: clientes apagados "de paso" para sumar a la ruta ---
+  // Condiciones: (a) misma cartera del vendedor — garantizado, `candidatos` ya
+  // está filtrado por cartera = vendedor; (b) NO asignados al día de la ruta;
+  // (c) inactivos (rojo, +3 meses); (d) cerca de la ruta (radio, abajo).
   const enRuta = new Set(ruta.map((c) => c.pdv_id));
   const sugerencias: RutaSugerencia[] = candidatos
-    .filter((c) => !enRuta.has(c.pdv_id) && esRojo(c.pdv_id))
+    .filter((c) => !enRuta.has(c.pdv_id) && !diasDe(c.dia_visita).includes(dia) && esRojo(c.pdv_id))
     .map((c) => {
       let minKm = Infinity;
       for (const s of orderedPts) minKm = Math.min(minKm, haversine(s, { lat: c.lat, lon: c.lon }));

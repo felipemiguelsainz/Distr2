@@ -88,11 +88,15 @@ Tablas clave:
 ## 3. Mapa: colores por recencia de compra
 
 Los PDVs del mapa se colorean por recencia (no por canal):
-- 🟢 verde = compró ≤ 1 mes · 🟡 amarillo = > 1 mes · 🔴 rojo = > 3 meses / nunca.
+- 🟢 verde ≤1 mes · 🟡 amarillo 1–3 meses · 🟠 **naranja = enfriándose**
+  (`esEnfriandose`: rompió su cadencia, ≤90 días) · 🔴 rojo >3 meses / nunca.
 - La fecha sale pivoteada de `ventas` (RPC `pdvs_ultima_vta`), no del campo
-  cacheado. `activo_3m` se deriva de esa misma fecha.
-- `/api/mapa` cachea por usuario 5 min (`Cache-Control: private, max-age=300`):
-  tras cambios, hace falta **Ctrl+Shift+R**.
+  cacheado. `pdvs_cadencia.ultima` == `pdvs_ultima_vta.ultima` (MAX(fecha) de
+  ventas) → **son consistentes** (verificado: 0 diferencias). El flag
+  `enfriandose` lo calcula `/api/mapa` cruzando con `pdvs_cadencia`.
+- `/api/mapa` **aborta (503) si `pdvs_ultima_vta` falla** (no cachear "todo
+  rojo" como pasó con el timeout). Cachea por usuario 5 min
+  (`private, max-age=300`): tras cambios, **Ctrl+Shift+R**.
 
 ---
 
@@ -152,10 +156,15 @@ requiere importar direcciones reales.
   completa, sin nombres → no confunde comercios) y en modo **caminando**
   (`travelmode=walking`). Google acepta ~10 puntos por link → se parte en
   **tramos continuos**. Además botón "Copiar coords" (lista ordenada).
-- **Clientes apagados cercanos** (sin IA): PDVs en rojo (sin compra +3 meses)
-  a ≤ radio de la ruta — proximidad geométrica, no LLM. El endpoint los devuelve
-  en `sugerencias`; el panel los lista (clickeable → `FlyTo` centra el mapa) y
-  los dibuja como rombos rojos.
+- **Clientes apagados cercanos** (sugerencias, sin IA): PDVs que cumplen TODO:
+  (a) misma cartera del vendedor (garantizado: `candidatos` ya filtra cartera);
+  (b) NO asignados al día de la ruta (`!diasDe(dia_visita).includes(dia)`);
+  (c) inactivos (rojo, +3m); (d) a ≤ radio de alguna parada. El panel los lista
+  (clickeable → `FlyTo`) y los dibuja como rombos rojos.
+  - **Sumar a la ruta**: pasa a `extra`; el back recalcula con ese PDV como
+    parada (flag `agregado`); el front lo saca de sugerencias **optimista** (para
+    que no quede como rombo y parada a la vez) y el nuevo response ya no lo trae
+    en `sugerencias` (queda en `enRuta`).
   - **Radio ajustable**: param `radio` (m, clamp 100–2000, default 400); selector
     en el panel. **Sumar a la ruta**: param `extra` (ids coma-separados) → esos
     PDVs se agregan como paradas (flag `RutaStop.agregado`) y se re-optimiza todo;

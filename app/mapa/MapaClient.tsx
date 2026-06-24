@@ -18,9 +18,10 @@ type RuteableFilter = 'todos' | 'solo';
 //   rojo    = sin compra hace > 3 meses (o nunca compró)
 // La fecha de última venta viene pivoteada desde la base de ventas (API).
 // ---------------------------------------------------------------------------
-const COLOR_ACTIVO   = '#16a34a'; // verde
-const COLOR_TIBIO    = '#eab308'; // amarillo
-const COLOR_INACTIVO = '#dc2626'; // rojo
+const COLOR_ACTIVO     = '#16a34a'; // verde
+const COLOR_TIBIO      = '#eab308'; // amarillo
+const COLOR_ENFRIANDOSE = '#f97316'; // naranja: rompió su cadencia
+const COLOR_INACTIVO   = '#dc2626'; // rojo
 
 function monthsAgoISO(months: number): string {
   const d = new Date();
@@ -34,6 +35,13 @@ function recencyColor(ultimaVta: string | null): string {
   if (last >= monthsAgoISO(1)) return COLOR_ACTIVO;   // ≤ 1 mes
   if (last >= monthsAgoISO(3)) return COLOR_TIBIO;    // > 1 mes y ≤ 3 meses
   return COLOR_INACTIVO;                              // > 3 meses
+}
+
+// Color del marcador del mapa: naranja si rompió su cadencia (enfriándose),
+// si no por recencia. El enfriándose siempre cae en verde/amarillo por fecha,
+// así que el naranja solo "pisa" esos casos (nunca un rojo, que es >90 días).
+function pdvColor(p: PdvGeo): string {
+  return p.enfriandose ? COLOR_ENFRIANDOSE : recencyColor(p.ultima_vta);
 }
 
 function makeIcon(color: string) {
@@ -241,9 +249,10 @@ function MultiSelect({
 // Legend
 // ---------------------------------------------------------------------------
 const LEGEND_ITEMS = [
-  { color: COLOR_ACTIVO,   label: 'Activo (≤ 1 mes)' },
-  { color: COLOR_TIBIO,    label: 'Sin compra +1 mes' },
-  { color: COLOR_INACTIVO, label: 'Sin compra +3 meses' },
+  { color: COLOR_ACTIVO,      label: 'Activo (≤ 1 mes)' },
+  { color: COLOR_TIBIO,       label: 'Sin compra +1 mes' },
+  { color: COLOR_ENFRIANDOSE, label: 'Enfriándose (rompió cadencia)' },
+  { color: COLOR_INACTIVO,    label: 'Sin compra +3 meses' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -353,6 +362,10 @@ export default function MapaClient() {
   const sumarPdv = useCallback((pdvId: number) => {
     const next = new Set(rutaExtras); next.add(pdvId);
     setRutaExtras(next);
+    // Sacarlo YA de las sugerencias (optimista): que no quede como rombo y
+    // parada numerada a la vez mientras llega el refetch. El nuevo response ya
+    // no lo trae en sugerencias (enRuta lo excluye) y sí como parada agregada.
+    setRuta(prev => prev ? { ...prev, sugerencias: prev.sugerencias.filter(s => s.pdv_id !== pdvId) } : prev);
     fetchRutaWith(next, rutaRadio);
   }, [rutaExtras, rutaRadio, fetchRutaWith]);
 
@@ -440,7 +453,7 @@ export default function MapaClient() {
   // Un ícono por color de recencia (3 en total) — se reutilizan en todos los puntos
   const iconCache = useMemo(() => {
     const m = new Map<string, L.DivIcon>();
-    for (const color of [COLOR_ACTIVO, COLOR_TIBIO, COLOR_INACTIVO]) {
+    for (const color of [COLOR_ACTIVO, COLOR_TIBIO, COLOR_ENFRIANDOSE, COLOR_INACTIVO]) {
       m.set(color, makeIcon(color));
     }
     return m;
@@ -741,7 +754,7 @@ export default function MapaClient() {
                 <Marker
                   key={p.pdv_id}
                   position={[p.latitud, p.longitud]}
-                  icon={iconCache.get(recencyColor(p.ultima_vta)) ?? makeIcon(COLOR_INACTIVO)}
+                  icon={iconCache.get(pdvColor(p)) ?? makeIcon(COLOR_INACTIVO)}
                 >
                   <Popup minWidth={220} maxWidth={280}>
                     <div style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', lineHeight: 1.5 }}>
