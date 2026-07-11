@@ -131,6 +131,18 @@ requiere importar direcciones reales.
 **Script de emergencia** (si hace falta arreglar data ya cargada):
 `scripts/fix-geo-outliers.cjs` (dry-run por defecto, `--apply` con backup).
 
+**Re-geocoding asistido por IA (precisión de calle, no de barrio).** Para los PDV
+parkeados en el centroide de su localidad, `scripts/regeocode-centroides.cjs` usa
+**Claude para NORMALIZAR la dirección** (mejor que el regex: abreviaturas, `#`→Ñ,
+paréntesis, "entre calles") y **Nominatim para geocodificar** — el LLM nunca produce
+coords (§0). Valida por cercanía al centroide: aplica sólo los de alta confianza
+(≤6 km), marca los dudosos (6-15 km) para revisión, deja el resto en el centroide.
+Dry-run por defecto, `--apply` con backup. Corrida inicial (2026-07): 66 aplicados,
+21 a revisar, 7 sin geocode. La IA destapó de paso un bug del regex de
+`regeocode-pdvs.cjs` (`N.` se comía la N inicial: NECOCHEA→ECOCHEA), ya corregido.
+Los dudosos son calles numeradas (Berazategui/Fcio. Varela) donde Nominatim no
+distingue la altura; **Google Geocoding** las cerraría mejor (upgrade de un renglón).
+
 ---
 
 ## 5. Ruteo (Módulo 1): a pie, por calles

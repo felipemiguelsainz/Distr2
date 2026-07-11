@@ -65,7 +65,9 @@ function cleanAddress(calle, altura) {
   let s = (calle || '').trim();
   if (!s) return null;
   s = s.split(/\s+(?:ESQ|ESQUINA|Y|E\/|ENTRE|PISO|PISO:|DPTO|DEPTO|LOCAL|KM)\b/i)[0].trim();
-  s = s.replace(/\b(NRO\.?|N°|Nº|N\.?)\s*/gi, ' ').replace(/\s{2,}/g, ' ').trim();
+  // Sólo saca "N." cuando precede a un número (Nro/N°/Nº siempre). Antes `N\.?`
+  // suelto se comía la N inicial de calles como NECOCHEA -> ECOCHEA.
+  s = s.replace(/\b(?:NRO\.?|N[°º]|N\.(?=\s*\d))\s*/gi, ' ').replace(/\s{2,}/g, ' ').trim();
   let num = (altura || '').toString().trim();
   if (!num) {
     const m = s.match(/(\d{1,6})\s*$/);
