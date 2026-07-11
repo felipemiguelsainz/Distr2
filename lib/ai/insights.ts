@@ -207,7 +207,9 @@ function parseCards(raw: string): InsightCard[] {
 
 /** El LLM genera action cards (JSON) a partir de los datos. No calcula números. */
 export async function generateCards(data: InsightData): Promise<InsightCard[]> {
-  const provider = getLLMProvider();
+  // Insights = análisis diario profundo (1 vez por scope por día) → modelo más
+  // capaz. Sonnet 5 por defecto; overridable con INSIGHTS_MODEL.
+  const provider = getLLMProvider(process.env.INSIGHTS_MODEL || 'claude-sonnet-5');
   const system = [
     'Sos un asistente comercial para un equipo de ventas de distribución (Candysur / Mondelez, GBA).',
     `Los datos corresponden a: «${data.alcance}».`,

@@ -136,8 +136,15 @@ class AnthropicProvider implements LLMProvider {
       system: opts.system,
       messages,
       max_tokens: opts.maxTokens ?? 800,
-      temperature: opts.temperature ?? 0.2,
     };
+    // Los modelos nuevos (Sonnet 5, Opus 4.6+, Fable/Mythos 5) RECHAZAN los
+    // sampling params → no mandamos temperature. En los que aceptan
+    // thinking:disabled (Sonnet 5 / Opus 4.6+) lo apagamos: para salida JSON
+    // estructurada, así todo el max_tokens va al output (evita truncado) y no
+    // pagamos tokens de razonamiento. Los viejos (Haiku, Sonnet 4.6) siguen igual.
+    const esNuevo = /claude-(?:sonnet-5|opus-4-[678]|fable-5|mythos-5)/.test(this.model);
+    if (!esNuevo && opts.temperature != null) body.temperature = opts.temperature;
+    if (/claude-(?:sonnet-5|opus-4-[678])/.test(this.model)) body.thinking = { type: 'disabled' };
     if (opts.tools?.length) {
       body.tools = opts.tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.parameters }));
     }
@@ -171,16 +178,16 @@ function safeParse(s: string): Record<string, unknown> {
  * Devuelve el proveedor activo según AI_PROVIDER (default openai).
  * Lanza si falta la API key — las features de IA deben degradar con gracia.
  */
-export function getLLMProvider(): LLMProvider {
+export function getLLMProvider(modelOverride?: string): LLMProvider {
   const which = (process.env.AI_PROVIDER ?? 'openai').toLowerCase();
   if (which === 'anthropic') {
     const key = process.env.ANTHROPIC_API_KEY;
     if (!key) throw new Error('Falta ANTHROPIC_API_KEY');
-    return new AnthropicProvider(key);
+    return new AnthropicProvider(key, modelOverride);
   }
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error('Falta OPENAI_API_KEY');
-  return new OpenAIProvider(key);
+  return new OpenAIProvider(key, modelOverride);
 }
 
 /** True si hay credenciales para el proveedor activo (para degradar UI). */
