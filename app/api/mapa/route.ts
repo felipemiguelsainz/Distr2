@@ -57,6 +57,7 @@ export async function GET() {
     longitud: number;
     partido: string | null;
     ruteable: boolean | null;
+    aproximada: boolean | null;
     pdvs: Record<string, unknown> | null;
   };
   let rawGeo: RawGeoRow[] = [];
@@ -64,7 +65,7 @@ export async function GET() {
     const { data: rawGeoPage } = await svc
       .from('pdvs_geo')
       .select(
-        'pdv_id, latitud, longitud, partido, ruteable, pdvs ( razon_social, cartera, canal_venta, zona, ultima_vta, activo, dia_visita )'
+        'pdv_id, latitud, longitud, partido, ruteable, aproximada, pdvs ( razon_social, cartera, canal_venta, zona, ultima_vta, activo, dia_visita )'
       )
       .not('latitud', 'is', null)
       .not('longitud', 'is', null)
@@ -94,6 +95,7 @@ export async function GET() {
         longitud:    round5(Number(r.longitud)),
         partido:     r.partido,
         ruteable:    r.ruteable,
+        aproximada:  r.aproximada ?? false,
         razon_social: (pdv?.razon_social as string) ?? null,
         cartera:     (pdv?.cartera as string) ?? null,
         canal_venta: (pdv?.canal_venta as string) ?? null,

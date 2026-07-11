@@ -44,11 +44,14 @@ function pdvColor(p: PdvGeo): string {
   return p.enfriandose ? COLOR_ENFRIANDOSE : recencyColor(p.ultima_vta);
 }
 
-function makeIcon(color: string) {
+function makeIcon(color: string, aproximada?: boolean) {
+  // Ubicación aproximada (centro del barrio): borde punteado + semitransparente,
+  // para que se vea distinto sin pisar el color de recencia.
+  const border = aproximada ? '2.5px dashed rgba(255,255,255,0.95)' : '2.5px solid rgba(255,255,255,0.9)';
   return L.divIcon({
     html: `<div style="
       width:18px;height:18px;border-radius:50%;
-      background:${color};border:2.5px solid rgba(255,255,255,0.9);
+      background:${color};border:${border};${aproximada ? 'opacity:0.7;' : ''}
       box-shadow:0 1px 6px rgba(0,0,0,0.5);
     "></div>`,
     className: '',
@@ -59,11 +62,11 @@ function makeIcon(color: string) {
 }
 
 // Marcador numerado para las paradas de una ruta (color = recencia del PDV).
-function makeNumberedIcon(n: number, color: string) {
+function makeNumberedIcon(n: number, color: string, aproximada?: boolean) {
   return L.divIcon({
     html: `<div style="
       width:26px;height:26px;border-radius:50%;background:${color};
-      border:2.5px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,0.55);
+      border:2.5px ${aproximada ? 'dashed' : 'solid'} #fff;box-shadow:0 1px 6px rgba(0,0,0,0.55);
       color:#fff;font-size:12px;font-weight:700;line-height:1;
       display:flex;align-items:center;justify-content:center;
       font-family:'Plus Jakarta Sans',sans-serif;
@@ -663,6 +666,14 @@ export default function MapaClient() {
               )}
             </div>
 
+            {/* Aviso: paradas con ubicación aproximada (el pin cae en el barrio, no la puerta) */}
+            {ruta && ruta.stops.some(s => s.aproximada) && (
+              <div className="w-full mt-2 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-[11.5px]">
+                <span className="font-bold text-amber-800 shrink-0">⚠ {ruta.stops.filter(s => s.aproximada).length} parada(s) con ubicación aproximada</span>
+                <span className="text-amber-700">— el pin cae en el centro del barrio, no en la puerta. Guiate por la dirección antes de navegar.</span>
+              </div>
+            )}
+
             {/* PDVs sumados a mano a la ruta */}
             {ruta && ruta.stops.some(s => s.agregado) && (
               <div className="w-full mt-2 pt-2.5 border-t border-[rgba(12,92,171,0.15)]">
@@ -754,7 +765,7 @@ export default function MapaClient() {
                 <Marker
                   key={p.pdv_id}
                   position={[p.latitud, p.longitud]}
-                  icon={iconCache.get(pdvColor(p)) ?? makeIcon(COLOR_INACTIVO)}
+                  icon={p.aproximada ? makeIcon(pdvColor(p), true) : (iconCache.get(pdvColor(p)) ?? makeIcon(COLOR_INACTIVO))}
                 >
                   <Popup minWidth={220} maxWidth={280}>
                     <div style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', lineHeight: 1.5 }}>
@@ -779,6 +790,11 @@ export default function MapaClient() {
                           ))}
                         </tbody>
                       </table>
+                      {p.aproximada && (
+                        <p style={{ marginTop: 6, fontSize: 10.5, color: '#b45309', fontWeight: 600, background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 6, padding: '4px 6px', lineHeight: 1.35 }}>
+                          Ubicación aproximada (centro del barrio) — guiate por la dirección, no por el pin.
+                        </p>
+                      )}
                     </div>
                   </Popup>
                 </Marker>
@@ -823,7 +839,7 @@ export default function MapaClient() {
                   <Marker
                     key={`stop-${s.pdv_id}`}
                     position={[s.lat, s.lon]}
-                    icon={makeNumberedIcon(i + 1, recencyColor(s.ultima_vta))}
+                    icon={makeNumberedIcon(i + 1, recencyColor(s.ultima_vta), s.aproximada)}
                     zIndexOffset={1000}
                   >
                     <Popup minWidth={220}>

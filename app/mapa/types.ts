@@ -12,6 +12,7 @@ export interface PdvGeo {
   activo_3m: boolean;
   dia_visita: string | null;
   enfriandose?: boolean; // rompió su cadencia, aún dentro de 90 días
+  aproximada?: boolean;  // coord = centro del barrio (no dirección exacta); ser honestos con el vendedor
 }
 
 // --- Ruteo (Módulo 1) -------------------------------------------------------
@@ -24,6 +25,7 @@ export interface RutaStop {
   lon: number;
   ultima_vta: string | null;
   agregado?: boolean; // true si se sumó manualmente ("sumar a la ruta")
+  aproximada?: boolean; // coord = centro del barrio, no dirección exacta
 }
 
 export interface RutaSugerencia {

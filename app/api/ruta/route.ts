@@ -19,6 +19,7 @@ type GeoRow = {
   lat: number;
   lon: number;
   dia_visita: string | null;
+  aproximada: boolean;
 };
 
 function diasDe(dv: string | null): string[] {
@@ -83,7 +84,7 @@ export async function GET(req: Request) {
   // --- PDVs activos del vendedor con geo (todos los días: base para ruta + sugerencias) ---
   const { data: rows } = await svc
     .from('pdvs')
-    .select('id, razon_social, canal_venta, dia_visita, pdvs_geo!inner ( latitud, longitud, partido )')
+    .select('id, razon_social, canal_venta, dia_visita, pdvs_geo!inner ( latitud, longitud, partido, aproximada )')
     .eq('cartera', vendedor)
     .eq('activo', true)
     .not('pdvs_geo.latitud', 'is', null)
@@ -94,7 +95,7 @@ export async function GET(req: Request) {
     razon_social: string | null;
     canal_venta: string | null;
     dia_visita: string | null;
-    pdvs_geo: { latitud: number; longitud: number; partido: string | null } | { latitud: number; longitud: number; partido: string | null }[] | null;
+    pdvs_geo: { latitud: number; longitud: number; partido: string | null; aproximada: boolean | null } | { latitud: number; longitud: number; partido: string | null; aproximada: boolean | null }[] | null;
   };
   const candidatos: GeoRow[] = ((rows as unknown as Raw[]) ?? [])
     .map((r) => {
@@ -108,6 +109,7 @@ export async function GET(req: Request) {
         lat: Number(g.latitud),
         lon: Number(g.longitud),
         dia_visita: r.dia_visita,
+        aproximada: !!g.aproximada,
       } as GeoRow;
     })
     .filter((x): x is GeoRow => x !== null);
@@ -142,6 +144,7 @@ export async function GET(req: Request) {
     lon: c.lon,
     ultima_vta: ultimaMap.get(c.pdv_id) ?? null,
     agregado: agregadoSet.has(c.pdv_id),
+    aproximada: c.aproximada,
   });
 
   // Caso trivial: 0 o 1 parada

@@ -68,6 +68,7 @@ const ORDER = [
   '035_tendencia_anual.sql',
   '036_pdvs_valor_12m_kilos.sql',
   '037_cleanup_geo_inactivos.sql',
+  '038_pdvs_geo_aproximada.sql',
 ];
 
 const dir = path.join('supabase', 'migrations');
