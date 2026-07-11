@@ -259,7 +259,13 @@ export async function getOrCreateInsight(
       .eq('scope_key', opts.scopeKey)
       .eq('periodo', periodo)
       .single();
-    if (row) return { payload: row.payload as InsightPayload, generated_at: row.generated_at };
+    // Sólo servir el cache si tiene cards. Una entrada vieja con cards=[] (p.ej.
+    // de cuando el LLM truncaba) se trata como MISS y se regenera, en vez de
+    // mostrarle al vendedor "sin acciones" indefinidamente.
+    const cached = row?.payload as InsightPayload | undefined;
+    if (cached && (cached.cards?.length ?? 0) > 0) {
+      return { payload: cached, generated_at: row!.generated_at };
+    }
   }
 
   const data = await buildInsightData(svc, opts);
