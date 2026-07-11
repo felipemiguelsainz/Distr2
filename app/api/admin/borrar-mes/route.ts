@@ -19,13 +19,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Mes inválido (1-12).' }, { status: 400 });
     }
 
+    // Rango [primer día, primer día del mes siguiente) con `.lt`. Antes se usaba
+    // `-31` fijo, que en meses de 30 días y febrero es una fecha inválida: la
+    // query fallaba y —sin capturar el error— devolvía "ok" sin borrar nada.
     const desde = `${a}-${String(m).padStart(2, '0')}-01`;
-    const hasta = `${a}-${String(m).padStart(2, '0')}-31`;
+    const nextM = m === 12 ? 1 : m + 1;
+    const nextY = m === 12 ? a + 1 : a;
+    const hasta = `${nextY}-${String(nextM).padStart(2, '0')}-01`;
 
     const supabase = createServiceClient();
-    await supabase.from('ventas').delete().gte('fecha', desde).lte('fecha', hasta);
-    await supabase.from('resumen_diario').delete().gte('fecha', desde).lte('fecha', hasta);
-    await supabase.from('resumen_clientes_pdv').delete().eq('anio', a).eq('mes', m);
+    const delV = await supabase.from('ventas').delete().gte('fecha', desde).lt('fecha', hasta);
+    const delR = await supabase.from('resumen_diario').delete().gte('fecha', desde).lt('fecha', hasta);
+    const delC = await supabase.from('resumen_clientes_pdv').delete().eq('anio', a).eq('mes', m);
+    const delErr = delV.error || delR.error || delC.error;
+    if (delErr) {
+      console.error('[borrar-mes] delete:', delErr);
+      return NextResponse.json({ error: 'Error interno del servidor.' }, { status: 500 });
+    }
 
     revalidateTag('kpis', { expire: 0 });
 

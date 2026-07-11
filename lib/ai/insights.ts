@@ -266,7 +266,12 @@ export async function getOrCreateInsight(
   const cards = await generateCards(data);
   const payload: InsightPayload = { data, cards };
   const generated_at = new Date().toISOString();
-  await svc.from('ai_insights').upsert({ scope_key: opts.scopeKey, periodo, payload, generated_at });
+  // Sólo cachear si hubo cards. Si el LLM truncó o devolvió basura (cards=[]),
+  // NO persistir: así el próximo view reintenta, en vez de dejar "sin acciones"
+  // cacheado todo el período hasta la siguiente carga de ventas.
+  if (cards.length > 0) {
+    await svc.from('ai_insights').upsert({ scope_key: opts.scopeKey, periodo, payload, generated_at });
+  }
   return { payload, generated_at };
 }
 

@@ -150,6 +150,14 @@ export async function PATCH(request: NextRequest) {
       console.error('[usuarios:PATCH activo]', error);
       return NextResponse.json({ error: 'No se pudo actualizar el estado.' }, { status: 500 });
     }
+    // Cortar/restaurar la sesión en Supabase Auth: sin esto, un usuario
+    // desactivado sigue refrescando su token indefinidamente. ban_duration corta
+    // el refresh (el middleware ya lo bloquea al instante); se revierte al reactivar.
+    try {
+      await svc.auth.admin.updateUserById(id, { ban_duration: activo ? 'none' : '876000h' });
+    } catch (e) {
+      console.error('[usuarios:PATCH ban]', e);
+    }
     revalidateTag('vendedores', { expire: 0 });
     return NextResponse.json({ ok: true });
   }

@@ -48,21 +48,29 @@ export async function proxy(request: NextRequest) {
 
   const userId = claims.sub;
 
-  // Profile lookup only when path-based role check is needed.
-  // Most dashboard pages re-check role server-side anyway; middleware
-  // only fast-rejects the obviously wrong combos.
+  // Perfil: una sola lectura para (a) bloquear cuentas DESACTIVADAS en toda ruta
+  // (incluidas las /api; el access token sigue vigente ~1h tras desactivar, y sin
+  // esto AppShell sólo tapaba la UI) y (b) el chequeo de rol. La RLS deja a cada
+  // usuario leer su propio perfil.
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('rol, activo')
+    .eq('id', userId)
+    .single();
+
+  // Cuenta desactivada o sin perfil → afuera (fail-closed).
+  if (!profile || profile.activo === false) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    return NextResponse.redirect(url);
+  }
+  const rol = profile.rol;
+
   const needsRoleCheck =
     pathname.startsWith('/admin') ||
     pathname.startsWith('/dashboard/total');
 
   if (needsRoleCheck) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('rol')
-      .eq('id', userId)
-      .single();
-    const rol = profile?.rol;
-
     // /admin/metas-ccc es compartido admin+supervisor; el resto de /admin es admin-only.
     const isMetasCcc =
       pathname === '/admin/metas-ccc' || pathname.startsWith('/admin/metas-ccc/');

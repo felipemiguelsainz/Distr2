@@ -43,3 +43,6 @@ next-env.d.ts
 
 # Backups de datos generados por scripts de mantenimiento
 scripts/*-backup-*.json
+
+# Datos de clientes reales (PII: razón social, CUIT, domicilios, ventas) — nunca versionar
+/data/

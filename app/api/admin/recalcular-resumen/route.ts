@@ -20,7 +20,11 @@ export async function POST(request: NextRequest) {
     }
 
     const desde = `${a}-${String(m).padStart(2, '0')}-01`;
-    const hasta = `${a}-${String(m).padStart(2, '0')}-31`;
+    // Mes siguiente exclusivo (con `.lt`): `-31` fijo era inválido para meses de
+    // 30 días y febrero → el select fallaba y devolvía 500 para esos meses.
+    const nextM = m === 12 ? 1 : m + 1;
+    const nextY = m === 12 ? a + 1 : a;
+    const hasta = `${nextY}-${String(nextM).padStart(2, '0')}-01`;
     const periodo = `${a}-${String(m).padStart(2, '0')}`;
 
     const supabase = createServiceClient();
@@ -30,7 +34,7 @@ export async function POST(request: NextRequest) {
       .from('ventas')
       .select('fecha')
       .gte('fecha', desde)
-      .lte('fecha', hasta);
+      .lt('fecha', hasta);
 
     if (fechasErr) {
       console.error('[recalcular-resumen] fetch fechas:', fechasErr);
