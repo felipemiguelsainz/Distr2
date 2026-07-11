@@ -237,7 +237,7 @@ export async function generateCards(data: InsightData): Promise<InsightCard[]> {
   const res = await provider.chat({
     system,
     messages: [{ role: 'user', content: JSON.stringify(data) }],
-    maxTokens: 1400, // 5 cards con pasos + pdv_ids: evitar truncar el JSON
+    maxTokens: 4000, // 5 cards con pasos + pdv_ids; a 1400 Haiku truncaba el JSON (→ 0 cards)
     temperature: 0.3,
   });
   return parseCards(res.text ?? '');
