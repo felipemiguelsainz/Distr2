@@ -1,0 +1,5 @@
+{
+  "crons": [
+    { "path": "/api/cron/geo-fix", "schedule": "0 * * * *" }
+  ]
+}

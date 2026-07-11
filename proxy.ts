@@ -27,8 +27,9 @@ export async function proxy(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // Public routes that don't require auth — skip auth check entirely
-  const publicRoutes = ['/login', '/auth/callback'];
+  // Public routes that don't require auth — skip auth check entirely.
+  // /api/cron valida por su cuenta con CRON_SECRET (el cron no manda cookie).
+  const publicRoutes = ['/login', '/auth/callback', '/api/cron'];
   if (publicRoutes.some((r) => pathname.startsWith(r))) {
     return supabaseResponse;
   }
