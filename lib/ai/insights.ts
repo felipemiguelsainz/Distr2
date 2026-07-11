@@ -191,7 +191,7 @@ function parseCards(raw: string): InsightCard[] {
   if (!Array.isArray(arr)) return [];
   return arr
     .filter((c): c is Record<string, unknown> => !!c && typeof (c as Record<string, unknown>).accion === 'string')
-    .slice(0, 10)
+    .slice(0, 8)
     .map((c) => ({
       tipo: CARD_TIPOS.includes(c.tipo as CardTipo) ? (c.tipo as CardTipo) : 'ALERTA',
       accion: String(c.accion),
@@ -230,9 +230,10 @@ export async function generateCards(data: InsightData): Promise<InsightCard[]> {
     'Respondé SOLO con un array JSON válido (sin markdown, sin texto extra) con este schema por item:',
     '{ "tipo": "RECUPERACIÓN" | "CRECIMIENTO" | "COBERTURA" | "ALERTA", "accion": string, "metrica": string, "detalle": string, "pasos": string[], "cta": "Ver clientes" | "Ver productos" | "Ver ruta" | "Ver detalle", "pdv_ids": number[] }',
     '- accion: imperativa, 1 línea. metrica: etiqueta corta para un badge (ej: "5 clientes", "28 en riesgo").',
-    '- detalle: 1-2 oraciones del porqué. pasos: 2 a 4 pasos concretos.',
+    '- detalle: 1-2 oraciones del porqué (con el número que lo justifica).',
+    '- pasos: 3 a 5 pasos MUY concretos y ejecutables — a QUIÉN contactar (nombre), QUÉ ofrecerle/decirle, y CÓMO. Nada genérico tipo "hacer seguimiento": el vendedor tiene que poder hacerlo sin pensar.',
     '- pdv_ids: si la acción se refiere a clientes puntuales, listá los pdv_id EXACTOS tomados del churn.top de los datos (máximo 8). Si no aplica, dejá [].',
-    'Máximo 10 insights, ordenados por impacto. Generá menos si no hay datos suficientes; nunca inventes para llegar a 10.',
+    'Generá entre 5 y 8 acciones de ALTA calidad, ordenadas por impacto en plata. Priorizá CALIDAD sobre cantidad: pocas pero buenas y bien explicadas. Nunca inventes ni rellenes para llegar a un número.',
   ].join('\n');
   const res = await provider.chat({
     system,
@@ -250,7 +251,10 @@ export async function getOrCreateInsight(
   svc: SupabaseClient,
   opts: { scopeKey: string; label: string; carteras: string[] | null; avance: InsightAvance[]; today: Date; force?: boolean }
 ): Promise<{ payload: InsightPayload; generated_at: string }> {
-  const periodo = opts.today.toISOString().slice(0, 7);
+  // Cache DIARIO (YYYY-MM-DD): se genera 1 vez por día por scope y se sirve el
+  // resto del día. Ahorra créditos (no regenera en cada carga de ventas) y da
+  // un análisis fresco cada día.
+  const periodo = opts.today.toISOString().slice(0, 10);
 
   if (!opts.force) {
     const { data: row } = await svc
@@ -277,6 +281,8 @@ export async function getOrCreateInsight(
   // cacheado todo el período hasta la siguiente carga de ventas.
   if (cards.length > 0) {
     await svc.from('ai_insights').upsert({ scope_key: opts.scopeKey, periodo, payload, generated_at });
+    // Cache diario: dejar 1 sola fila por scope (borrar días anteriores).
+    await svc.from('ai_insights').delete().eq('scope_key', opts.scopeKey).neq('periodo', periodo);
   }
   return { payload, generated_at };
 }
