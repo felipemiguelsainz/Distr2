@@ -51,6 +51,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // El avance de los insights (% vs meta) se congela en ai_insights al generarse;
+    // al cambiar las metas hay que limpiar ese cache para que se regeneren.
+    try {
+      await supabase.from('ai_insights').delete().not('scope_key', 'is', null);
+    } catch (e) {
+      console.error('[metas-guardar] limpiar ai_insights:', e);
+    }
     revalidateTag('kpis', { expire: 0 });
 
     return NextResponse.json({ ok: true, total: rows.length });

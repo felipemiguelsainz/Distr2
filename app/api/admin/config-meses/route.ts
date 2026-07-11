@@ -29,6 +29,13 @@ export async function POST(request: NextRequest) {
       console.error('[config-meses] upsert:', error);
       return NextResponse.json({ error: 'Error interno del servidor.' }, { status: 500 });
     }
+    // Los días laborables afectan la tendencia (parte del avance de los insights);
+    // limpiar el cache de IA para que se regeneren con el valor nuevo.
+    try {
+      await supabase.from('ai_insights').delete().not('scope_key', 'is', null);
+    } catch (e) {
+      console.error('[config-meses] limpiar ai_insights:', e);
+    }
     // Los días laborables alimentan la tendencia (dentro de los KPIs). Invalidar
     // ambos caches para que el cambio se refleje al instante, no en 1h.
     revalidateTag('dias-laborables', { expire: 0 });

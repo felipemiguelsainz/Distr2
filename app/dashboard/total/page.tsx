@@ -6,6 +6,7 @@ import { TrendChart, AvanceBarChart, RadarMetaChart } from '@/components/dashboa
 import { ClientesTable } from '@/components/dashboard/ClientesTable';
 import { fetchTotalKpis, fetchTrendData, fetchClientesData, fetchMetasCcc } from '@/lib/calculations/queries';
 import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { KpiSkeleton } from '@/components/ui/Skeleton';
 import { EmptyMonth } from '@/components/ui/EmptyMonth';
@@ -31,6 +32,14 @@ export default async function TotalDashboardPage({
 
   // Listas para los dropdowns
   const supabase = await createClient();
+
+  // Guard de rol propio (defensa en profundidad; no depender sólo del middleware):
+  // esta página expone datos de TODA la empresa vía service client (bypass RLS).
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
+  const { data: prof } = await supabase.from('profiles').select('rol').eq('id', user.id).single();
+  if (prof?.rol !== 'admin') redirect('/');
+
   const { data: vData } = await supabase
     .from('vendedores')
     .select('nombre, equipo')
