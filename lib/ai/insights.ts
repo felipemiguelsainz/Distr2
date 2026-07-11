@@ -191,7 +191,7 @@ function parseCards(raw: string): InsightCard[] {
   if (!Array.isArray(arr)) return [];
   return arr
     .filter((c): c is Record<string, unknown> => !!c && typeof (c as Record<string, unknown>).accion === 'string')
-    .slice(0, 5)
+    .slice(0, 10)
     .map((c) => ({
       tipo: CARD_TIPOS.includes(c.tipo as CardTipo) ? (c.tipo as CardTipo) : 'ALERTA',
       accion: String(c.accion),
@@ -232,12 +232,12 @@ export async function generateCards(data: InsightData): Promise<InsightCard[]> {
     '- accion: imperativa, 1 línea. metrica: etiqueta corta para un badge (ej: "5 clientes", "28 en riesgo").',
     '- detalle: 1-2 oraciones del porqué. pasos: 2 a 4 pasos concretos.',
     '- pdv_ids: si la acción se refiere a clientes puntuales, listá los pdv_id EXACTOS tomados del churn.top de los datos (máximo 8). Si no aplica, dejá [].',
-    'Máximo 5 insights, ordenados por impacto. Si no hay datos para algo, no lo incluyas.',
+    'Máximo 10 insights, ordenados por impacto. Generá menos si no hay datos suficientes; nunca inventes para llegar a 10.',
   ].join('\n');
   const res = await provider.chat({
     system,
     messages: [{ role: 'user', content: JSON.stringify(data) }],
-    maxTokens: 4000, // 5 cards con pasos + pdv_ids; a 1400 Haiku truncaba el JSON (→ 0 cards)
+    maxTokens: 8000, // hasta 10 cards con pasos + pdv_ids; margen para no truncar el JSON
     temperature: 0.3,
   });
   return parseCards(res.text ?? '');
