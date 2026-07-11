@@ -67,6 +67,31 @@ async function insertChunk(
 ) {
   if (rows.length === 0) return;
 
+  // Auto-crear PDVs faltantes: ventas históricas de PDVs que ya no están en el
+  // maestro activo violarían el FK ventas_pdv_id_fkey y (peor) harían saltear el
+  // chunk entero. Se insertan como stub activo=false — no cuentan como clientes
+  // activos pero preservan el historial. Mismo criterio que el endpoint UI de ventas.
+  {
+    const pdvMap = new Map<number, { id: number; razon_social: string; cartera: unknown }>();
+    for (const r of rows) {
+      const pid = r.pdv_id as number;
+      if (!pdvMap.has(pid)) {
+        pdvMap.set(pid, { id: pid, razon_social: (r.razon_social as string) || `PDV ${pid}`, cartera: r.cartera || null });
+      }
+    }
+    const pph: string[] = [];
+    const pvals: unknown[] = [];
+    let pi = 1;
+    for (const p of pdvMap.values()) {
+      pph.push(`($${pi++},$${pi++},$${pi++},false)`);
+      pvals.push(p.id, p.razon_social, p.cartera);
+    }
+    await client.query(
+      `INSERT INTO pdvs (id, razon_social, cartera, activo) VALUES ${pph.join(', ')} ON CONFLICT (id) DO NOTHING`,
+      pvals
+    );
+  }
+
   const placeholders: string[] = [];
   const values: unknown[] = [];
   let idx = 1;

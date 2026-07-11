@@ -55,6 +55,19 @@ const ORDER = [
   '021_prod_critical_fixes.sql',
   '023_profiles_equipo.sql',
   '024_lock_down_functions.sql',
+  '025_user_account_flags.sql',
+  '026_metas_ccc.sql',
+  '027_calcular_preset_ccc.sql',
+  '028_pdvs_ultima_vta.sql',
+  '029_geo_validacion_localidad.sql',
+  '030_ai_insights.sql',
+  '031_pdvs_valor_12m.sql',
+  '032_pdvs_cadencia.sql',
+  '033_cross_sell.sql',
+  '034_insights_statement_timeout.sql',
+  '035_tendencia_anual.sql',
+  '036_pdvs_valor_12m_kilos.sql',
+  '037_cleanup_geo_inactivos.sql',
 ];
 
 const dir = path.join('supabase', 'migrations');

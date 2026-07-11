@@ -179,8 +179,9 @@ requiere importar direcciones reales.
 - **Identificador de cliente = columna `PDV`** (= `pdvs.id`). Los parsers
   (`pickPdvId` en CargarClient + ventas) priorizan SIEMPRE la columna "PDV"
   sobre "Cod. Cliente". Antes el parser de geo prefería Cod. Cliente → si difería
-  del PDV, la geo no matcheaba. Importante: re-subir los 3 archivos (ventas,
-  maestro PDVs, geo) con la columna PDV para que todo quede indexado igual.
+  del PDV, la geo no matcheaba. Importante: re-subir ventas y el maestro PDVs con
+  la columna PDV para que todo quede indexado igual. El maestro y la geo ahora se
+  cargan **juntos en un solo archivo** (ver §14, "Carga unificada maestro + geo").
 - **Carga de ventas** dispara: recálculo de resumen + invalida KPIs + **borra
   `ai_insights`** (insights se refrescan con el día). Mapa/enfriándose son en vivo.
 - **Carga del maestro de PDVs (`/api/admin/pdvs/upload`) = reemplazo por baja
@@ -419,12 +420,63 @@ requiere importar direcciones reales.
 - **Ventas**: dedup por unique `(fecha,pdv_id,comprobante,sku)`; confirma
   "huérfanos" (vendedores en ventas que no están en el maestro). Tras cargar →
   `recalcular_resumen_diario`.
-- **Maestro PDVs**: reemplazo por baja lógica + limpieza de geo + guardrail (§6).
-- **Maestro vendedores** y **Geo** (§4).
+- **Maestro PDVs (unificado)**: una sola carga hace maestro + geo del mismo
+  archivo (reemplazo por baja lógica + limpieza de geo + guardrail, §6). Detalle
+  de la unificación y de los encabezados reales, abajo en este §14.
+- **Maestro vendedores** (§4). Validación de coords en la carga geo (§4).
 - Tablas materializadas que alimentan dashboards (se recalculan con RPCs
   `recalcular_*`): `resumen_diario`, `resumen_clientes_pdv`, `catalogo_productos`,
   `consolidado_productos`. **Zona de peligro**: borrar-mes + recalcular-resumen.
 - Parser de Excel en `lib/excel/parser` (xlsx/exceljs); archivos grandes → cargar local.
+
+### Formato real de los archivos de PDV (verificado 2026-07-10)
+
+Encabezados reales de los dos exports que usa el negocio (hoja 1, fila 1):
+
+- **`PUNTOS DE VENTAS ACTIVOS 8-07.xlsx`** — 49 columnas, **CON** geo.
+- **`PUNTOS DE VENTAS ACTIVOS SIN GEOLOCALIZACION.xlsx`** — 43 columnas,
+  **mismas 0-42**, sin las 6 columnas geo del final. Es literalmente el mismo
+  archivo recortado.
+
+Columnas (índice → nombre EXACTO en el Excel):
+`0 Fecha Alta` · `1 Ultima Vta.` · `2 PDV` · `3 Cod. Cliente` · `4 Razón Social` ·
+`5 DOMICILIO` · `6 Localidad` · `7 Partido` · `8 Provincia` · `9 Tel. Móvil` ·
+`10 Otro Tel.` · `11 Cat.` · `12 Cartera` · `13 VENDEDOR` · `14 Acuerdos comerciales` ·
+`15 Zona` · `16 Calle` · `17 Altura` · `18 Obs. internas` · `19 Obs. Logística` ·
+`20 Obs. Facturas` · `21 Canal Distribucion` · `22 Canal Vta.` · `23 Categoría IVA` ·
+`24 CUIT` · `25 Cod. Postal` · `26 Barrio` · `27 Frecuencia Visita` ·
+`28 Visitar esta semana` · `29-35 LUN..DOM` (S/N) · `36-42 HS_LUN..HS_DOM` ·
+**solo el CON geo:** `43 LATITUD` · `44 LONGITUD` · `45 Domicilio_GEO` ·
+`46 Fecha_GEO` · `47 Hora_GEO` · `48 Prioridad del preparado`.
+
+- **PDV (idx 2) y Cod. Cliente (idx 3) traen el mismo número** en la muestra;
+  igual `pickPdvId` prioriza PDV (correcto — pueden diferir).
+- **Mismatches de encabezado que había con `parsePdvFile` (CORREGIDOS 2026-07-11):**
+  el parser buscaba claves exactas que NO coincidían con este export, así que
+  entraban **vacías**: `Domicilio` (el archivo dice `DOMICILIO`), `Canal Venta`
+  (dice `Canal Vta.`), `Ultima Vta` (dice `Ultima Vta.` con punto). `Canal Vta.`
+  alimenta el filtro de canal del mapa. Verificado sobre los 6992 registros: antes
+  0, ahora ~6991 con domicilio/canal y 6922 con última venta.
+
+### Carga unificada maestro + geo (IMPLEMENTADO 2026-07-11)
+
+El export **CON geo es superset del maestro** (todas las columnas del maestro +
+LAT/LNG), así que **una sola drop-zone** ("Maestro de Clientes") alimenta `pdvs`
+**y** `pdvs_geo`. En `CargarClient.tsx`:
+1. `handlePdvsFile` parsea el archivo una vez → filas de maestro (siempre) +
+   filas de geo (`parseGeoFile`, filtradas a las que traen LATITUD/LONGITUD).
+2. **Orden obligatorio:** upsert de `pdvs` **primero** (crea el `id`), después
+   `runGeoUpload` → `pdvs_geo` (FK a `pdvs.id`; `bulk_upsert_pdvs_geo` filtra
+   huérfanos por JOIN). Si hay confirmación pendiente (reasignaciones/baja
+   masiva), la geo espera y se sube recién en `confirmPdvsUpload`.
+3. El archivo **SIN GEO** cae solo: mismas columnas sin coords ⇒ 0 filas geo ⇒
+   `runGeoUpload` no hace nada, solo se carga el maestro.
+
+**Robustez de encabezados:** `normKey` (minúsculas + sin acentos/espacios/puntos)
++ `rowGetter(r)('Canal Venta','Canal Vta')` blindan los parsers contra renombres.
+La validación geo del §4 (`bulk_upsert_pdvs_geo`) y la baja lógica + guardrail del
+§6 siguen igual (el geolocalizado ES el maestro). Nota: el export CON geo NO trae
+columna `Ruteable` → `ruteable` queda null en `pdvs_geo`.
 
 ## 15. Diseño / UI (convenciones)
 

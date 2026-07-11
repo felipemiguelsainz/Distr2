@@ -11,14 +11,37 @@ import {
   Reasignacion,
 } from '@/lib/types';
 
-// Toma el id de PDV de una fila de Excel: SIEMPRE prioriza la columna "PDV"
-// (en cualquier mayúscula/espaciado); sólo cae a "Cod. Cliente" si no hay PDV.
-// Clave para que pdvs, ventas y geo queden indexados por la MISMA columna.
+// Normaliza un nombre de columna para comparar sin importar mayúsculas, acentos,
+// espacios, puntos ni guiones bajos. "Canal Vta." → "canalvta", "DOMICILIO" →
+// "domicilio", "Razón Social" → "razonsocial". Los exports de Candysur varían el
+// casing/puntuación entre archivos (ej. "Ultima Vta." con punto), así que SIEMPRE
+// buscamos columnas normalizando, no por match exacto.
+const DIACRITICS = new RegExp('[\\u0300-\\u036f]', 'g'); // marcas de acento (NFD)
+const normKey = (s: string) =>
+  s.toLowerCase().normalize('NFD').replace(DIACRITICS, '').replace(/[\s._]/g, '');
+
+// Lector de columnas tolerante para una fila: g('Canal Venta', 'Canal Vta')
+// prueba cada candidato normalizado y devuelve el primer valor no vacío. Blinda
+// los parsers contra renombres de encabezado.
+function rowGetter(r: Record<string, unknown>) {
+  const map = new Map<string, unknown>();
+  for (const k of Object.keys(r)) map.set(normKey(k), r[k]);
+  return (...candidates: string[]): unknown => {
+    for (const c of candidates) {
+      const v = map.get(normKey(c));
+      if (v !== undefined && v !== '') return v;
+    }
+    return undefined;
+  };
+}
+
+// Toma el id de PDV de una fila de Excel: SIEMPRE prioriza la columna "PDV";
+// sólo cae a "Cod. Cliente" si no hay PDV. Clave para que pdvs, ventas y geo
+// queden indexados por la MISMA columna.
 function pickPdvId(r: Record<string, unknown>): number {
-  const norm = (s: string) => s.toLowerCase().replace(/[\s._]/g, '');
   const keys = Object.keys(r);
-  const pdvKey = keys.find((k) => norm(k) === 'pdv');
-  const codKey = keys.find((k) => norm(k).includes('codcliente'));
+  const pdvKey = keys.find((k) => normKey(k) === 'pdv');
+  const codKey = keys.find((k) => normKey(k).includes('codcliente'));
   return parseInt(String(r[pdvKey ?? codKey ?? ''] ?? ''), 10);
 }
 
@@ -47,7 +70,8 @@ async function parsePdvFile(buffer: ArrayBuffer) {
     .map((r) => {
       const id = pickPdvId(r);
       if (!id || isNaN(id)) return null;
-      const activoRaw = r['Activo'] ?? r['ACTIVO'];
+      const g = rowGetter(r);
+      const activoRaw = g('Activo');
       const activo = activoRaw === undefined
         ? true
         : String(activoRaw).toLowerCase() !== 'false' &&
@@ -55,20 +79,20 @@ async function parsePdvFile(buffer: ArrayBuffer) {
           String(activoRaw).toLowerCase() !== 'no';
       return {
         id,
-        razon_social:       String(r['Razon Social'] ?? r['Razón Social'] ?? '').trim(),
-        domicilio:          String(r['Domicilio'] ?? '').trim(),
-        localidad:          String(r['Localidad'] ?? '').trim(),
-        zona:               String(r['Zona'] ?? '').trim(),
-        canal_distribucion: String(r['Canal Distribución'] ?? r['Canal Distribucion'] ?? '').trim(),
-        canal_venta:        String(r['Canal Venta'] ?? '').trim(),
-        categoria_iva:      String(r['Categoría IVA'] ?? r['Categoria IVA'] ?? '').trim(),
-        cuit:               String(r['CUIT'] ?? '').trim(),
-        cartera:            String(r['Cartera'] ?? '').trim(),
-        fecha_alta:         parseDate(r['Fecha Alta']),
-        ultima_vta:         parseDate(r['Ultima Vta'] ?? r['Última Vta']),
+        razon_social:       String(g('Razon Social') ?? '').trim(),
+        domicilio:          String(g('Domicilio') ?? '').trim(),
+        localidad:          String(g('Localidad') ?? '').trim(),
+        zona:               String(g('Zona') ?? '').trim(),
+        canal_distribucion: String(g('Canal Distribucion') ?? '').trim(),
+        canal_venta:        String(g('Canal Venta', 'Canal Vta') ?? '').trim(),
+        categoria_iva:      String(g('Categoria IVA') ?? '').trim(),
+        cuit:               String(g('CUIT') ?? '').trim(),
+        cartera:            String(g('Cartera') ?? '').trim(),
+        fecha_alta:         parseDate(g('Fecha Alta')),
+        ultima_vta:         parseDate(g('Ultima Vta')),
         activo,
         dia_visita: (['LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB', 'DOM'] as const)
-          .filter(d => String(r[d] ?? '').trim().toUpperCase() === 'S')
+          .filter(d => String(g(d) ?? '').trim().toUpperCase() === 'S')
           .join(',') || null,
       };
     })
@@ -239,17 +263,18 @@ async function parseGeoFile(buffer: ArrayBuffer) {
     .map((r) => {
       const pdv_id = pickPdvId(r);
       if (!pdv_id || isNaN(pdv_id)) return null;
-      const lat = parseFloat(String(r['LATITUD'] ?? ''));
-      const lng = parseFloat(String(r['LONGITUD'] ?? ''));
-      const ruteableRaw = String(r['Ruteable'] ?? r['RUTEABLE'] ?? '').toLowerCase();
+      const g = rowGetter(r);
+      const lat = parseFloat(String(g('LATITUD') ?? ''));
+      const lng = parseFloat(String(g('LONGITUD') ?? ''));
+      const ruteableRaw = String(g('Ruteable') ?? '').toLowerCase();
       return {
         pdv_id,
-        partido:      String(r['Partido']      ?? '').trim() || null,
-        provincia:    String(r['Provincia']    ?? '').trim() || null,
-        calle:        String(r['Calle']        ?? '').trim() || null,
-        altura:       String(r['Altura']       ?? '').trim() || null,
-        entre1:       String(r['Entre1']       ?? '').trim() || null,
-        entre2:       String(r['Entre2']       ?? '').trim() || null,
+        partido:      String(g('Partido')      ?? '').trim() || null,
+        provincia:    String(g('Provincia')    ?? '').trim() || null,
+        calle:        String(g('Calle')        ?? '').trim() || null,
+        altura:       String(g('Altura')       ?? '').trim() || null,
+        entre1:       String(g('Entre1')       ?? '').trim() || null,
+        entre2:       String(g('Entre2')       ?? '').trim() || null,
         latitud:      isNaN(lat)  || lat  === 0 ? null : lat,
         longitud:     isNaN(lng)  || lng  === 0 ? null : lng,
         ruteable:     ruteableRaw === 'si' || ruteableRaw === 's'
@@ -257,12 +282,12 @@ async function parseGeoFile(buffer: ArrayBuffer) {
           : ruteableRaw === 'no' || ruteableRaw === 'n'
           ? false
           : null,
-        domicilio_geo: String(r['Domicilio_GEO'] ?? '').trim() || null,
-        fecha_geo:    parseSerialDate(r['Fecha_GEO']),
-        hora_geo:     String(r['Hora_GEO'] ?? '').trim() || null,
+        domicilio_geo: String(g('Domicilio_GEO') ?? '').trim() || null,
+        fecha_geo:    parseSerialDate(g('Fecha_GEO')),
+        hora_geo:     String(g('Hora_GEO') ?? '').trim() || null,
       };
     })
-    .filter(Boolean);
+    .filter((r): r is NonNullable<typeof r> => r !== null);
 }
 
 function ResultBanner({ result, type }: { result: unknown; type: 'ventas' | 'pdvs' | 'maestros' | 'geo' }) {
@@ -417,6 +442,7 @@ export function CargarClient() {
   const [pdvsResult, setPdvsResult] = useState<PdvsUploadResult | null>(null);
   const [pdvsError, setPdvsError] = useState('');
   const [pdvsPendingRows, setPdvsPendingRows] = useState<unknown[] | null>(null);
+  const [pdvsGeoRows, setPdvsGeoRows] = useState<unknown[]>([]); // filas geo del mismo archivo, a subir tras el maestro
   const [reasignaciones, setReasignaciones] = useState<Reasignacion[]>([]);
   const [pdvsBajas, setPdvsBajas] = useState(0);
   const [pdvsBajaMasiva, setPdvsBajaMasiva] = useState(false);
@@ -493,12 +519,34 @@ export function CargarClient() {
     finally { setVentasLoading(false); if (!confirmedHuerfanos) setVentasPendingFile(null); }
   }
 
+  // Sube la geo (pdvs_geo) DESPUÉS del maestro: el FK exige que pdvs.id ya exista.
+  // Si el archivo no traía coordenadas (ej. export "SIN GEOLOCALIZACION"), no hace nada.
+  async function runGeoUpload(geoRows: unknown[]) {
+    if (!geoRows || geoRows.length === 0) return;
+    setGeoLoading(true); setGeoError(''); setGeoResult(null);
+    try {
+      const res = await fetch('/api/admin/pdvs-geo/upload', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows: geoRows }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Error al cargar geolocalización.');
+      setGeoResult(data);
+    } catch (e) { setGeoError(e instanceof Error ? e.message : String(e)); }
+    finally { setGeoLoading(false); }
+  }
+
+  // Carga unificada: un solo archivo alimenta el maestro (pdvs) y, si trae
+  // LATITUD/LONGITUD, también la geo (pdvs_geo). El export geolocalizado es
+  // superset del maestro; el "SIN GEOLOCALIZACION" cae solo → solo maestro.
   async function handlePdvsFile(file: File) {
-    setPdvsLoading(true); setPdvsError(''); setPdvsResult(null);
+    setPdvsLoading(true); setPdvsError(''); setPdvsResult(null); setGeoResult(null); setGeoError('');
     try {
       const buffer = await file.arrayBuffer();
       const rows = await parsePdvFile(buffer);
       if (rows.length === 0) throw new Error('No se encontraron filas válidas en el archivo.');
+      // Filas geo del MISMO archivo: solo las que traen coordenadas reales.
+      const geoRows = (await parseGeoFile(buffer)).filter((r) => r.latitud != null && r.longitud != null);
       const res = await fetch('/api/admin/pdvs/upload', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rows, confirmed: false }),
@@ -507,6 +555,7 @@ export function CargarClient() {
       if (!res.ok) throw new Error(data.error ?? 'Error al procesar clientes.');
       if (data.requires_confirmation) {
         setPdvsPendingRows(rows);
+        setPdvsGeoRows(geoRows); // recordar la geo para subirla tras confirmar
         setReasignaciones(data.reasignaciones ?? []);
         setPdvsBajas(data.bajas ?? 0);
         setPdvsBajaMasiva(data.baja_masiva ?? false);
@@ -514,6 +563,7 @@ export function CargarClient() {
         setPdvsLoading(false); return;
       }
       setPdvsResult(data);
+      await runGeoUpload(geoRows); // maestro OK → subir geo del mismo archivo
     } catch (e) { setPdvsError(e instanceof Error ? e.message : String(e)); }
     finally { setPdvsLoading(false); }
   }
@@ -529,6 +579,8 @@ export function CargarClient() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Error al guardar clientes.');
       setPdvsResult(data); setReasignaciones([]); setPdvsPendingRows(null); setPdvsBajaMasiva(false);
+      await runGeoUpload(pdvsGeoRows); // maestro confirmado → subir geo del mismo archivo
+      setPdvsGeoRows([]);
     } catch (e) { setPdvsError(e instanceof Error ? e.message : String(e)); }
     finally { setPdvsLoading(false); }
   }
@@ -551,24 +603,7 @@ export function CargarClient() {
     finally { setMaestrosLoading(false); }
   }
 
-  async function handleGeoFile(file: File) {
-    setGeoLoading(true); setGeoError(''); setGeoResult(null);
-    try {
-      const buffer = await file.arrayBuffer();
-      const rows = await parseGeoFile(buffer);
-      if (rows.length === 0) throw new Error('No se encontraron filas válidas en el archivo.');
-      const res = await fetch('/api/admin/pdvs-geo/upload', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rows }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Error al cargar geolocalización.');
-      setGeoResult(data);
-    } catch (e) { setGeoError(e instanceof Error ? e.message : String(e)); }
-    finally { setGeoLoading(false); }
-  }
-
-  const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const MESES =['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const currentYear = new Date().getFullYear();
 
   const selectCls = [
@@ -593,11 +628,13 @@ export function CargarClient() {
 
       <section className="bg-[#ffffff] rounded-2xl border border-[#e4e4e7] shadow-xl shadow-black/5 p-6">
         <h2 className="text-[15px] font-semibold text-[#09090b] mb-0.5">Maestro de Clientes (PDVs)</h2>
-        <p className="text-[12px] text-[#71717a] mb-4">Archivo Excel con el padrón de puntos de venta (.xlsx)</p>
-        <DropZone label="Maestro de Clientes" accept=".xlsx,.xls,.xlsb" onFile={handlePdvsFile} loading={pdvsLoading}
-          hint="Columnas: PDV, Razon Social, Cartera, Zona, Canal, CUIT..." />
+        <p className="text-[12px] text-[#71717a] mb-4">Padrón de puntos de venta (.xlsx). Si el archivo trae LATITUD/LONGITUD, en la misma carga se actualiza el mapa.</p>
+        <DropZone label="Maestro de Clientes" accept=".xlsx,.xls,.xlsb" onFile={handlePdvsFile} loading={pdvsLoading || geoLoading}
+          hint="Columnas: PDV, Razon Social, Cartera, Zona, Canal, CUIT... (opcional: LATITUD, LONGITUD para el mapa)" />
         {pdvsError && <p className="mt-3 text-[13px] text-[#dc2626] bg-[#dc2626]/[0.08] border border-[#dc2626]/20 px-3 py-2 rounded-[10px]">{pdvsError}</p>}
         <ResultBanner result={pdvsResult} type="pdvs" />
+        {geoError && <p className="mt-3 text-[13px] text-[#dc2626] bg-[#dc2626]/[0.08] border border-[#dc2626]/20 px-3 py-2 rounded-[10px]">{geoError}</p>}
+        <ResultBanner result={geoResult} type="geo" />
       </section>
 
       <section className="bg-[#ffffff] rounded-2xl border border-[#e4e4e7] shadow-xl shadow-black/5 p-6">
@@ -608,16 +645,6 @@ export function CargarClient() {
           hint="Columnas: Nombre, Supervisor, Equipo, Localidad" />
         {maestrosError && <p className="mt-3 text-[13px] text-[#dc2626] bg-[#dc2626]/[0.08] border border-[#dc2626]/20 px-3 py-2 rounded-[10px]">{maestrosError}</p>}
         <ResultBanner result={maestrosResult} type="maestros" />
-      </section>
-
-      <section className="bg-[#ffffff] rounded-2xl border border-[#e4e4e7] shadow-xl shadow-black/5 p-6">
-        <h2 className="text-[15px] font-semibold text-[#09090b] mb-0.5">Maestro Geolocalizado (PDVs con coordenadas)</h2>
-        <p className="text-[12px] text-[#71717a] mb-4">Archivo Excel con latitud/longitud por PDV (.xlsx)</p>
-        <DropZone label="Maestro Geolocalizado" accept=".xlsx,.xls,.xlsb"
-          onFile={handleGeoFile} loading={geoLoading}
-          hint="Columnas: PDV, Partido, Provincia, Calle, Altura, LATITUD, LONGITUD, Ruteable..." />
-        {geoError && <p className="mt-3 text-[13px] text-[#dc2626] bg-[#dc2626]/[0.08] border border-[#dc2626]/20 px-3 py-2 rounded-[10px]">{geoError}</p>}
-        <ResultBanner result={geoResult} type="geo" />
       </section>
 
       <section className="bg-[#ffffff] rounded-2xl border border-[#dc2626]/30 shadow-xl shadow-black/5 p-6">
@@ -677,7 +704,7 @@ export function CargarClient() {
           bajaMasiva={pdvsBajaMasiva}
           activosAntes={pdvsActivosAntes}
           onConfirm={confirmPdvsUpload}
-          onCancel={() => { setReasignaciones([]); setPdvsPendingRows(null); setPdvsBajaMasiva(false); }}
+          onCancel={() => { setReasignaciones([]); setPdvsPendingRows(null); setPdvsGeoRows([]); setPdvsBajaMasiva(false); }}
         />
       )}
     </div>
