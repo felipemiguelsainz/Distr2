@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 export async function POST(request: NextRequest) {
@@ -28,6 +29,10 @@ export async function POST(request: NextRequest) {
       console.error('[config-meses] upsert:', error);
       return NextResponse.json({ error: 'Error interno del servidor.' }, { status: 500 });
     }
+    // Los días laborables alimentan la tendencia (dentro de los KPIs). Invalidar
+    // ambos caches para que el cambio se refleje al instante, no en 1h.
+    revalidateTag('dias-laborables', { expire: 0 });
+    revalidateTag('kpis', { expire: 0 });
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('[config-meses]', err);

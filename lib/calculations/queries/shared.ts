@@ -59,7 +59,7 @@ export const fetchDiasLaborables = unstable_cache(
     return data?.dias_laborables ?? 0;
   },
   ['dias-laborables'],
-  { revalidate: 3600 },
+  { revalidate: 3600, tags: ['dias-laborables'] },
 );
 
 // ---------------------------------------------------------------------------
