@@ -129,7 +129,7 @@ async function main() {
     console.log(`\nBackup: ${backup}`);
     const client = await pool.connect();
     let n = 0;
-    for (const c of apply) { await client.query(`UPDATE pdvs_geo SET latitud=$1, longitud=$2, updated_at=now() WHERE pdv_id=$3`, [c.lat, c.lng, c.pdv_id]); n++; }
+    for (const c of apply) { await client.query(`UPDATE pdvs_geo SET latitud=$1, longitud=$2, aproximada=false, geo_verificada=true, updated_at=now() WHERE pdv_id=$3`, [c.lat, c.lng, c.pdv_id]); n++; }
     client.release();
     console.log(`✓ ${n} PDV actualizados en pdvs_geo (los dudosos y sin-geocode quedaron intactos).`);
   } else {

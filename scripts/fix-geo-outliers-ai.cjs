@@ -101,7 +101,7 @@ async function main() {
     fs.writeFileSync(backup, JSON.stringify(cambios, null, 2));
     console.log(`\nBackup: ${backup}`);
     const c = await pool.connect(); let n = 0;
-    for (const ch of cambios) { await c.query(`UPDATE pdvs_geo SET latitud=$1, longitud=$2, aproximada=$3, updated_at=now() WHERE pdv_id=$4`, [ch.despues.lat, ch.despues.lng, ch.despues.aproximada, ch.pdv_id]); n++; }
+    for (const ch of cambios) { await c.query(`UPDATE pdvs_geo SET latitud=$1, longitud=$2, aproximada=$3, geo_verificada=true, updated_at=now() WHERE pdv_id=$4`, [ch.despues.lat, ch.despues.lng, ch.despues.aproximada, ch.pdv_id]); n++; }
     c.release(); console.log(`✓ ${n} PDV actualizados (fuera-de-partido corregidos).`);
   } else console.log('\nDry-run: no se escribió nada. Corré con --apply.');
   await pool.end();

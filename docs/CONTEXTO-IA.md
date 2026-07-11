@@ -143,6 +143,22 @@ Dry-run por defecto, `--apply` con backup. Corrida inicial (2026-07): 66 aplicad
 Los dudosos son calles numeradas (Berazategui/Fcio. Varela) donde Nominatim no
 distingue la altura; **Google Geocoding** las cerraría mejor (upgrade de un renglón).
 
+**IMPORTANTE — qué corre solo y qué NO en cada carga:**
+- **Automático (RPC `bulk_upsert_pdvs_geo`):** validación por localidad (keep/
+  corrige-a-centroide/rechaza) + setea `aproximada` (mig 038).
+- **NO automático:** el re-geocoding con IA (Claude+Nominatim) es **paso manual
+  post-carga** — no puede correr en el upload (Nominatim = 1 req/seg, colgaría el
+  request). Tras subir un maestro geo **nuevo**, correr en orden:
+  `node scripts/regeocode-centroides.cjs --apply` (parkeados en centroide) y
+  `node scripts/fix-geo-outliers-ai.cjs --apply` (fuera de partido). Idempotentes,
+  con backup.
+- **Durabilidad (mig 039):** `pdvs_geo.geo_verificada`. Los scripts marcan
+  `geo_verificada=true` al arreglar; el RPC **NO pisa** lat/long/aproximada de una
+  fila verificada en un re-upload (preserva el arreglo). Así el trabajo de IA NO
+  se pierde al re-subir el maestro; sólo hay que correr los scripts para los PDV
+  **nuevos**. Auditoría por partido (point-in-polygon): 60 mal ubicados de 6.983,
+  arreglados; 33 quedaron `aproximada` (marcados en mapa/rutas).
+
 ---
 
 ## 5. Ruteo (Módulo 1): a pie, por calles
