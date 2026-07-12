@@ -206,10 +206,11 @@ function parseCards(raw: string): InsightCard[] {
 }
 
 /** El LLM genera action cards (JSON) a partir de los datos. No calcula números. */
-export async function generateCards(data: InsightData): Promise<InsightCard[]> {
-  // Insights = análisis diario profundo (1 vez por scope por día) → modelo más
-  // capaz. Sonnet 5 por defecto; overridable con INSIGHTS_MODEL.
-  const provider = getLLMProvider(process.env.INSIGHTS_MODEL || 'claude-sonnet-5');
+export async function generateCards(data: InsightData, model?: string): Promise<InsightCard[]> {
+  // El modelo lo decide el caller: la app (Vercel free, límite 10s) usa el default
+  // Haiku (rápido); el job nocturno de GitHub Actions pasa Sonnet 5 (más profundo,
+  // sin límite de tiempo).
+  const provider = getLLMProvider(model);
   const system = [
     'Sos un asistente comercial para un equipo de ventas de distribución (Candysur / Mondelez, GBA).',
     `Los datos corresponden a: «${data.alcance}».`,
@@ -251,7 +252,7 @@ export interface InsightPayload { data: InsightData; cards: InsightCard[] }
 /** Lee del cache o regenera (force). */
 export async function getOrCreateInsight(
   svc: SupabaseClient,
-  opts: { scopeKey: string; label: string; carteras: string[] | null; avance: InsightAvance[]; today: Date; force?: boolean }
+  opts: { scopeKey: string; label: string; carteras: string[] | null; avance: InsightAvance[]; today: Date; force?: boolean; model?: string }
 ): Promise<{ payload: InsightPayload; generated_at: string }> {
   // Cache DIARIO (YYYY-MM-DD): se genera 1 vez por día por scope y se sirve el
   // resto del día. Ahorra créditos (no regenera en cada carga de ventas) y da
@@ -275,7 +276,7 @@ export async function getOrCreateInsight(
   }
 
   const data = await buildInsightData(svc, opts);
-  const cards = await generateCards(data);
+  const cards = await generateCards(data, opts.model);
   const payload: InsightPayload = { data, cards };
   const generated_at = new Date().toISOString();
   // Sólo cachear si hubo cards. Si el LLM truncó o devolvió basura (cards=[]),

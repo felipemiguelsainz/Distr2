@@ -1,0 +1,31 @@
+name: Daily jobs (geo-fix + insights)
+
+# Trabajos pesados que NO entran en Vercel free (límite 10s/función):
+# re-geocoding con IA y generación de insights profundos con Sonnet.
+# Acá corren sin límite de tiempo y gratis. La app sólo sirve lo cacheado.
+
+on:
+  schedule:
+    - cron: '0 10 * * *' # 10:00 UTC = 07:00 ART (ajustá a después de tu carga diaria de ventas)
+  workflow_dispatch: {}   # permite dispararlo a mano desde la pestaña Actions
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Correr geo-fix + insights (Sonnet)
+        run: npx ts-node -T -P tsconfig.scripts.json -r tsconfig-paths/register scripts/daily-jobs.ts
+        env:
+          AI_PROVIDER: anthropic
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          INSIGHTS_MODEL: claude-sonnet-5
+          # INSIGHTS_LIMIT: '15'   # descomentá para limitar cuántos scopes generar (ahorrar créditos)
