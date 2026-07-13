@@ -19,10 +19,17 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    // El autocompletado/pegado suele meter espacios en el email → limpiarlos.
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
 
     if (error) {
-      setError('Email o contraseña incorrectos.');
+      // Credenciales malas → mensaje amigable; cualquier OTRO error (API key, red,
+      // rate-limit, etc.) → mostrar el real para poder diagnosticar.
+      setError(
+        /invalid login credentials/i.test(error.message)
+          ? 'Email o contraseña incorrectos.'
+          : `No se pudo iniciar sesión: ${error.message}`
+      );
       setLoading(false);
       return;
     }
