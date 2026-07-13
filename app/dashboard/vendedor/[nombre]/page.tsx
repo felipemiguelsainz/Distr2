@@ -1,5 +1,7 @@
 import { AppShell } from '@/components/layout/AppShell';
 import { MonthFilter } from '@/components/ui/MonthFilter';
+import { RangeFilter } from '@/components/ui/RangeFilter';
+import { RangoVendido } from '@/components/dashboard/RangoVendido';
 import { KpiTable } from '@/components/dashboard/KpiTable';
 import { TrendChart } from '@/components/dashboard/LazyCharts';
 import { CccCard } from '@/components/dashboard/CccCard';
@@ -20,7 +22,9 @@ import { KpiSkeleton } from '@/components/ui/Skeleton';
 import { EmptyMonth } from '@/components/ui/EmptyMonth';
 
 interface PageParams { nombre: string }
-interface SearchParams { mes?: string; anio?: string }
+interface SearchParams { mes?: string; anio?: string; desde?: string; hasta?: string }
+
+const isDate = (s?: string) => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
 
 export default async function VendedorDashboardPage({
   params,
@@ -70,6 +74,8 @@ export default async function VendedorDashboardPage({
   const today = new Date();
   const mes = parseInt(sp.mes ?? String(today.getMonth() + 1), 10);
   const anio = parseInt(sp.anio ?? String(today.getFullYear()), 10);
+  const desde = isDate(sp.desde) ? sp.desde! : '';
+  const hasta = isDate(sp.hasta) ? sp.hasta! : '';
 
   const [{ data: vData }, { data: asig }] = await Promise.all([
     supabase.from('vendedores').select('supervisor, equipo').eq('nombre', vendedor).single(),
@@ -89,10 +95,21 @@ export default async function VendedorDashboardPage({
               {vData?.supervisor && ` · Supervisor: ${vData.supervisor}`}
             </p>
           </div>
-          <Suspense>
-            <MonthFilter defaultMes={mes} defaultAnio={anio} />
-          </Suspense>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-wrap">
+            <Suspense>
+              <MonthFilter defaultMes={mes} defaultAnio={anio} />
+            </Suspense>
+            <Suspense>
+              <RangeFilter desde={desde} hasta={hasta} />
+            </Suspense>
+          </div>
         </div>
+
+        {desde && hasta && (
+          <Suspense fallback={<KpiSkeleton />}>
+            <RangoVendido desde={desde} hasta={hasta} vendedor={vendedor} />
+          </Suspense>
+        )}
 
         <Suspense fallback={<KpiSkeleton />}>
           <VendedorKpiSection

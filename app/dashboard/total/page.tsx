@@ -1,7 +1,9 @@
 import { AppShell } from '@/components/layout/AppShell';
 import { MonthFilter } from '@/components/ui/MonthFilter';
+import { RangeFilter } from '@/components/ui/RangeFilter';
 import { EntityFilter } from '@/components/ui/EntityFilter';
 import { KpiTable } from '@/components/dashboard/KpiTable';
+import { RangoVendido } from '@/components/dashboard/RangoVendido';
 import { TrendChart, AvanceBarChart, RadarMetaChart } from '@/components/dashboard/LazyCharts';
 import { ClientesTable } from '@/components/dashboard/ClientesTable';
 import { fetchTotalKpis, fetchTrendData, fetchClientesData, fetchMetasCcc } from '@/lib/calculations/queries';
@@ -16,7 +18,11 @@ interface SearchParams {
   anio?:       string;
   supervisor?: string;
   vendedor?:   string;
+  desde?:      string;
+  hasta?:      string;
 }
+
+const isDate = (s?: string) => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
 
 export default async function TotalDashboardPage({
   searchParams,
@@ -29,6 +35,8 @@ export default async function TotalDashboardPage({
   const anio   = parseInt(params.anio ?? String(today.getFullYear()),  10);
   const supervisor = params.supervisor ?? '';
   const vendedor   = params.vendedor   ?? '';
+  const desde = isDate(params.desde) ? params.desde! : '';
+  const hasta = isDate(params.hasta) ? params.hasta! : '';
 
   // Listas para los dropdowns
   const supabase = await createClient();
@@ -71,8 +79,17 @@ export default async function TotalDashboardPage({
             <Suspense>
               <MonthFilter defaultMes={mes} defaultAnio={anio} />
             </Suspense>
+            <Suspense>
+              <RangeFilter desde={desde} hasta={hasta} />
+            </Suspense>
           </div>
         </div>
+
+        {desde && hasta && (
+          <Suspense fallback={<KpiSkeleton />}>
+            <RangoVendido desde={desde} hasta={hasta} equipo={supervisor || undefined} vendedor={vendedor || undefined} />
+          </Suspense>
+        )}
 
         <Suspense fallback={<KpiSkeleton />}>
           <TotalKpiSection

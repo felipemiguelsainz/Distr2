@@ -1,5 +1,7 @@
 import { AppShell } from '@/components/layout/AppShell';
 import { MonthFilter } from '@/components/ui/MonthFilter';
+import { RangeFilter } from '@/components/ui/RangeFilter';
+import { RangoVendido } from '@/components/dashboard/RangoVendido';
 import { VendedorFilter } from '@/components/ui/VendedorFilter';
 import { KpiTable } from '@/components/dashboard/KpiTable';
 import { TrendChart } from '@/components/dashboard/LazyCharts';
@@ -21,7 +23,11 @@ interface SearchParams {
   mes?: string;
   anio?: string;
   vendedor?: string;
+  desde?: string;
+  hasta?: string;
 }
+
+const isDate = (s?: string) => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
 
 export default async function SupervisorDashboardPage({
   params,
@@ -38,6 +44,8 @@ export default async function SupervisorDashboardPage({
   const mes = parseInt(sp.mes ?? String(today.getMonth() + 1), 10);
   const anio = parseInt(sp.anio ?? String(today.getFullYear()), 10);
   const vendedorSel = sp.vendedor ?? '';
+  const desde = isDate(sp.desde) ? sp.desde! : '';
+  const hasta = isDate(sp.hasta) ? sp.hasta! : '';
 
   const supabase = await createClient();
 
@@ -111,8 +119,17 @@ export default async function SupervisorDashboardPage({
             <Suspense>
               <MonthFilter defaultMes={mes} defaultAnio={anio} />
             </Suspense>
+            <Suspense>
+              <RangeFilter desde={desde} hasta={hasta} />
+            </Suspense>
           </div>
         </div>
+
+        {desde && hasta && (
+          <Suspense fallback={<KpiSkeleton />}>
+            <RangoVendido desde={desde} hasta={hasta} equipo={vendedor ? undefined : equipo} vendedor={vendedor || undefined} />
+          </Suspense>
+        )}
 
         <Suspense fallback={<KpiSkeleton />}>
           {vendedor ? (

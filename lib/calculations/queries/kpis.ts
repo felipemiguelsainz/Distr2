@@ -297,3 +297,37 @@ export async function fetchVendedorKpis(
 ): Promise<KpiRubro[]> {
   return _fetchVendedorKpisImpl(vendedor, year, month, dateStr(today));
 }
+
+// ---------------------------------------------------------------------------
+// Ventas en un rango de fechas arbitrario (desde–hasta). SOLO lo vendido
+// (kilos/$), sin metas ni proyección (que son mensuales). Es un agregado
+// ADITIVO al filtro por mes: responde "cuánto se vendió del X al Y". Cacheado.
+// ---------------------------------------------------------------------------
+export interface VentasRango {
+  porRubro: { rubro: string; kilos: number; neto: number }[];
+  totalKilos: number;
+  totalNeto: number;
+}
+
+const _fetchVentasRangoImpl = unstable_cache(
+  async (desde: string, hasta: string, eq: string | null, vnd: string | null): Promise<VentasRango> => {
+    const supabase = createServiceClient();
+    const { data } = await supabase.rpc('kpi_resumen', { p_desde: desde, p_hasta: hasta, p_equipo: eq, p_vendedor: vnd });
+    const porRubro = ((data ?? []) as RpcKpiRow[])
+      .map((r) => ({ rubro: r.rubro, kilos: Number(r.kilos), neto: Number(r.neto) }))
+      .sort((a, b) => a.rubro.localeCompare(b.rubro));
+    return {
+      porRubro,
+      totalKilos: porRubro.reduce((s, r) => s + r.kilos, 0),
+      totalNeto:  porRubro.reduce((s, r) => s + r.neto, 0),
+    };
+  },
+  ['fetchVentasRango'],
+  { revalidate: 300, tags: ['kpis'] },
+);
+
+export async function fetchVentasRango(
+  desde: string, hasta: string, equipo?: string, vendedor?: string,
+): Promise<VentasRango> {
+  return _fetchVentasRangoImpl(desde, hasta, equipo ?? null, vendedor ?? null);
+}
