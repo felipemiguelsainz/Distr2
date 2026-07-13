@@ -301,15 +301,17 @@ export async function getLatestInsight(
   svc: SupabaseClient,
   scopeKey: string
 ): Promise<{ payload: InsightPayload; generated_at: string } | null> {
-  const { data: row } = await svc
+  // La MÁS RECIENTE CON cards. Puede haber filas de 0 cards más nuevas (basura de
+  // un intento fallido); las salteamos en vez de mostrar "sin acciones".
+  const { data: rows } = await svc
     .from('ai_insights')
     .select('payload, generated_at')
     .eq('scope_key', scopeKey)
     .order('generated_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const cached = row?.payload as InsightPayload | undefined;
-  if (cached && (cached.cards?.length ?? 0) > 0) return { payload: cached, generated_at: row!.generated_at };
+    .limit(5);
+  for (const row of (rows ?? []) as { payload: InsightPayload; generated_at: string }[]) {
+    if ((row.payload?.cards?.length ?? 0) > 0) return { payload: row.payload, generated_at: row.generated_at };
+  }
   return null;
 }
 
