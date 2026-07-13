@@ -23,6 +23,20 @@ try {
   }
 } catch { /* en CI no hay .env.local */ }
 
+// Chequeo temprano y claro de las variables requeridas (evita el críptico
+// "supabaseUrl is required" y dice EXACTAMENTE cuál falta).
+const REQUERIDAS = ['NEXT_PUBLIC_SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'ANTHROPIC_API_KEY'] as const;
+const faltan = REQUERIDAS.filter((k) => !process.env[k]);
+if (faltan.length) {
+  console.error(
+    `\n✗ Faltan variables de entorno: ${faltan.join(', ')}.\n` +
+    `  En GitHub: repo → Settings → Secrets and variables → Actions → pestaña "Secrets"\n` +
+    `  (NO "Variables"), botón "New repository secret". La URL de Supabase ya viene\n` +
+    `  hardcodeada en el workflow, así que sólo necesitás SUPABASE_SERVICE_ROLE_KEY y ANTHROPIC_API_KEY.\n`,
+  );
+  process.exit(1);
+}
+
 const svc = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
 const MODEL = process.env.INSIGHTS_MODEL || 'claude-sonnet-5';
 const LIMIT = process.env.INSIGHTS_LIMIT ? Number(process.env.INSIGHTS_LIMIT) : Infinity;

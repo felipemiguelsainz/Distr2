@@ -24,7 +24,9 @@ jobs:
         run: npx ts-node -T -P tsconfig.scripts.json -r tsconfig-paths/register scripts/daily-jobs.ts
         env:
           AI_PROVIDER: anthropic
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          # La URL NO es secreta (está en el bundle público del navegador) → hardcodeada
+          # acá para no depender de un secret. Sólo hay que cargar los 2 secrets de abajo.
+          NEXT_PUBLIC_SUPABASE_URL: https://inxtqpwyicyysisicpxc.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           INSIGHTS_MODEL: claude-sonnet-5
