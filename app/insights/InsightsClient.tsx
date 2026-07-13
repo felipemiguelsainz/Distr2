@@ -180,7 +180,16 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
       {loading && !payload && (
         <div className="flex items-center gap-2.5 text-sm text-gray-500 py-10 justify-center">
           <RefreshCw className="w-4 h-4 animate-spin" />
-          Generando acciones con IA…
+          Cargando…
+        </div>
+      )}
+
+      {/* Sin análisis todavía: el job diario aún no generó este alcance. */}
+      {!loading && !error && payload === null && (
+        <div className="flex flex-col items-center gap-2 text-center py-12 px-4">
+          <Clock className="w-7 h-7 text-gray-300" />
+          <p className="text-sm font-medium text-gray-600">El análisis de este alcance todavía no está disponible.</p>
+          <p className="text-xs text-gray-400 max-w-sm">Se genera automáticamente cada mañana. Si recién cargaste datos, va a aparecer en la próxima corrida.</p>
         </div>
       )}
 

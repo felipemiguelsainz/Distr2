@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { llmAvailable } from '@/lib/ai/provider';
 import { resolveCarteras, type UserContext } from '@/lib/ai/tools';
-import { getOrCreateInsight, avanceFromKpis, type InsightAvance } from '@/lib/ai/insights';
+import { getLatestInsight, avanceFromKpis, type InsightAvance } from '@/lib/ai/insights';
 import { fetchTotalKpis, fetchSupervisorKpis, fetchVendedorKpis } from '@/lib/calculations/queries/kpis';
 
-// La primera generación (KPIs + LLM) puede tardar; evitar el timeout default.
-export const maxDuration = 60;
+// La app SÓLO sirve lo cacheado (rápido). Generar tarda ~35s y no entra en Vercel
+// free (10s): lo hace el job diario (scripts/daily-jobs.ts en GitHub Actions).
+export const maxDuration = 15;
 
 type SvcClient = ReturnType<typeof createServiceClient>;
 
@@ -55,27 +56,29 @@ async function resolveScope(svc: SvcClient, vendedorParam: string | null):
   return { error: 'Sin alcance', status: 403 };
 }
 
-async function handle(vendedor: string | null, force: boolean) {
+async function handle(vendedor: string | null) {
   if (!llmAvailable()) return NextResponse.json({ error: 'Insights no configurados (falta API key).' }, { status: 503 });
   const svc = createServiceClient();
   const res = await resolveScope(svc, vendedor);
   if ('error' in res) return NextResponse.json({ error: res.error }, { status: res.status });
   try {
-    const out = await getOrCreateInsight(svc, { ...res.scope, force });
-    return NextResponse.json(out);
+    // Sólo servir lo cacheado por el job diario. Si aún no hay, payload:null →
+    // la UI muestra "análisis en preparación" en vez de intentar generar (timeout).
+    const out = await getLatestInsight(svc, res.scope.scopeKey);
+    return NextResponse.json(out ?? { payload: null, generated_at: null });
   } catch (e) {
     console.error('[insights]', e);
-    return NextResponse.json({ error: 'Error generando insights.' }, { status: 500 });
+    return NextResponse.json({ error: 'Error leyendo insights.' }, { status: 500 });
   }
 }
 
 export async function GET(req: Request) {
   const vendedor = new URL(req.url).searchParams.get('vendedor')?.trim() || null;
-  return handle(vendedor, false);
+  return handle(vendedor);
 }
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const vendedor = (body.vendedor ?? '').trim() || null;
-  return handle(vendedor, true);
+  return handle(vendedor);
 }

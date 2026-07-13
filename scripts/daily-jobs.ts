@@ -36,10 +36,12 @@ async function geoFix() {
 
 async function insights() {
   const today = new Date();
-  // Vendedores (carteras) con PDV activos + equipos.
-  const { data: pdvRows } = await svc.from('pdvs').select('cartera').eq('activo', true).not('cartera', 'is', null).limit(20000);
-  const carteras = [...new Set(((pdvRows ?? []) as { cartera: string }[]).map((r) => r.cartera))].filter(Boolean).sort();
-  const { data: vends } = await svc.from('vendedores').select('nombre, equipo').eq('activo', true);
+  // Los scopes salen de la tabla `vendedores` (activos) — la MISMA fuente que el
+  // dropdown de la app (app/insights/page.tsx). Así se genera un insight por cada
+  // vendedor seleccionable (no quedan vendedores sin cache). No derivar de
+  // pdvs.cartera: PostgREST topa en 1000 filas y sólo veríamos unas pocas carteras.
+  const { data: vends } = await svc.from('vendedores').select('nombre, equipo').eq('activo', true).order('nombre');
+  const carteras = [...new Set(((vends ?? []) as { nombre: string }[]).map((v) => v.nombre))].filter(Boolean).sort();
   const equipos = new Map<string, string[]>();
   for (const v of (vends ?? []) as { nombre: string; equipo: string | null }[]) {
     if (v.equipo) equipos.set(v.equipo, [...(equipos.get(v.equipo) ?? []), v.nombre]);

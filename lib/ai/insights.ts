@@ -290,6 +290,29 @@ export async function getOrCreateInsight(
   return { payload, generated_at };
 }
 
+/**
+ * Lee el insight cacheado MÁS RECIENTE del scope (cualquier periodo), sin generar.
+ * Es lo que usa la app en Vercel free: generar tarda ~35s y la función se corta a
+ * los 10s. La generación la hace el job diario (GitHub Actions) con `getOrCreateInsight`
+ * y la app sólo sirve. Devuelve null si no hay nada cacheado con cards (→ la UI
+ * muestra "el análisis se prepara de noche" en vez de colgarse generando).
+ */
+export async function getLatestInsight(
+  svc: SupabaseClient,
+  scopeKey: string
+): Promise<{ payload: InsightPayload; generated_at: string } | null> {
+  const { data: row } = await svc
+    .from('ai_insights')
+    .select('payload, generated_at')
+    .eq('scope_key', scopeKey)
+    .order('generated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const cached = row?.payload as InsightPayload | undefined;
+  if (cached && (cached.cards?.length ?? 0) > 0) return { payload: cached, generated_at: row!.generated_at };
+  return null;
+}
+
 // --- Enfriándose: predicado + cómputo de la lista completa (para su página) --
 // Compra regular (cadencia 3–35 días), pero hace >2x su cadencia que no compra
 // y sigue dentro de 90 días (aún "activo" por el corte plano) → alerta temprana.
