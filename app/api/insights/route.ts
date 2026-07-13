@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { llmAvailable } from '@/lib/ai/provider';
 import { resolveCarteras, type UserContext } from '@/lib/ai/tools';
-import { getLatestInsight, avanceFromKpis, type InsightAvance } from '@/lib/ai/insights';
-import { fetchTotalKpis, fetchSupervisorKpis, fetchVendedorKpis } from '@/lib/calculations/queries/kpis';
+import { getLatestInsight } from '@/lib/ai/insights';
 
 // La app SÓLO sirve lo cacheado (rápido). Generar tarda ~35s y no entra en Vercel
 // free (10s): lo hace el job diario (scripts/daily-jobs.ts en GitHub Actions).
@@ -11,15 +10,15 @@ export const maxDuration = 15;
 
 type SvcClient = ReturnType<typeof createServiceClient>;
 
-interface Scope { scopeKey: string; label: string; carteras: string[] | null; avance: InsightAvance[]; today: Date }
-
 /**
- * Resuelve el alcance del insight según el rol y el vendedor pedido (opcional).
- * Sin vendedor: vista agregada (empresa para admin, equipo para supervisor, su
- * propia cartera para vendedor). Con vendedor: ese vendedor, si está en alcance.
+ * Resuelve el scope_key del insight según el rol y el vendedor pedido (opcional),
+ * y autoriza. Sin vendedor: vista agregada (empresa/equipo/su cartera). Con
+ * vendedor: ese vendedor, si está en alcance. NO calcula KPIs: la app sólo sirve
+ * el payload cacheado (que ya trae sus propios números), así que sólo necesita
+ * el scope_key.
  */
 async function resolveScope(svc: SvcClient, vendedorParam: string | null):
-  Promise<{ scope: Scope } | { error: string; status: 401 | 403 | 400 }> {
+  Promise<{ scopeKey: string } | { error: string; status: 401 | 403 | 400 }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'No autenticado', status: 401 };
@@ -28,43 +27,34 @@ async function resolveScope(svc: SvcClient, vendedorParam: string | null):
 
   const ctx: UserContext = { rol: profile.rol, vendedor_nombre: profile.vendedor_nombre, equipo: profile.equipo };
   const allowed = await resolveCarteras(svc, ctx);
-  const today = new Date();
-  const y = today.getFullYear(), m = today.getMonth() + 1;
 
   // Vista por vendedor
   if (vendedorParam) {
     if (allowed !== null && !allowed.includes(vendedorParam)) return { error: 'Vendedor fuera de tu alcance', status: 403 };
-    const avance = avanceFromKpis(await fetchVendedorKpis(vendedorParam, y, m, today));
-    return { scope: { scopeKey: `vendedor:${vendedorParam}`, label: vendedorParam, carteras: [vendedorParam], avance, today } };
+    return { scopeKey: `vendedor:${vendedorParam}` };
   }
 
   // Vista agregada (default)
-  if (ctx.rol === 'admin') {
-    const avance = avanceFromKpis(await fetchTotalKpis(y, m, today));
-    return { scope: { scopeKey: 'empresa:total', label: 'Total Empresa', carteras: null, avance, today } };
-  }
+  if (ctx.rol === 'admin') return { scopeKey: 'empresa:total' };
   if (ctx.rol === 'supervisor') {
-    const equipo = ctx.equipo;
-    if (!equipo) return { error: 'Sin equipo asignado', status: 403 };
-    const sup = await fetchSupervisorKpis(equipo, y, m, today);
-    return { scope: { scopeKey: `equipo:${equipo}`, label: `Equipo ${equipo}`, carteras: allowed, avance: avanceFromKpis(sup.totales), today } };
+    if (!ctx.equipo) return { error: 'Sin equipo asignado', status: 403 };
+    return { scopeKey: `equipo:${ctx.equipo}` };
   }
-  if (ctx.rol === 'vendedor' && ctx.vendedor_nombre) {
-    const avance = avanceFromKpis(await fetchVendedorKpis(ctx.vendedor_nombre, y, m, today));
-    return { scope: { scopeKey: `vendedor:${ctx.vendedor_nombre}`, label: ctx.vendedor_nombre, carteras: [ctx.vendedor_nombre], avance, today } };
-  }
+  if (ctx.rol === 'vendedor' && ctx.vendedor_nombre) return { scopeKey: `vendedor:${ctx.vendedor_nombre}` };
   return { error: 'Sin alcance', status: 403 };
 }
 
 async function handle(vendedor: string | null) {
-  if (!llmAvailable()) return NextResponse.json({ error: 'Insights no configurados (falta API key).' }, { status: 503 });
-  const svc = createServiceClient();
-  const res = await resolveScope(svc, vendedor);
-  if ('error' in res) return NextResponse.json({ error: res.error }, { status: res.status });
+  // TODO dentro de try/catch: cualquier error debe salir como JSON, nunca como
+  // una página HTML de error (rompería el res.json() del cliente).
   try {
+    if (!llmAvailable()) return NextResponse.json({ error: 'Insights no configurados (falta API key).' }, { status: 503 });
+    const svc = createServiceClient();
+    const res = await resolveScope(svc, vendedor);
+    if ('error' in res) return NextResponse.json({ error: res.error }, { status: res.status });
     // Sólo servir lo cacheado por el job diario. Si aún no hay, payload:null →
     // la UI muestra "análisis en preparación" en vez de intentar generar (timeout).
-    const out = await getLatestInsight(svc, res.scope.scopeKey);
+    const out = await getLatestInsight(svc, res.scopeKey);
     return NextResponse.json(out ?? { payload: null, generated_at: null });
   } catch (e) {
     console.error('[insights]', e);

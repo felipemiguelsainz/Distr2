@@ -63,10 +63,15 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
       const res = regenerar
         ? await fetch('/api/insights', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ vendedor: vendedor || undefined }) })
         : await fetch(`/api/insights${vendedor ? `?vendedor=${encodeURIComponent(vendedor)}` : ''}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Error generando insights.');
-      setPayload(data.payload);
-      setGeneratedAt(data.generated_at);
+      // Parseo defensivo: si el server devolvió HTML (error 500/504), no reventar
+      // con "JSON.parse: unexpected character" — mostrar un error legible.
+      const text = await res.text();
+      let data: { payload?: Payload | null; generated_at?: string | null; error?: string } = {};
+      try { data = text ? JSON.parse(text) : {}; }
+      catch { throw new Error('El servidor devolvió una respuesta inesperada. Probá de nuevo en un momento.'); }
+      if (!res.ok) throw new Error(data.error ?? 'Error al cargar los insights.');
+      setPayload(data.payload ?? null);
+      setGeneratedAt(data.generated_at ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
