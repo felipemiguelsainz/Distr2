@@ -57,7 +57,12 @@ async function insights() {
   let ok = 0, vac = 0, err = 0;
   for (const s of scopes) {
     try {
-      const out = await getOrCreateInsight(svc as never, { ...s, avance: [], today, force: true, model: MODEL });
+      let out = await getOrCreateInsight(svc as never, { ...s, avance: [], today, force: true, model: MODEL });
+      // A veces el LLM devuelve JSON no parseable (0 cards) pese a haber datos:
+      // reintentar 1 vez antes de dejar el scope sin insight del día.
+      if (out.payload.cards.length === 0) {
+        out = await getOrCreateInsight(svc as never, { ...s, avance: [], today, force: true, model: MODEL });
+      }
       const n = out.payload.cards.length;
       if (n > 0) ok++; else vac++;
       console.log(`  ${s.scopeKey}: ${n} cards`);
