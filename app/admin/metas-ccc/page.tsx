@@ -103,6 +103,22 @@ export default async function SupervisorMetasPage({
           </div>
         </div>
 
+        {/* Qué es y para qué sirve */}
+        <div className="rounded-2xl border border-[rgba(12,92,171,0.2)] bg-[rgba(12,92,171,0.04)] px-5 py-4 text-[13px] text-[#27272a]">
+          <p className="font-semibold text-[#0c5cab] mb-1.5">¿Qué son las Metas CCC?</p>
+          <p className="mb-2">
+            <strong>CCC = Clientes que Compraron.</strong> La meta CCC es la <strong>cantidad de clientes (PDVs)</strong> que
+            querés que le compren a cada vendedor en el mes: una <strong>meta total</strong> (cuántos de sus clientes deberían
+            comprar algo) y, derivada de ella, una meta <strong>por rubro</strong> (cuántos deberían comprar chocolates,
+            galletitas, etc.). Es una meta de <em>cobertura</em> —cuántos clientes—, distinta de la meta de kilos/$.
+          </p>
+          <ul className="space-y-1 text-[#52525b] list-disc pl-5">
+            <li>Se <strong>prellenan solas</strong> según la penetración histórica de cada vendedor y se recalculan al recargar el maestro de PDVs (badge <span className="text-[#71717a] font-semibold">auto</span>).</li>
+            <li>Editás sólo la <strong>meta total</strong>; las de rubro se recalculan por cascadeo (badge <span className="text-[#0c5cab] font-semibold">editada</span> cuando la tocaste).</li>
+            <li>El <strong>avance</strong> (clientes que efectivamente compraron vs la meta) se ve en el dashboard, en la tabla de clientes.</li>
+          </ul>
+        </div>
+
         {filas.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[#e4e4e7] py-14 text-center text-[14px] text-[#71717a]">
             No hay vendedores activos en este equipo.

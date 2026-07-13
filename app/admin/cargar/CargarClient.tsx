@@ -570,16 +570,21 @@ export function CargarClient() {
 
   async function confirmPdvsUpload() {
     if (!pdvsPendingRows) return;
-    setPdvsLoading(true);
+    // Cerrar el modal al instante (como el de ventas): el progreso y el resultado
+    // se ven en la sección. Antes quedaba abierto hasta terminar la subida.
+    const rows = pdvsPendingRows;
+    const geoRows = pdvsGeoRows;
+    setPdvsPendingRows(null); setReasignaciones([]); setPdvsBajaMasiva(false);
+    setPdvsLoading(true); setPdvsError('');
     try {
       const res = await fetch('/api/admin/pdvs/upload', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rows: pdvsPendingRows, confirmed: true }),
+        body: JSON.stringify({ rows, confirmed: true }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Error al guardar clientes.');
-      setPdvsResult(data); setReasignaciones([]); setPdvsPendingRows(null); setPdvsBajaMasiva(false);
-      await runGeoUpload(pdvsGeoRows); // maestro confirmado → subir geo del mismo archivo
+      setPdvsResult(data);
+      await runGeoUpload(geoRows); // maestro confirmado → subir geo del mismo archivo
       setPdvsGeoRows([]);
     } catch (e) { setPdvsError(e instanceof Error ? e.message : String(e)); }
     finally { setPdvsLoading(false); }
