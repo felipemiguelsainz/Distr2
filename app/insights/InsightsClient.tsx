@@ -48,6 +48,17 @@ function hace(iso: string | null): string {
   return `hace ${Math.round(h / 24)} d`;
 }
 
+// Fecha del análisis (= corte de datos hasta cuando se generó), dd/mm/aaaa.
+function fmtFechaAnalisis(iso: string | null): string {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+// ¿El análisis NO es de hoy? (para avisar que es el último disponible)
+function esDeHoy(iso: string | null): boolean {
+  if (!iso) return false;
+  return new Date(iso).toDateString() === new Date().toDateString();
+}
+
 export function InsightsClient({ vendedores }: { vendedores: string[] }) {
   const [vendedor, setVendedor] = useState(''); // '' = vista agregada (empresa/equipo)
   const [payload, setPayload] = useState<Payload | null>(null);
@@ -107,8 +118,11 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
 
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           {generatedAt && !loading && (
-            <span className="text-xs text-gray-500 bg-white border border-gray-200 rounded-full px-2.5 py-1">
-              {hace(generatedAt)}
+            <span
+              className="text-xs text-gray-500 bg-white border border-gray-200 rounded-full px-2.5 py-1 whitespace-nowrap"
+              title={`Generado ${hace(generatedAt)}`}
+            >
+              Datos al {fmtFechaAnalisis(generatedAt)}
             </span>
           )}
           <div className="relative flex-1 sm:flex-none min-w-[150px]">
@@ -126,6 +140,17 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
       </div>
 
       {error && <p className="mb-6 text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-xl">{error}</p>}
+
+      {/* Aviso: el análisis mostrado no es de hoy (es el último disponible) */}
+      {payload && !loading && generatedAt && !esDeHoy(generatedAt) && (
+        <div className="mb-6 flex items-start gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5">
+          <Clock className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+          <p className="text-sm text-blue-800">
+            Mostrando el último análisis disponible, con datos al <strong>{fmtFechaAnalisis(generatedAt)}</strong>.
+            El análisis de hoy se genera en la próxima corrida.
+          </p>
+        </div>
+      )}
 
       {/* KPI cards */}
       {d && (

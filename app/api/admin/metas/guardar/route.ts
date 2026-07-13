@@ -51,13 +51,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // El avance de los insights (% vs meta) se congela en ai_insights al generarse;
-    // al cambiar las metas hay que limpiar ese cache para que se regeneren.
-    try {
-      await supabase.from('ai_insights').delete().not('scope_key', 'is', null);
-    } catch (e) {
-      console.error('[metas-guardar] limpiar ai_insights:', e);
-    }
+    // NO borrar ai_insights acá: la app ya no genera on-demand (sólo sirve el
+    // cache del job diario). Borrarlos dejaría los insights VACÍOS hasta la
+    // próxima corrida nocturna. El % de avance se refresca solo en esa corrida;
+    // que quede un día levemente desactualizado es preferible a mostrarlos en blanco.
     revalidateTag('kpis', { expire: 0 });
 
     return NextResponse.json({ ok: true, total: rows.length });
