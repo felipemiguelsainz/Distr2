@@ -9,7 +9,54 @@ App de gestión de ventas para una distribuidora de Mondelez en el GBA.
 Stack: **Next.js 16 (App Router, Turbopack) + Supabase (Postgres) + Vercel**.
 Idioma del producto y de los textos: **español rioplatense**.
 Producción: **https://distr2.vercel.app** (auto-deploy desde `main`).
-_Última actualización: 2026-06-24 · migraciones hasta `037` · UI sin emojis, tema claro._
+_Última actualización: 2026-07-12 · migraciones hasta `040` · base Supabase nueva · IA = Claude · UI sin emojis, tema claro._
+
+---
+
+## Estado actual (migración jul-2026: base nueva + Claude + jobs en GitHub Actions)
+
+Cambios grandes de julio 2026. Lo esencial (varias referencias más abajo quedaron viejas):
+
+**Base Supabase NUEVA** (proyecto `inxtqpwyicyysisicpxc`). Se migró todo: 40 migraciones +
+maestros + ~1,25M ventas + geo. El password del `DATABASE_URL` va **percent-encoded** (`#`→`%23`).
+
+**IA = Claude (Anthropic), ya no OpenAI.** `AI_PROVIDER=anthropic` + `ANTHROPIC_API_KEY`
+(en `.env.local` y en Vercel). `lib/ai/provider.ts` sigue agnóstico; `getLLMProvider(model?)`
+permite override de modelo. **Los modelos nuevos (Sonnet 5, Opus 4.6+, Fable/Mythos 5)
+RECHAZAN `temperature`** y traen thinking adaptativo → el provider NO manda `temperature` y
+apaga thinking (`{type:disabled}`) en esos (salida JSON: todo el `max_tokens` va al output).
+Haiku / Sonnet 4.6 siguen con `temperature` como antes.
+
+**Vercel FREE = límite 10s por función.** Sonnet (~36s) y el geo-fix por Nominatim (~17s,
+1 req/seg) NO entran en una función de Vercel. → El **trabajo pesado corre en GitHub Actions**
+(`.github/workflows/daily-jobs.yml` → `scripts/daily-jobs.ts`), cron nocturno, gratis, sin
+límite de tiempo. La app de Vercel SÓLO sirve lo cacheado. Secrets del workflow:
+`NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY`.
+**Regla a futuro: cualquier tarea que pase de 10s va a GitHub Actions, no a una función de Vercel.**
+
+**Insights (Módulo 3), rediseño:**
+- Cache **DIARIO** (`ai_insights.periodo` = `YYYY-MM-DD`): 1 generación por scope por día,
+  servida el resto del día. Ya NO se borra en cada carga de ventas (eso gastaba créditos).
+- Nunca se **sirve** un cache con `cards=[]` (se regenera) ni se **cachea** uno vacío.
+- Calidad: el prompt pide **5-8 acciones BUENAS** con pasos MUY concretos (a quién contactar,
+  qué ofrecer/decir, cómo). `parseCards` corta en 8. `maxTokens` 8000.
+- **Modelo split:** la app genera lazy con **Haiku** (rápido, entra en 10s) como fallback;
+  el job nocturno de GitHub Actions genera con **Sonnet 5** (profundo) para todos los scopes
+  y los deja cacheados. `getOrCreateInsight`/`generateCards` aceptan `model`.
+
+**Geo (detalle en §4):** flag `aproximada` (centro de barrio, no dirección exacta — mig 038)
+marcado en mapa (pin punteado + aviso) y rutas; `geo_verificada` (mig 039) protege los
+arreglos de IA de ser pisados por un re-upload; `pdvs_geo_pendientes` (mig 040) es la cola
+que consume el geo-fix. Auditoría por **point-in-polygon del partido** (partido = la verdad).
+**Coordenada precisa ≠ correcta:** una coord siempre "vale" (apunta a algún lado); el problema
+era que la del CSV apuntaba a la puerta equivocada. Dibujar el pin es trivial; que apunte bien
+es lo difícil — un pin perfecto en el lugar equivocado es peor que no tenerlo.
+
+**Seguridad (auditoría con Fable 5):** `proxy.ts` bloquea cuentas `activo=false` en TODA ruta
+(incl. /api) y al desactivar se banea la sesión en Supabase Auth; `borrar-mes`/`recalcular-resumen`
+usan rango `[mes, mes+1)` con `.lt` (el `-31` fijo rompía meses de 30 días y feb, y borrar-mes
+fallaba en silencio); `/dashboard/total` re-chequea rol en la página. Archivos con PII sacados
+del git (historial reescrito). Nunca pegar secretos en el chat.
 
 ---
 
@@ -230,10 +277,12 @@ distingue la altura; **Google Geocoding** las cerraría mejor (upgrade de un ren
   + `GRANT` a `service_role` (ver migración `024`).
 
 ### Env vars en Vercel (gotcha real)
-- La IA necesita **una sola** var: **`OPENAI_API_KEY`** (nombre EXACTO). `AI_PROVIDER`,
-  `OPENAI_MODEL`, `ANTHROPIC_API_KEY` son opcionales — NO crearlas salvo que pases
-  a Claude. Si `AI_PROVIDER=anthropic` por error, `llmAvailable()` mira la key de
-  Anthropic y da "no configurado".
+- La IA hoy usa **Claude**: `AI_PROVIDER=anthropic` + `ANTHROPIC_API_KEY` (nombres
+  EXACTOS). `llmAvailable()` mira la key del proveedor activo → si falta, la IA
+  "degrada" (no aparece) en vez de romper. (`OPENAI_API_KEY` quedó como fallback
+  si algún día se vuelve a `AI_PROVIDER=openai`; hoy se ignora.)
+- **Los mismos secrets van también en GitHub Actions** (para el job diario de
+  insights/geo): `ANTHROPIC_API_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
 - Debe estar en scope **Production** (los 3 checkboxes: Production/Preview/Dev).
 - **Vercel NO aplica una env nueva al deployment ya corriendo**: hay que
   **redeploy** después de cargarla. "no configurado" = la var no llega (nombre,
