@@ -401,7 +401,8 @@ export default function MapaClient() {
   // Maps acepta ~10 puntos por link, así que partimos en tramos continuos
   // (cada tramo arranca donde terminó el anterior) respetando el orden óptimo.
   const gmapsLinks = useMemo(() => {
-    if (!ruta || ruta.stops.length === 0) return [] as string[];
+    type Tramo = { url: string; desde: number; hasta: number };
+    if (!ruta || ruta.stops.length === 0) return [] as Tramo[];
     const coords = ruta.stops.map(s => `${s.lat},${s.lon}`);
     const MAX = 10; // origen + hasta 8 intermedios + destino
     const buildUrl = (chunk: string[]) => {
@@ -412,12 +413,14 @@ export default function MapaClient() {
       if (waypoints) params.set('waypoints', waypoints);
       return `https://www.google.com/maps/dir/?${params.toString()}`;
     };
-    const links: string[] = [];
+    const links: Tramo[] = [];
     if (coords.length <= MAX) {
-      links.push(buildUrl(coords));
+      links.push({ url: buildUrl(coords), desde: 1, hasta: coords.length });
     } else {
+      // Tramos continuos (cada uno arranca donde terminó el anterior → solapan 1 parada).
       for (let i = 0; i < coords.length - 1; i += MAX - 1) {
-        links.push(buildUrl(coords.slice(i, i + MAX)));
+        const chunk = coords.slice(i, i + MAX);
+        links.push({ url: buildUrl(chunk), desde: i + 1, hasta: Math.min(i + MAX, coords.length) });
       }
     }
     return links;
@@ -626,16 +629,25 @@ export default function MapaClient() {
             </button>
             {ruta && ruta.stops.length > 0 && (
               <>
-                {gmapsLinks.map((url, i) => (
+                {gmapsLinks.length > 1 && (
+                  <p className="w-full text-[11px] text-[#71717a] leading-snug">
+                    La ruta tiene <strong className="text-[#09090b]">{ruta.stops.length} paradas</strong>. Google Maps
+                    admite ~10 por link, así que la dividimos en <strong className="text-[#09090b]">{gmapsLinks.length} tramos</strong>.
+                    Abrí cada uno en orden.
+                  </p>
+                )}
+                {gmapsLinks.map((t, i) => (
                   <a
-                    key={url}
-                    href={url}
+                    key={t.url}
+                    href={t.url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium rounded-[8px] border border-[#e4e4e7] bg-white text-[#0c5cab] hover:border-[#d4d4d8] transition-colors"
                   >
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1112 6.5a2.5 2.5 0 010 5z"/></svg>
-                    {gmapsLinks.length === 1 ? 'Abrir en Google Maps' : `Maps · tramo ${i + 1}/${gmapsLinks.length}`}
+                    {gmapsLinks.length === 1
+                      ? 'Abrir en Google Maps'
+                      : `Abrir tramo ${i + 1} en Maps (paradas ${t.desde}–${t.hasta}) →`}
                   </a>
                 ))}
                 <button

@@ -15,19 +15,22 @@ type ColDef = {
   label: string;
   type: 'kg' | 'pct' | 'pct_signed' | 'currency' | 'currency_signed' | 'dash';
   colorFn?: (val: number) => string;
+  // Columnas menos críticas → ocultas en mobile (<640px) para que las prioritarias
+  // (Rubro, Meta, Acum., Av%, vsAA) no se encimen. En ≥sm reaparecen.
+  mobileHidden?: boolean;
 };
 
-// Mes corriente — KG
+// Mes corriente — KG. Prioritarias en mobile: Meta, Acum., Av%, vsAA.
 const KG_CURRENT: ColDef[] = [
   { key: 'meta',              label: 'Meta',      type: 'kg' },
   { key: 'acumulado',         label: 'Acum.',     type: 'kg' },
-  { key: 'tendencia',         label: 'Tend.',     type: 'kg' },
+  { key: 'tendencia',         label: 'Tend.',     type: 'kg',                             mobileHidden: true },
   { key: 'avance_pct',        label: 'Av%',       type: 'pct',        colorFn: avanceColor },
-  { key: 'media_real',        label: 'Med.R',     type: 'kg' },
-  { key: 'media_necesaria',   label: 'Med.N',     type: 'kg' },
-  { key: 'mismo_dia_minus7',  label: 'D−7',       type: 'kg' },
-  { key: 'mismo_dia_minus14', label: 'D−14',      type: 'kg' },
-  { key: 'acumulado_aa',      label: 'AA',        type: 'kg' },
+  { key: 'media_real',        label: 'Med.R',     type: 'kg',                             mobileHidden: true },
+  { key: 'media_necesaria',   label: 'Med.N',     type: 'kg',                             mobileHidden: true },
+  { key: 'mismo_dia_minus7',  label: 'D−7',       type: 'kg',                             mobileHidden: true },
+  { key: 'mismo_dia_minus14', label: 'D−14',      type: 'kg',                             mobileHidden: true },
+  { key: 'acumulado_aa',      label: 'AA',        type: 'kg',                             mobileHidden: true },
   { key: 'avance_vs_aa_pct',  label: 'vsAA',      type: 'pct_signed', colorFn: vsAaColor },
 ];
 
@@ -38,17 +41,17 @@ const KG_PAST: ColDef[] = [
   { key: 'avance_vs_aa_pct', label: 'vsAA',  type: 'pct_signed', colorFn: vsAaColor },
 ];
 
-// Mes corriente — Neto
+// Mes corriente — Neto. Prioritarias en mobile: Meta, Acum., Av%, vsAA.
 const NETO_CURRENT: ColDef[] = [
   { key: 'neto_meta',              label: 'Meta',  type: 'currency' },
   { key: 'neto_acumulado',         label: 'Acum.', type: 'currency' },
-  { key: 'neto_tendencia',         label: 'Tend.', type: 'currency' },
+  { key: 'neto_tendencia',         label: 'Tend.', type: 'currency',                       mobileHidden: true },
   { key: 'avance_pct',             label: 'Av%',   type: 'pct',        colorFn: avanceColor },
-  { key: 'neto_media_real',        label: 'Med.R', type: 'currency' },
-  { key: 'neto_media_necesaria',   label: 'Med.N', type: 'currency' },
-  { key: 'neto_mismo_dia_minus7',  label: 'D−7',    type: 'currency' },
-  { key: 'neto_mismo_dia_minus14', label: 'D−14',   type: 'currency' },
-  { key: 'neto_acumulado_aa',      label: 'AA',    type: 'currency' },
+  { key: 'neto_media_real',        label: 'Med.R', type: 'currency',                       mobileHidden: true },
+  { key: 'neto_media_necesaria',   label: 'Med.N', type: 'currency',                       mobileHidden: true },
+  { key: 'neto_mismo_dia_minus7',  label: 'D−7',    type: 'currency',                      mobileHidden: true },
+  { key: 'neto_mismo_dia_minus14', label: 'D−14',   type: 'currency',                      mobileHidden: true },
+  { key: 'neto_acumulado_aa',      label: 'AA',    type: 'currency',                       mobileHidden: true },
   { key: 'neto_vs_aa_pct',         label: 'vsAA',  type: 'pct_signed', colorFn: vsAaColor },
 ];
 
@@ -118,12 +121,10 @@ function buildTotal(data: KpiRubro[]): KpiRubro {
 // ---------------------------------------------------------------------------
 function Cell({ col, row, isTotal, darkBg = false }: { col: ColDef; row: KpiRubro; isTotal: boolean; darkBg?: boolean }) {
   const raw = row[col.key];
+  const hideCls = col.mobileHidden ? 'hidden sm:table-cell' : '';
 
-  if (col.type === 'dash') {
-    return <td className="px-2 py-2 text-right text-xs select-none text-[#71717a]/50">—</td>;
-  }
-  if (raw === null) {
-    return <td className="px-2 py-2 text-right text-xs select-none text-[#71717a]/50">—</td>;
+  if (col.type === 'dash' || raw === null) {
+    return <td className={`px-2 py-2 text-right text-xs select-none text-[#71717a]/50 ${hideCls}`}>—</td>;
   }
 
   const val        = Number(raw) || 0;
@@ -141,7 +142,7 @@ function Cell({ col, row, isTotal, darkBg = false }: { col: ColDef; row: KpiRubr
   const baseText  = darkBg ? 'text-[#09090b]' : 'text-[#27272a]';
 
   return (
-    <td className={`px-2 py-2 text-right whitespace-nowrap tabular-nums text-[12px] ${
+    <td className={`px-2 py-2 text-right whitespace-nowrap tabular-nums text-[12px] ${hideCls} ${
       isColored
         ? `${colorClass} ${isTotal ? 'font-bold' : 'font-semibold'}`
         : `${baseText} ${isTotal ? 'font-bold' : ''}`
@@ -176,23 +177,27 @@ function DataTable({ data, label, isKg }: { data: KpiRubro[]; label: string; isK
     { row: totalGeneral, kind: 'total' as const },
   ];
 
-  // Min width keeps columns readable on phones; below it the table scrolls
-  // horizontally instead of squeezing the numbers. (label col + numeric cols)
-  const minWidth = 150 + cols.length * 58;
+  // Min-width mantiene las columnas legibles; por debajo la tabla scrollea en vez
+  // de encimar los números. En mobile se ocultan columnas (mobileHidden) → min-width
+  // menor para que las prioritarias entren sin scroll; en ≥sm entran todas.
+  const visibleMobile = cols.filter((c) => !c.mobileHidden).length;
+  const mwDesktop = 150 + cols.length * 58;
+  const mwMobile  = 110 + visibleMobile * 62;
+  const cssVars = { ['--mw-m' as string]: `${mwMobile}px`, ['--mw-d' as string]: `${mwDesktop}px` } as React.CSSProperties;
 
   return (
     <div>
       <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a] mb-2" style={{fontFamily: "'JetBrains Mono', monospace"}}>{label}</p>
-      <div className="rounded-2xl border border-[#e4e4e7] shadow-xl shadow-black/5 overflow-hidden">
-        <div className="overflow-x-auto">
-        <table className="w-full table-fixed" style={{ minWidth }}>
+      <div className="relative rounded-2xl border border-[#e4e4e7] shadow-xl shadow-black/5 overflow-hidden">
+        <div className="overflow-x-auto [-webkit-overflow-scrolling:touch]">
+        <table className="w-full table-fixed min-w-[var(--mw-m)] sm:min-w-[var(--mw-d)]" style={cssVars}>
           <thead>
             <tr className="bg-[#f4f4f5]/80 border-b border-[#e4e4e7]">
-              <th className="sticky left-0 z-10 bg-[#f4f4f5] px-3 py-2.5 text-left text-[9px] font-semibold uppercase tracking-[0.1em] text-[#71717a] w-[150px]" style={{fontFamily: "'JetBrains Mono', monospace"}}>
+              <th className="sticky left-0 z-10 bg-[#f4f4f5] px-3 py-2.5 text-left text-[9px] font-semibold uppercase tracking-[0.1em] text-[#71717a] w-[110px] sm:w-[150px]" style={{fontFamily: "'JetBrains Mono', monospace"}}>
                 Rubro
               </th>
               {cols.map((c, i) => (
-                <th key={`${c.key}-${i}`} className="px-2 py-2.5 text-right text-[9px] font-semibold uppercase tracking-[0.1em] text-[#71717a] whitespace-nowrap" style={{fontFamily: "'JetBrains Mono', monospace"}}>
+                <th key={`${c.key}-${i}`} className={`px-2 py-2.5 text-right text-[9px] font-semibold uppercase tracking-[0.1em] text-[#71717a] whitespace-nowrap ${c.mobileHidden ? 'hidden sm:table-cell' : ''}`} style={{fontFamily: "'JetBrains Mono', monospace"}}>
                   {c.label}
                 </th>
               ))}
@@ -213,7 +218,7 @@ function DataTable({ data, label, isKg }: { data: KpiRubro[]; label: string; isK
                   : 'bg-[#ffffff] text-[#27272a] font-semibold';
               return (
                 <tr key={`${kind}-${idx}-${row.rubro}`} className={trCls}>
-                  <td className={`sticky left-0 z-10 px-3 py-2 truncate max-w-[150px] text-[12px] ${labelCls}`}>
+                  <td className={`sticky left-0 z-10 px-3 py-2 truncate max-w-[110px] sm:max-w-[150px] text-[12px] ${labelCls}`}>
                     {row.rubro}
                   </td>
                   {cols.map((col, i) => (
@@ -225,6 +230,8 @@ function DataTable({ data, label, isKg }: { data: KpiRubro[]; label: string; isK
           </tbody>
         </table>
         </div>
+        {/* Hint de scroll horizontal (solo mobile): degradé en el borde derecho. */}
+        <div className="pointer-events-none absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-white to-transparent sm:hidden" />
       </div>
     </div>
   );
