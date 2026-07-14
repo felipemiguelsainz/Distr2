@@ -443,6 +443,61 @@ export default function MapaClient() {
     return links;
   }, [ruta]);
 
+  // Exportar la ruta a PDF: captura del mapa (html2canvas) + lista de paradas (jspdf).
+  // Los libs se importan dinámicamente para no engordar el bundle inicial. El
+  // TileLayer va con crossOrigin para que la captura de los tiles de OSM no
+  // "taintee" el canvas (OSM manda Access-Control-Allow-Origin: *).
+  const exportarPDF = useCallback(async () => {
+    if (!ruta || ruta.stops.length === 0 || !mapaRef.current) return;
+    setPdfLoading(true);
+    setRutaError(null);
+    try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ]);
+      // Dar tiempo a que terminen de cargar los tiles antes de capturar.
+      await new Promise((r) => setTimeout(r, 1300));
+      const canvas = await html2canvas(mapaRef.current, {
+        useCORS: true, allowTaint: false, scale: 2, logging: false, backgroundColor: '#ffffff',
+      });
+      const imgData = canvas.toDataURL('image/png');
+
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const diaNombre = DIA_NAMES[ruta.dia] ?? ruta.dia;
+      pdf.setFontSize(16);
+      pdf.text(`Ruta — ${ruta.vendedor}`, 15, 18);
+      pdf.setFontSize(11);
+      pdf.setTextColor(110);
+      pdf.text(`Día: ${diaNombre} · ${ruta.stops.length} paradas · Generado: ${new Date().toLocaleDateString('es-AR')}`, 15, 25);
+      pdf.setTextColor(0);
+
+      // Imagen del mapa, manteniendo el aspect ratio (ancho útil 180mm).
+      const pageW = 180;
+      const imgH = Math.min(120, (canvas.height / canvas.width) * pageW);
+      pdf.addImage(imgData, 'PNG', 15, 30, pageW, imgH);
+
+      // Lista ordenada de paradas.
+      let y = 30 + imgH + 9;
+      pdf.setFontSize(12);
+      pdf.text('Paradas en orden', 15, y); y += 7;
+      pdf.setFontSize(10);
+      ruta.stops.forEach((s, i) => {
+        if (y > 285) { pdf.addPage(); y = 20; }
+        const loc = s.partido ?? s.canal_venta ?? '';
+        pdf.text(`${i + 1}. ${(s.razon_social ?? 'PDV')}${loc ? ' — ' + loc : ''}`.slice(0, 92), 15, y);
+        y += 6;
+      });
+
+      pdf.save(`ruta_${ruta.vendedor}_${ruta.dia}.pdf`.replace(/\s+/g, '_'));
+    } catch (e) {
+      console.error('[exportarPDF]', e);
+      setRutaError('No se pudo generar el PDF (la captura del mapa falló). Probá de nuevo.');
+    } finally {
+      setPdfLoading(false);
+    }
+  }, [ruta]);
+
   const filtered = useMemo(() => {
     return puntos.filter(p => {
       if (selPdvs.size      > 0 && !selPdvs.has(String(p.pdv_id)))                        return false;
@@ -684,6 +739,25 @@ export default function MapaClient() {
                   </a>
                 ))}
                 <button
+                  onClick={exportarPDF}
+                  disabled={pdfLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium rounded-[8px] border border-[#e4e4e7] bg-white text-[#0c5cab] hover:border-[#d4d4d8] transition-colors disabled:opacity-60"
+                >
+                  {pdfLoading ? (
+                    <>
+                      <span className="w-3.5 h-3.5 rounded-full border-2 border-[#e4e4e7] border-t-[#0c5cab] animate-spin" />
+                      Generando…
+                    </>
+                  ) : (
+                    <>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+                      </svg>
+                      Exportar PDF
+                    </>
+                  )}
+                </button>
+                <button
                   onClick={copiarCoords}
                   className="px-3 py-1.5 text-[12px] font-medium rounded-[8px] border border-[#e4e4e7] bg-white text-[#0c5cab] hover:border-[#d4d4d8] transition-colors"
                 >
@@ -804,6 +878,7 @@ export default function MapaClient() {
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              crossOrigin="anonymous"
             />
             {!ruta && (
             <MarkerClusterGroup chunkedLoading>
