@@ -330,6 +330,23 @@ export default function MapaClient() {
   const [rutaRadio,   setRutaRadio]   = useState(400); // radio apagados cercanos (m)
   const [rutaExtras,  setRutaExtras]  = useState<Set<number>>(new Set()); // PDVs sumados a mano
 
+  // Panel de filtros colapsable (Fix 1): recuerda la preferencia en localStorage.
+  const [panelColapsado, setPanelColapsado] = useState(false);
+  useEffect(() => {
+    try { setPanelColapsado(localStorage.getItem('mapa_panel_colapsado') === '1'); } catch { /* ignore */ }
+  }, []);
+  const togglePanel = useCallback(() => {
+    setPanelColapsado(v => {
+      const next = !v;
+      try { localStorage.setItem('mapa_panel_colapsado', next ? '1' : '0'); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+
+  // Ref al contenedor del mapa (para exportar PDF con captura — Fix 4).
+  const mapaRef = useRef<HTMLDivElement>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+
   // Fetch de la ruta con extras/radio explícitos (evita estado stale al sumar).
   const fetchRutaWith = useCallback(async (extras: Set<number>, radio: number) => {
     const vend = rutaVend || (opts.vendedores.length === 1 ? opts.vendedores[0] : '');
@@ -488,17 +505,33 @@ export default function MapaClient() {
               )}
             </p>
           </div>
-          {/* Legend */}
-          <div className="flex flex-wrap gap-3">
-            {LEGEND_ITEMS.map(l => (
-              <div key={l.label} className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: l.color }} />
-                <span className="text-[11px] text-[#71717a]">{l.label}</span>
-              </div>
-            ))}
+          {/* Legend + toggle colapsar panel */}
+          <div className="flex items-center gap-3">
+            <div className={`flex-wrap gap-3 ${panelColapsado ? 'hidden sm:flex' : 'flex'}`}>
+              {LEGEND_ITEMS.map(l => (
+                <div key={l.label} className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: l.color }} />
+                  <span className="text-[11px] text-[#71717a]">{l.label}</span>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={togglePanel}
+              title={panelColapsado ? 'Mostrar filtros' : 'Ocultar filtros'}
+              aria-label={panelColapsado ? 'Mostrar filtros' : 'Ocultar filtros'}
+              className="flex items-center gap-1 shrink-0 px-2.5 py-1.5 text-[12px] font-medium rounded-[8px] border border-[#e4e4e7] bg-white text-[#71717a] hover:text-[#09090b] hover:border-[#d4d4d8] transition-colors"
+            >
+              {panelColapsado ? 'Filtros' : 'Ocultar'}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`transition-transform duration-200 ${panelColapsado ? '' : 'rotate-180'}`}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
           </div>
         </div>
 
+        {/* Contenedor colapsable: filtros + panel de ruta (Fix 1). overflow-hidden
+            SÓLO al colapsar, para no recortar los dropdowns de los MultiSelect abiertos. */}
+        <div className={`transition-all duration-200 ${panelColapsado ? 'max-h-0 opacity-0 overflow-hidden pointer-events-none' : 'max-h-[2000px] opacity-100'}`}>
         {/* ── Filter bar ── */}
         <div className="flex flex-wrap items-center gap-2 mt-3">
           <MultiSelect
@@ -748,11 +781,12 @@ export default function MapaClient() {
             )}
           </div>
         )}
+        </div>{/* fin contenedor colapsable */}
       </div>
 
       {/* ── Map ── */}
       <div className="flex-1 px-6 pb-6 min-h-0">
-        <div className="relative h-full w-full rounded-2xl overflow-hidden border border-[#e4e4e7]">
+        <div ref={mapaRef} className="relative h-full w-full rounded-2xl overflow-hidden border border-[#e4e4e7]">
           {loading && (
             <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-[#fafafa]/70 backdrop-blur-sm">
               <div className="flex items-center gap-2.5 text-[13px] text-[#71717a]">
