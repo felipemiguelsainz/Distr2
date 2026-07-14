@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DropZone } from '@/components/upload/DropZone';
 import type { VentasPreview } from '@/lib/excel/parser';
 import { Select } from '@/components/ui/Select';
@@ -430,6 +430,39 @@ function ReasignacionModal({
   );
 }
 
+function HuerfanosModal({
+  huerfanos, message, onConfirm, onCancel,
+}: { huerfanos: string[]; message: string; onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-[#ffffff] rounded-2xl border border-[#e4e4e7] shadow-[0_16px_48px_rgba(0,0,0,0.18)] max-w-lg w-full p-6">
+        <h3 className="text-[17px] font-semibold text-[#09090b] mb-2">Vendedores no encontrados en el maestro</h3>
+        <p className="text-[13px] text-[#71717a] mb-3">
+          {message || 'Estas ventas mencionan vendedores que no están en el maestro. Si confirmás, se cargan igual.'}
+        </p>
+        <div className="max-h-56 overflow-y-auto rounded-xl border border-[#e4e4e7] divide-y divide-[#e4e4e7] text-[13px]">
+          {huerfanos.map((h, i) => <div key={i} className="px-4 py-2 text-[#27272a]">{h}</div>)}
+        </div>
+        <div className="mt-5 flex gap-2.5 justify-end">
+          <button
+            onClick={onCancel}
+            className="px-4 py-[9px] text-[13px] font-medium text-[#71717a] bg-[rgba(0,0,0,0.04)] border border-[#e4e4e7] rounded-[8px] hover:bg-[rgba(0,0,0,0.06)] transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-[9px] text-[13px] font-bold text-white rounded-[9px] hover:-translate-y-px hover:brightness-110 transition-all shadow-[0_4px_16px_rgba(12,92,171,0.3)]"
+            style={{ background: 'linear-gradient(135deg, #0c5cab, #0c5cab)' }}
+          >
+            Cargar igual
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function CargarClient() {
   const [ventasLoading, setVentasLoading] = useState(false);
   const [ventasResult, setVentasResult] = useState<VentasUploadResult | null>(null);
@@ -462,6 +495,16 @@ export function CargarClient() {
   const [borrarResult,     setBorrarResult]     = useState('');
   const [borrarConfirm,    setBorrarConfirm]    = useState(false);
   const [recalcLoading,    setRecalcLoading]    = useState(false);
+
+  // Bloquear el scroll del fondo mientras hay un modal abierto (si no, la página
+  // de atrás scrollea y se ve mal).
+  useEffect(() => {
+    const abierto = ventasPreview !== null || pdvsPendingRows !== null || huerfanosWarning !== null;
+    if (!abierto) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [ventasPreview, pdvsPendingRows, huerfanosWarning]);
 
   async function handleBorrarMes() {
     if (!borrarConfirm) { setBorrarConfirm(true); return; }
@@ -500,8 +543,9 @@ export function CargarClient() {
 
   async function confirmVentasUpload(confirmedHuerfanos = false) {
     if (!ventasPendingFile) return;
-    if (!confirmedHuerfanos) setVentasPreview(null);
-    setVentasLoading(true);
+    // Cerrar SIEMPRE los modales al confirmar; el progreso/resultado va en la sección.
+    setVentasPreview(null); setHuerfanosWarning(null);
+    setVentasLoading(true); setVentasError(''); setVentasResult(null);
     try {
       const formData = new FormData();
       formData.append('file', ventasPendingFile);
@@ -509,14 +553,18 @@ export function CargarClient() {
       const res = await fetch('/api/admin/ventas/upload', { method: 'POST', body: formData });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Error al cargar ventas.');
-      // Si el server pide confirmación por vendedores huérfanos, mostrar prompt
+      // El server pide confirmar por vendedores huérfanos → mostrar ese modal.
+      // NO limpiar el archivo: se reusa en el reintento confirmado.
       if (data.requires_confirmation && Array.isArray(data.huerfanos)) {
         setHuerfanosWarning({ huerfanos: data.huerfanos, message: data.message ?? '' });
         return;
       }
       setVentasResult(data);
-    } catch (e) { setVentasError(e instanceof Error ? e.message : String(e)); }
-    finally { setVentasLoading(false); if (!confirmedHuerfanos) setVentasPendingFile(null); }
+      setVentasPendingFile(null);
+    } catch (e) {
+      setVentasError(e instanceof Error ? e.message : String(e));
+      setVentasPendingFile(null);
+    } finally { setVentasLoading(false); }
   }
 
   // Sube la geo (pdvs_geo) DESPUÉS del maestro: el FK exige que pdvs.id ya exista.
@@ -697,8 +745,17 @@ export function CargarClient() {
       {ventasPreview && (
         <VentasPreviewModal
           preview={ventasPreview}
-          onConfirm={confirmVentasUpload}
+          onConfirm={() => confirmVentasUpload(false)}
           onCancel={() => { setVentasPreview(null); setVentasPendingFile(null); }}
+        />
+      )}
+
+      {huerfanosWarning && (
+        <HuerfanosModal
+          huerfanos={huerfanosWarning.huerfanos}
+          message={huerfanosWarning.message}
+          onConfirm={() => confirmVentasUpload(true)}
+          onCancel={() => { setHuerfanosWarning(null); setVentasPendingFile(null); }}
         />
       )}
 
