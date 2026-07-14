@@ -9,7 +9,7 @@ App de gestión de ventas para una distribuidora de Mondelez en el GBA.
 Stack: **Next.js 16 (App Router, Turbopack) + Supabase (Postgres) + Vercel**.
 Idioma del producto y de los textos: **español rioplatense**.
 Producción: **https://distr2.vercel.app** (auto-deploy desde `main`).
-_Última actualización: 2026-07-12 · migraciones hasta `040` · base Supabase nueva · IA = Claude · UI sin emojis, tema claro._
+_Última actualización: 2026-07-14 · migraciones hasta `040` · base nueva · IA = Claude · insights SERVE-ONLY + job en GitHub Actions (LIVE) · filtro de rango de fechas · UI sin emojis, tema claro._
 
 ---
 
@@ -30,19 +30,57 @@ Haiku / Sonnet 4.6 siguen con `temperature` como antes.
 **Vercel FREE = límite 10s por función.** Sonnet (~36s) y el geo-fix por Nominatim (~17s,
 1 req/seg) NO entran en una función de Vercel. → El **trabajo pesado corre en GitHub Actions**
 (`.github/workflows/daily-jobs.yml` → `scripts/daily-jobs.ts`), cron nocturno, gratis, sin
-límite de tiempo. La app de Vercel SÓLO sirve lo cacheado. Secrets del workflow:
-`NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY`.
+límite de tiempo. La app de Vercel SÓLO sirve lo cacheado. **YA ESTÁ ANDANDO** (corre solo
+~07:00 ART + `workflow_dispatch` a mano). Secrets en GitHub → Settings → Secrets and variables →
+Actions → pestaña **"Secrets"** (¡NO "Variables", que `secrets.` no lee!): sólo
+**`SUPABASE_SERVICE_ROLE_KEY`** y **`ANTHROPIC_API_KEY`**. La `NEXT_PUBLIC_SUPABASE_URL` va
+**hardcodeada en el workflow** (no es secreta: está en el bundle público) para no depender de un
+secret más. El script `daily-jobs.ts` chequea las env vars y avisa cuál falta (evita el críptico
+"supabaseUrl is required").
 **Regla a futuro: cualquier tarea que pase de 10s va a GitHub Actions, no a una función de Vercel.**
 
-**Insights (Módulo 3), rediseño:**
-- Cache **DIARIO** (`ai_insights.periodo` = `YYYY-MM-DD`): 1 generación por scope por día,
-  servida el resto del día. Ya NO se borra en cada carga de ventas (eso gastaba créditos).
-- Nunca se **sirve** un cache con `cards=[]` (se regenera) ni se **cachea** uno vacío.
-- Calidad: el prompt pide **5-8 acciones BUENAS** con pasos MUY concretos (a quién contactar,
-  qué ofrecer/decir, cómo). `parseCards` corta en 8. `maxTokens` 8000.
-- **Modelo split:** la app genera lazy con **Haiku** (rápido, entra en 10s) como fallback;
-  el job nocturno de GitHub Actions genera con **Sonnet 5** (profundo) para todos los scopes
-  y los deja cacheados. `getOrCreateInsight`/`generateCards` aceptan `model`.
+**Insights (Módulo 3) — la app SÓLO SIRVE, el job GENERA:**
+- Generar un insight tarda ~35s (buildInsightData + LLM) → NO entra en Vercel free (10s). Por eso
+  la app **nunca genera on-demand**: `getLatestInsight(scopeKey)` devuelve el análisis cacheado
+  **más reciente CON cards** (saltea filas de 0 cards, que pueden ser más nuevas). Si no hay ninguno,
+  la UI muestra "análisis en preparación" (nunca se cuelga generando ni tira timeout). El route
+  `/api/insights` **siempre devuelve JSON** (nunca HTML de error) y no calcula KPIs en la lectura,
+  para no romper el `res.json()` del cliente (era el "JSON.parse: unexpected character").
+- El **job nocturno** (GitHub Actions) genera con **Sonnet 5** para todos los scopes. Los scopes
+  salen de la tabla `vendedores` activos (= el dropdown), NO de `pdvs.cartera` (PostgREST topa en
+  1000 filas → sólo veía ~11 de 43). Reintenta 1 vez ante 0 cards (flakiness del LLM).
+- Cache **diario** por scope (`ai_insights.periodo` = `YYYY-MM-DD`); se sirve el último disponible
+  con cartel **"Datos al DD/MM/AAAA"** (+ aviso azul si no es de hoy). Calidad: 5-8 acciones con
+  pasos concretos, `maxTokens` 8000, `parseCards` corta en 8.
+- **NO borrar `ai_insights` al guardar metas/días laborables** (rutas `metas/guardar` y
+  `config-meses`): en serve-only eso los dejaba EN BLANCO hasta la corrida nocturna. El % de avance
+  se refresca solo esa noche. (Fue justo la causa de "análisis no disponible" en todos lados.)
+
+**Filtro de rango de fechas (dashboards):** ADITIVO y **convive** con el selector de mes (no lo
+reemplaza). `RangeFilter` (UI) escribe params `desde`/`hasta` sin tocar el resto; cuando ambos
+están, cada dashboard (Total, Vendedor, Supervisor) muestra el panel `RangoVendido`: SOLO lo
+vendido (kilos/$) del período, total y por rubro, **sin metas ni proyección** (que son mensuales).
+`fetchVentasRango` sobre el RPC `kpi_resumen` (que ya acepta `p_desde`/`p_hasta`).
+
+**Cargar datos por SCRIPT saltea los hooks de la app.** En la migración, ventas/PDVs se cargaron
+con scripts (no por la UI) → NO se dispararon los recomputes que la UI hace sola. Dos consecuencias
+que hubo que arreglar a mano (y a tener en cuenta en cualquier carga por fuera de la UI):
+- `resumen_clientes_pdv` (pre-agregado por PDV/mes) quedó sólo con el mes corriente. Se recomputa
+  con la RPC `recalcular_resumen_clientes_pdv({p_periodos:['YYYY-MM']})` **período por período**
+  (19 juntos → statement timeout de la DB; de a uno ~2s c/u). Ya cubre 2025-01…2026-07.
+- `metas_ccc` quedó vacía → la pantalla de Metas CCC no mostraba nada. Se generan con
+  `calcular_preset_ccc(mes, anio)` (hook real en `pdvs/upload/route.ts`, no pisa lo editado por el
+  supervisor `es_preset=false`). **OJO al orden:** el paso 2 (metas por rubro) lee la penetración
+  del **mismo mes del año pasado** desde `resumen_clientes_pdv` → sin el resumen 2025 recomputado
+  da 0 filas por rubro (sólo totales). Correcto: recomputar resumen 2025 → correr `calcular_preset_ccc`.
+  **CCC = "Clientes que Compraron"**; la meta es de **cobertura** (cuántos clientes deberían comprar,
+  total + por rubro), distinta de la meta de kilos/$. La pantalla ahora explica esto (panel arriba).
+
+**Login endurecido:** botón de ojo (ver/ocultar clave), el **error real** de auth se muestra (no el
+genérico "incorrectos" para todo → tapaba API key mal, etc.), y `.trim()` del email (el
+autocompletado mete espacios). Crear usuarios: `POST /api/admin/usuarios` → contraseña temporal +
+`must_change_password=true`; supervisor → `equipo=target` (mismo valor va también en
+`vendedor_nombre`). El token de sesión es **ES256** (JWKS local, `getClaims()` en `proxy.ts`).
 
 **Geo (detalle en §4):** flag `aproximada` (centro de barrio, no dirección exacta — mig 038)
 marcado en mapa (pin punteado + aviso) y rutas; `geo_verificada` (mig 039) protege los
