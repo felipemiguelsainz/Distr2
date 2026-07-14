@@ -333,7 +333,12 @@ export default function MapaClient() {
   // Panel de filtros colapsable (Fix 1): recuerda la preferencia en localStorage.
   const [panelColapsado, setPanelColapsado] = useState(false);
   useEffect(() => {
-    try { setPanelColapsado(localStorage.getItem('mapa_panel_colapsado') === '1'); } catch { /* ignore */ }
+    try {
+      const stored = localStorage.getItem('mapa_panel_colapsado');
+      // Con preferencia guardada, respetarla. Sin ella, en mobile (<lg) arrancar
+      // COLAPSADO para que el mapa ocupe casi toda la pantalla (Fix 2).
+      setPanelColapsado(stored !== null ? stored === '1' : window.innerWidth < 1024);
+    } catch { /* ignore */ }
   }, []);
   const togglePanel = useCallback(() => {
     setPanelColapsado(v => {
@@ -540,7 +545,7 @@ export default function MapaClient() {
   return (
     <div className="flex flex-col h-full bg-[#fafafa]">
       {/* ── Header ── */}
-      <div className="flex-shrink-0 px-6 pt-6 pb-3">
+      <div className="flex-shrink-0 relative px-4 pt-4 pb-3 sm:px-6 sm:pt-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-[22px] font-bold tracking-[-0.02em] text-[#09090b]">Mapa de PDVs</h1>
@@ -859,7 +864,7 @@ export default function MapaClient() {
       </div>
 
       {/* ── Map ── */}
-      <div className="flex-1 px-6 pb-6 min-h-0">
+      <div className="flex-1 px-4 pb-4 sm:px-6 sm:pb-6 min-h-0">
         <div ref={mapaRef} className="relative h-full w-full rounded-2xl overflow-hidden border border-[#e4e4e7]">
           {loading && (
             <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-[#fafafa]/70 backdrop-blur-sm">
