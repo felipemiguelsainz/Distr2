@@ -21,6 +21,9 @@ export interface RutaStop {
   razon_social: string | null;
   canal_venta: string | null;
   partido: string | null;
+  calle: string | null;      // dirección (de pdvs_geo) — para el PDF de ruta
+  altura: string | null;
+  localidad: string | null;  // de pdvs
   lat: number;
   lon: number;
   ultima_vta: string | null;

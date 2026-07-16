@@ -16,6 +16,9 @@ type GeoRow = {
   razon_social: string | null;
   canal_venta: string | null;
   partido: string | null;
+  calle: string | null;
+  altura: string | null;
+  localidad: string | null;
   lat: number;
   lon: number;
   dia_visita: string | null;
@@ -84,18 +87,20 @@ export async function GET(req: Request) {
   // --- PDVs activos del vendedor con geo (todos los días: base para ruta + sugerencias) ---
   const { data: rows } = await svc
     .from('pdvs')
-    .select('id, razon_social, canal_venta, dia_visita, pdvs_geo!inner ( latitud, longitud, partido, aproximada )')
+    .select('id, razon_social, canal_venta, localidad, dia_visita, pdvs_geo!inner ( latitud, longitud, partido, calle, altura, aproximada )')
     .eq('cartera', vendedor)
     .eq('activo', true)
     .not('pdvs_geo.latitud', 'is', null)
     .not('pdvs_geo.longitud', 'is', null);
 
+  type GeoJoin = { latitud: number; longitud: number; partido: string | null; calle: string | null; altura: string | null; aproximada: boolean | null };
   type Raw = {
     id: number;
     razon_social: string | null;
     canal_venta: string | null;
+    localidad: string | null;
     dia_visita: string | null;
-    pdvs_geo: { latitud: number; longitud: number; partido: string | null; aproximada: boolean | null } | { latitud: number; longitud: number; partido: string | null; aproximada: boolean | null }[] | null;
+    pdvs_geo: GeoJoin | GeoJoin[] | null;
   };
   const candidatos: GeoRow[] = ((rows as unknown as Raw[]) ?? [])
     .map((r) => {
@@ -106,6 +111,9 @@ export async function GET(req: Request) {
         razon_social: r.razon_social,
         canal_venta: r.canal_venta,
         partido: g.partido,
+        calle: g.calle,
+        altura: g.altura,
+        localidad: r.localidad,
         lat: Number(g.latitud),
         lon: Number(g.longitud),
         dia_visita: r.dia_visita,
@@ -140,6 +148,9 @@ export async function GET(req: Request) {
     razon_social: c.razon_social,
     canal_venta: c.canal_venta,
     partido: c.partido,
+    calle: c.calle,
+    altura: c.altura,
+    localidad: c.localidad,
     lat: c.lat,
     lon: c.lon,
     ultima_vta: ultimaMap.get(c.pdv_id) ?? null,

@@ -27,6 +27,12 @@ function systemPrompt(ctx: UserContext): string {
     '- Citá los números exactos que devuelven las tools.',
     '- Si ninguna tool puede responder algo, decilo con honestidad en vez de adivinar.',
     '- No reveles datos fuera del alcance del usuario.',
+    'Podés responder preguntas como:',
+    '- "¿Cuánto vendió [vendedor] en [mes]?" → usá get_ventas',
+    '- "¿Cuántos clientes compraron [categoría] en [mes]?" → usá get_ccc_por_categoria',
+    '- "¿Cuánto vendió [vendedor] en [categoría] en [mes]?" → usá get_ventas con rubro y mes_numero',
+    '- "¿Hasta qué fecha hay datos?" → usá get_ultima_carga',
+    '- "¿Qué clientes no compraron hace más de X meses?" → usá get_pdvs_inactivos',
   ].join('\n');
 }
 

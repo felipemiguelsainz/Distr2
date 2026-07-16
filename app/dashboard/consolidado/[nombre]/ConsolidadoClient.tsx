@@ -67,6 +67,19 @@ function TH({ children, right }: { children: React.ReactNode; right?: boolean })
   );
 }
 
+// Contenedor con scroll horizontal + hint de fade (solo mobile) en el borde derecho,
+// para indicar que hay más columnas cuando la tabla no entra en pantalla.
+function ScrollTable({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="relative">
+      <div className="overflow-x-auto [-webkit-overflow-scrolling:touch]">
+        {children}
+      </div>
+      <div className="pointer-events-none absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-white to-transparent sm:hidden" />
+    </div>
+  );
+}
+
 function SectionHeader({
   title,
   open,
@@ -111,7 +124,7 @@ function KgVendedorTable({ data }: { data: VendedorAgg[] }) {
   const totAvance = tot.meta > 0 ? ((tot.tendencia ?? tot.acumulado) / tot.meta) * 100 : 0;
 
   return (
-    <div className="overflow-x-auto [-webkit-overflow-scrolling:touch]">
+    <ScrollTable>
       <table className="table-fixed w-full text-[11px] min-w-[560px]">
         <thead>
           <tr className="border-b border-[#e4e4e7] bg-[#f4f4f5]/60">
@@ -147,7 +160,7 @@ function KgVendedorTable({ data }: { data: VendedorAgg[] }) {
           </tr>
         </tbody>
       </table>
-    </div>
+    </ScrollTable>
   );
 }
 
@@ -168,7 +181,7 @@ function NetoVendedorTable({ data }: { data: VendedorAgg[] }) {
   const totAvance = tot.meta > 0 ? ((tot.tendencia ?? tot.acumulado) / tot.meta) * 100 : 0;
 
   return (
-    <div className="overflow-x-auto [-webkit-overflow-scrolling:touch]">
+    <ScrollTable>
       <table className="table-fixed w-full text-[11px] min-w-[560px]">
         <thead>
           <tr className="border-b border-[#e4e4e7] bg-[#f4f4f5]/60">
@@ -204,7 +217,7 @@ function NetoVendedorTable({ data }: { data: VendedorAgg[] }) {
           </tr>
         </tbody>
       </table>
-    </div>
+    </ScrollTable>
   );
 }
 
@@ -221,7 +234,7 @@ function CccVendedorTable({ data, metaByVendedor }: { data: CccRow[]; metaByVend
   const totCumpl = totMeta > 0 ? (totAct / totMeta) * 100 : null;
 
   return (
-    <div className="overflow-x-auto [-webkit-overflow-scrolling:touch]">
+    <ScrollTable>
       <table className="table-fixed w-full text-[11px] min-w-[480px]">
         <thead>
           <tr className="border-b border-[#e4e4e7] bg-[#f4f4f5]/60">
@@ -269,7 +282,7 @@ function CccVendedorTable({ data, metaByVendedor }: { data: CccRow[]; metaByVend
           )}
         </tbody>
       </table>
-    </div>
+    </ScrollTable>
   );
 }
 

@@ -497,14 +497,25 @@ export function CargarClient() {
   const [recalcLoading,    setRecalcLoading]    = useState(false);
 
   // Bloquear el scroll del fondo mientras hay un modal abierto (si no, la página
-  // de atrás scrollea y se ve mal).
+  // de atrás scrollea y se ve mal). El contenedor scrolleable es <main> del
+  // ShellLayout (h-dvh + overflow-y-auto), NO document.body — bloquear el body
+  // no tenía efecto y por eso el fondo seguía scrolleando detrás del modal.
   useEffect(() => {
     const abierto = ventasPreview !== null || pdvsPendingRows !== null || huerfanosWarning !== null;
     if (!abierto) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
+    const scroller = document.querySelector('main');
+    if (!scroller) return;
+    const prev = scroller.style.overflow;
+    scroller.style.overflow = 'hidden';
+    return () => { scroller.style.overflow = prev; };
   }, [ventasPreview, pdvsPendingRows, huerfanosWarning]);
+
+  // Tras una carga exitosa el modal se cierra pero <main> queda scrolleado donde
+  // estaba, dejando el banner de resultado (arriba, en la sección) fuera de vista.
+  // Volvemos al tope para que el resultado sea visible.
+  function scrollShellTop() {
+    document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 
   async function handleBorrarMes() {
     if (!borrarConfirm) { setBorrarConfirm(true); return; }
@@ -561,6 +572,7 @@ export function CargarClient() {
       }
       setVentasResult(data);
       setVentasPendingFile(null);
+      scrollShellTop();
     } catch (e) {
       setVentasError(e instanceof Error ? e.message : String(e));
       setVentasPendingFile(null);
@@ -632,6 +644,7 @@ export function CargarClient() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Error al guardar clientes.');
       setPdvsResult(data);
+      scrollShellTop();
       await runGeoUpload(geoRows); // maestro confirmado → subir geo del mismo archivo
       setPdvsGeoRows([]);
     } catch (e) { setPdvsError(e instanceof Error ? e.message : String(e)); }

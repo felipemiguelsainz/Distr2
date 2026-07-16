@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-markercluster';
 import L from 'leaflet';
-import type { PdvGeo, RutaResponse } from './types';
+import type { PdvGeo, RutaResponse, RutaStop } from './types';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -90,12 +90,17 @@ const suggestionIcon = L.divIcon({
   popupAnchor: [0, -10],
 });
 
-// Encuadra el mapa sobre la ruta cuando cambia (key = signature).
+// Encuadra el mapa sobre la ruta cuando cambia (key = signature). En mobile deja
+// más aire abajo para que la ruta no quede tapada por el bottom sheet de filtros.
 function FitBounds({ positions, sig }: { positions: [number, number][]; sig: string }) {
   const map = useMap();
   useEffect(() => {
     if (positions.length >= 1) {
-      map.fitBounds(positions as L.LatLngBoundsExpression, { padding: [50, 50] });
+      const mobile = typeof window !== 'undefined' && window.innerWidth < 1024;
+      map.fitBounds(positions as L.LatLngBoundsExpression, {
+        paddingTopLeft: [30, 30],
+        paddingBottomRight: [30, mobile ? 200 : 50],
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sig]);
@@ -128,6 +133,14 @@ function fmtDate(iso: string | null): string {
   if (!iso) return '—';
   const [y, m, d] = iso.slice(0, 10).split('-');
   return `${d}/${m}/${y}`;
+}
+
+// Dirección legible de una parada: "Calle 123, Localidad". Cae a partido si no
+// hay calle. Devuelve '' si no hay nada que mostrar.
+function fmtDireccion(s: RutaStop): string {
+  const calleAltura = [s.calle, s.altura].map(v => v?.trim()).filter(Boolean).join(' ').trim();
+  const partes = [calleAltura || null, s.localidad?.trim() || null].filter(Boolean) as string[];
+  return partes.join(', ') || (s.partido?.trim() ?? '');
 }
 
 // ---------------------------------------------------------------------------
@@ -205,44 +218,54 @@ function MultiSelect({
       </button>
 
       {open && (
-        <div className="absolute top-full mt-1 left-0 z-[9999] min-w-[220px] max-h-72 overflow-hidden flex flex-col rounded-[12px] border border-[#e4e4e7] bg-[#ffffff] shadow-[0_8px_24px_rgba(0,0,0,0.12)] py-1">
-          {searchable && (
-            <div className="px-2 pt-1 pb-1.5 border-b border-[#e4e4e7]">
-              <input
-                autoFocus
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                placeholder="Buscar PDV…"
-                className="w-full px-2 py-1.5 text-[12px] rounded-[6px] border border-[#e4e4e7] bg-[rgba(0,0,0,0.02)] text-[#09090b] placeholder:text-[#a1a1aa] focus:outline-none focus:border-[rgba(12,92,171,0.4)]"
-              />
+        <>
+          {/* Backdrop — sólo mobile, donde el dropdown se vuelve bottom-sheet
+              (así escapa el overflow del panel de filtros y no queda cortado). */}
+          <div className="fixed inset-0 z-[9998] bg-black/30 lg:hidden" onClick={() => setOpen(false)} />
+          <div className="fixed inset-x-0 bottom-0 z-[9999] max-h-[75vh] rounded-t-2xl border-t border-[#e4e4e7] pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_32px_rgba(0,0,0,0.2)] lg:absolute lg:inset-x-auto lg:bottom-auto lg:top-full lg:left-0 lg:mt-1 lg:min-w-[220px] lg:max-h-72 lg:rounded-[12px] lg:border lg:pb-0 lg:shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden flex flex-col bg-[#ffffff] py-1">
+            {/* Encabezado — sólo mobile: título del filtro + Listo para cerrar. */}
+            <div className="flex items-center justify-between px-4 pt-1.5 pb-2 border-b border-[#e4e4e7] lg:hidden">
+              <span className="text-[14px] font-semibold text-[#09090b]">{label}</span>
+              <button onClick={() => setOpen(false)} className="text-[13px] font-semibold text-[#0c5cab] px-2 py-1 -mr-2">Listo</button>
             </div>
-          )}
-          <div className="flex gap-2 px-3 py-1.5 border-b border-[#e4e4e7]">
-            <button onClick={selectAll} className="text-[11px] text-[#0c5cab] hover:text-[#0c5cab] transition-colors">{searchable ? 'Agregar visibles' : 'Todos'}</button>
-            <span className="text-[#e4e4e7]">|</span>
-            <button onClick={clearAll}  className="text-[11px] text-[#71717a] hover:text-[#09090b] transition-colors">Limpiar</button>
-          </div>
-          <div className="overflow-y-auto">
-            {visible.length === 0 ? (
-              <p className="px-3 py-2 text-[12px] text-[#a1a1aa]">Sin resultados</p>
-            ) : (
-              visible.map(opt => (
-                <label key={opt} className="flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-[rgba(12,92,171,0.08)] transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={selected.has(opt)}
-                    onChange={() => toggle(opt)}
-                    className="accent-[#0c5cab] shrink-0"
-                  />
-                  <span className="text-[12px] text-[#27272a] truncate">{formatOption ? formatOption(opt) : opt}</span>
-                </label>
-              ))
+            {searchable && (
+              <div className="px-2 pt-1 pb-1.5 border-b border-[#e4e4e7]">
+                <input
+                  autoFocus
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  placeholder="Buscar PDV…"
+                  className="w-full px-2 py-2 text-[13px] lg:py-1.5 lg:text-[12px] rounded-[6px] border border-[#e4e4e7] bg-[rgba(0,0,0,0.02)] text-[#09090b] placeholder:text-[#a1a1aa] focus:outline-none focus:border-[rgba(12,92,171,0.4)]"
+                />
+              </div>
             )}
-            {searchable && query.trim() === '' && options.length > visible.length && (
-              <p className="px-3 py-1.5 text-[11px] text-[#a1a1aa]">Escribí para buscar entre {options.length.toLocaleString('es-AR')} PDVs…</p>
-            )}
+            <div className="flex gap-2 px-3 py-2 lg:py-1.5 border-b border-[#e4e4e7]">
+              <button onClick={selectAll} className="text-[12px] lg:text-[11px] text-[#0c5cab] hover:text-[#0c5cab] transition-colors">{searchable ? 'Agregar visibles' : 'Todos'}</button>
+              <span className="text-[#e4e4e7]">|</span>
+              <button onClick={clearAll}  className="text-[12px] lg:text-[11px] text-[#71717a] hover:text-[#09090b] transition-colors">Limpiar</button>
+            </div>
+            <div className="overflow-y-auto overscroll-contain">
+              {visible.length === 0 ? (
+                <p className="px-3 py-2 text-[12px] text-[#a1a1aa]">Sin resultados</p>
+              ) : (
+                visible.map(opt => (
+                  <label key={opt} className="flex items-center gap-2.5 px-4 lg:px-3 py-2.5 lg:py-1.5 cursor-pointer hover:bg-[rgba(12,92,171,0.08)] transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(opt)}
+                      onChange={() => toggle(opt)}
+                      className="accent-[#0c5cab] shrink-0 w-4 h-4"
+                    />
+                    <span className="text-[13px] lg:text-[12px] text-[#27272a] truncate">{formatOption ? formatOption(opt) : opt}</span>
+                  </label>
+                ))
+              )}
+              {searchable && query.trim() === '' && options.length > visible.length && (
+                <p className="px-4 lg:px-3 py-1.5 text-[11px] text-[#a1a1aa]">Escribí para buscar entre {options.length.toLocaleString('es-AR')} PDVs…</p>
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
@@ -347,6 +370,10 @@ export default function MapaClient() {
       return next;
     });
   }, []);
+
+  // Bottom sheet mobile (<lg): colapsado muestra el armador de ruta; expandido
+  // (~60vh) revela el resto de filtros y opciones. Fix 2 (mobile).
+  const [sheetExpanded, setSheetExpanded] = useState(false);
 
   // Ref al contenedor del mapa (para exportar PDF con captura — Fix 4).
   const mapaRef = useRef<HTMLDivElement>(null);
@@ -461,38 +488,109 @@ export default function MapaClient() {
         import('html2canvas'),
         import('jspdf'),
       ]);
-      // Dar tiempo a que terminen de cargar los tiles antes de capturar.
-      await new Promise((r) => setTimeout(r, 1300));
-      const canvas = await html2canvas(mapaRef.current, {
-        useCORS: true, allowTaint: false, scale: 2, logging: false, backgroundColor: '#ffffff',
-      });
-      const imgData = canvas.toDataURL('image/png');
+      // Dar tiempo a que terminen de cargar los tiles de OSM antes de capturar.
+      await new Promise((r) => setTimeout(r, 2000));
+
+      // Captura del mapa aislada: si falla (CORS/taint), seguimos con la lista y
+      // un placeholder en vez de abortar todo el PDF.
+      let imgData: string | null = null;
+      let imgRatio = 0.6; // alto/ancho de la captura
+      try {
+        const canvas = await html2canvas(mapaRef.current, {
+          useCORS: true, allowTaint: true, scale: 2, logging: false, backgroundColor: '#ffffff',
+        });
+        imgData = canvas.toDataURL('image/png');
+        imgRatio = canvas.height / canvas.width;
+      } catch { /* fallback: sin imagen del mapa */ }
 
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const PAGE_W = 210, MARGIN = 15, CONTENT_W = PAGE_W - MARGIN * 2;
       const diaNombre = DIA_NAMES[ruta.dia] ?? ruta.dia;
-      pdf.setFontSize(16);
-      pdf.text(`Ruta — ${ruta.vendedor}`, 15, 18);
+      const AZUL: [number, number, number] = [12, 92, 171];
+      const GRIS: [number, number, number] = [113, 113, 122]; // #71717a
+      const BORDE: [number, number, number] = [228, 228, 231]; // #e4e4e7
+
+      // ── Header: banda azul con título blanco ──
+      pdf.setFillColor(...AZUL);
+      pdf.rect(0, 0, PAGE_W, 26, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(17);
+      pdf.text(`RUTA — ${(ruta.vendedor ?? '').toUpperCase()}`, MARGIN, 13);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(10.5);
+      pdf.text(
+        `${diaNombre}  ·  ${new Date().toLocaleDateString('es-AR')}  ·  ${ruta.stops.length} paradas`,
+        MARGIN, 20,
+      );
+
+      // ── Mapa (o placeholder) ──
+      let y = 26 + 6;
+      if (imgData) {
+        const imgH = Math.min(115, imgRatio * CONTENT_W);
+        pdf.addImage(imgData, 'PNG', MARGIN, y, CONTENT_W, imgH);
+        pdf.setDrawColor(...BORDE);
+        pdf.rect(MARGIN, y, CONTENT_W, imgH); // marco fino
+        y += imgH + 8;
+      } else {
+        const boxH = 34;
+        pdf.setFillColor(244, 244, 245);
+        pdf.setDrawColor(...BORDE);
+        pdf.rect(MARGIN, y, CONTENT_W, boxH, 'FD');
+        pdf.setTextColor(...GRIS);
+        pdf.setFontSize(10);
+        pdf.text('Captura de mapa no disponible', PAGE_W / 2, y + boxH / 2, { align: 'center' });
+        y += boxH + 8;
+      }
+
+      // ── Separador + título de la lista ──
+      pdf.setDrawColor(...BORDE);
+      pdf.line(MARGIN, y - 2, PAGE_W - MARGIN, y - 2);
+      pdf.setTextColor(9, 9, 11);
+      pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(11);
-      pdf.setTextColor(110);
-      pdf.text(`Día: ${diaNombre} · ${ruta.stops.length} paradas · Generado: ${new Date().toLocaleDateString('es-AR')}`, 15, 25);
-      pdf.setTextColor(0);
+      pdf.text('PARADAS EN ORDEN', MARGIN, y + 5);
+      y += 12;
 
-      // Imagen del mapa, manteniendo el aspect ratio (ancho útil 180mm).
-      const pageW = 180;
-      const imgH = Math.min(120, (canvas.height / canvas.width) * pageW);
-      pdf.addImage(imgData, 'PNG', 15, 30, pageW, imgH);
-
-      // Lista ordenada de paradas.
-      let y = 30 + imgH + 9;
-      pdf.setFontSize(12);
-      pdf.text('Paradas en orden', 15, y); y += 7;
-      pdf.setFontSize(10);
+      // ── Lista de paradas: círculo numerado + nombre + dirección ──
+      const ROW_H = 12;
       ruta.stops.forEach((s, i) => {
-        if (y > 285) { pdf.addPage(); y = 20; }
-        const loc = s.partido ?? s.canal_venta ?? '';
-        pdf.text(`${i + 1}. ${(s.razon_social ?? 'PDV')}${loc ? ' — ' + loc : ''}`.slice(0, 92), 15, y);
-        y += 6;
+        if (y > 275) { pdf.addPage(); y = 20; }
+        // Círculo azul con el número en blanco
+        const cx = MARGIN + 3.2, cy = y - 1.2, r = 3.2;
+        pdf.setFillColor(...AZUL);
+        pdf.circle(cx, cy, r, 'F');
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(8);
+        pdf.text(String(i + 1), cx, cy + 1.1, { align: 'center' });
+        // Nombre del PDV
+        pdf.setTextColor(9, 9, 11);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(10);
+        const nombre = `${s.razon_social ?? 'PDV'}${s.aproximada ? '  (ubic. aprox.)' : ''}`;
+        pdf.text(pdf.splitTextToSize(nombre, CONTENT_W - 12)[0], MARGIN + 9, y);
+        // Dirección en gris
+        const dir = fmtDireccion(s);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(...GRIS);
+        pdf.setFontSize(9);
+        pdf.text(pdf.splitTextToSize(dir || '—', CONTENT_W - 12)[0], MARGIN + 9, y + 4.5);
+        y += ROW_H;
       });
+
+      // ── Pie de página en todas las hojas: distr2 · Candysur + N° de página ──
+      const total = pdf.getNumberOfPages();
+      for (let p = 1; p <= total; p++) {
+        pdf.setPage(p);
+        pdf.setDrawColor(...BORDE);
+        pdf.line(MARGIN, 288, PAGE_W - MARGIN, 288);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8);
+        pdf.setTextColor(...GRIS);
+        pdf.text('distr2 · Candysur', MARGIN, 293);
+        pdf.text(`Página ${p} / ${total}`, PAGE_W - MARGIN, 293, { align: 'right' });
+      }
 
       pdf.save(`ruta_${ruta.vendedor}_${ruta.dia}.pdf`.replace(/\s+/g, '_'));
     } catch (e) {
@@ -544,8 +642,8 @@ export default function MapaClient() {
 
   return (
     <div className="flex flex-col h-full bg-[#fafafa]">
-      {/* ── Header ── */}
-      <div className="flex-shrink-0 relative px-4 pt-4 pb-3 sm:px-6 sm:pt-6">
+      {/* ── Header (desktop ≥lg) — en mobile se usa el bottom sheet ── */}
+      <div className="hidden lg:block flex-shrink-0 relative px-4 pt-4 pb-3 sm:px-6 sm:pt-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-[22px] font-bold tracking-[-0.02em] text-[#09090b]">Mapa de PDVs</h1>
@@ -864,8 +962,10 @@ export default function MapaClient() {
       </div>
 
       {/* ── Map ── */}
-      <div className="flex-1 px-4 pb-4 sm:px-6 sm:pb-6 min-h-0">
-        <div ref={mapaRef} className="relative h-full w-full rounded-2xl overflow-hidden border border-[#e4e4e7]">
+      {/* En mobile va full-bleed (sin padding ni card) y el bottom sheet flota
+          encima; en desktop mantiene el card con padding y bordes redondeados. */}
+      <div className="flex-1 relative min-h-0 lg:px-6 lg:pb-6">
+        <div ref={mapaRef} className="relative h-full w-full overflow-hidden border-[#e4e4e7] lg:rounded-2xl lg:border">
           {loading && (
             <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-[#fafafa]/70 backdrop-blur-sm">
               <div className="flex items-center gap-2.5 text-[13px] text-[#71717a]">
@@ -984,6 +1084,297 @@ export default function MapaClient() {
               </>
             )}
           </MapContainer>
+        </div>
+
+        {/* ══════════════ Mobile (<lg): overlays sobre el mapa ══════════════ */}
+        {/* Van FUERA de mapaRef para no entrar en la captura del PDF. */}
+
+        {/* Contador de PDVs (arriba, centrado) */}
+        <div className="lg:hidden absolute top-3 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none">
+          <div className="rounded-full bg-white/95 backdrop-blur px-3 py-1.5 shadow-[0_2px_10px_rgba(0,0,0,0.14)] text-[12px] text-[#71717a] whitespace-nowrap">
+            {loadError ? (
+              <span className="text-[#dc2626]">Error al cargar PDVs</span>
+            ) : loading ? (
+              'Cargando PDVs…'
+            ) : (
+              <>
+                <span className="font-semibold text-[#09090b]">{filtered.length.toLocaleString('es-AR')}</span>
+                {' '}de {puntos.length.toLocaleString('es-AR')} PDVs
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Bottom sheet: armador de ruta (peek) + filtros/opciones (expandido) */}
+        <div className="lg:hidden absolute inset-x-0 bottom-0 z-[1100] flex flex-col bg-white rounded-t-2xl border-t border-[#e4e4e7] shadow-[0_-8px_32px_rgba(0,0,0,0.18)] pb-[env(safe-area-inset-bottom)] max-h-[85vh]">
+          {/* Handle — tap para expandir/colapsar */}
+          <button
+            onClick={() => setSheetExpanded(v => !v)}
+            aria-label={sheetExpanded ? 'Colapsar panel' : 'Expandir panel'}
+            className="flex-shrink-0 w-full flex justify-center pt-2 pb-1.5 active:bg-[rgba(0,0,0,0.02)]"
+          >
+            <span className="w-9 h-1 rounded-full bg-[#d4d4d8]" />
+          </button>
+
+          {/* ── Peek: armador de ruta rápido ── */}
+          <div className="flex-shrink-0 px-4 pb-3 space-y-2.5">
+            <div className="flex items-end gap-2">
+              <label className="flex-1 min-w-0 flex flex-col gap-1">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#71717a]">Vendedor</span>
+                <select
+                  value={rutaVend || (opts.vendedores.length === 1 ? opts.vendedores[0] : '')}
+                  onChange={e => setRutaVend(e.target.value)}
+                  disabled={opts.vendedores.length === 1}
+                  className="w-full px-2.5 py-2 text-[13px] rounded-[8px] border border-[#e4e4e7] bg-white text-[#09090b] disabled:opacity-70"
+                >
+                  <option value="">Elegí vendedor…</option>
+                  {opts.vendedores.map(v => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#71717a]">Día</span>
+                <select
+                  value={rutaDia}
+                  onChange={e => setRutaDia(e.target.value)}
+                  className="px-2.5 py-2 text-[13px] rounded-[8px] border border-[#e4e4e7] bg-white text-[#09090b]"
+                >
+                  {DIA_ORDER.map(d => <option key={d} value={d}>{DIA_NAMES[d]}</option>)}
+                </select>
+              </label>
+            </div>
+            <div className="flex items-stretch gap-2">
+              <button
+                onClick={armarRuta}
+                disabled={rutaLoading}
+                className="flex-1 px-3.5 py-2.5 text-[13px] font-semibold rounded-[10px] bg-[#0c5cab] text-white hover:bg-[#0a4f95] transition-colors disabled:opacity-60"
+              >
+                {rutaLoading ? 'Calculando…' : ruta && ruta.stops.length > 0 ? 'Rearmar ruta' : 'Armar ruta'}
+              </button>
+              <button
+                onClick={() => setSheetExpanded(v => !v)}
+                className="flex items-center gap-1.5 px-3.5 py-2.5 text-[13px] font-medium rounded-[10px] border border-[#e4e4e7] bg-white text-[#71717a] active:bg-[rgba(0,0,0,0.03)] transition-colors"
+              >
+                {sheetExpanded ? 'Menos' : 'Filtros'}
+                {hasFilters && !sheetExpanded && <span className="w-1.5 h-1.5 rounded-full bg-[#0c5cab]" />}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`transition-transform duration-200 ${sheetExpanded ? 'rotate-180' : ''}`}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                </svg>
+              </button>
+            </div>
+            {rutaError && <p className="text-[12px] text-[#dc2626] leading-snug">{rutaError}</p>}
+            {ruta && ruta.stops.length > 0 && !rutaError && (
+              <p className="text-[12px] text-[#09090b] font-medium leading-snug">{ruta.resumen}</p>
+            )}
+          </div>
+
+          {/* ── Expandido: resto de filtros + opciones de ruta (animado) ── */}
+          <div className={`grid transition-[grid-template-rows] duration-300 ease-out ${sheetExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+            <div className="overflow-hidden">
+              <div className="max-h-[52vh] overflow-y-auto overscroll-contain px-4 pt-3 pb-3 border-t border-[#e4e4e7] space-y-4">
+
+                {/* Filtros del mapa */}
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a]">Filtros del mapa</p>
+                  <div className="flex flex-wrap gap-2">
+                    <MultiSelect
+                      label="PDV"
+                      options={opts.pdvs}
+                      selected={selPdvs}
+                      onChange={setSelPdvs}
+                      formatOption={id => pdvLabel.get(id) ?? `#${id}`}
+                      searchable
+                    />
+                    <MultiSelect label="Vendedor" options={opts.vendedores} selected={selVendedores} onChange={setSelVendedores} />
+                    <MultiSelect label="Zona"     options={opts.zonas}      selected={selZonas}      onChange={setSelZonas} />
+                    <MultiSelect label="Partido"  options={opts.partidos}   selected={selPartidos}   onChange={setSelPartidos} />
+                    <MultiSelect label="Canal"    options={opts.canales}    selected={selCanales}    onChange={setSelCanales} />
+                    {opts.dias.length > 0 && (
+                      <MultiSelect label="Día de visita" options={opts.dias} selected={selDias} onChange={setSelDias} formatOption={d => DIA_NAMES[d] ?? d} />
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex rounded-[8px] border border-[#e4e4e7] overflow-hidden">
+                      {(['todos', 'solo'] as RuteableFilter[]).map(v => (
+                        <button
+                          key={v}
+                          onClick={() => setRuteable(v)}
+                          className={`px-3 py-1.5 text-[12px] font-medium transition-colors ${
+                            ruteable === v ? 'bg-[rgba(12,92,171,0.18)] text-[#09090b]' : 'text-[#71717a] active:bg-[rgba(0,0,0,0.03)]'
+                          }`}
+                        >
+                          {v === 'todos' ? 'Todos' : 'Solo ruteables'}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => setClienteActivo(v => !v)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium rounded-[8px] border transition-all whitespace-nowrap ${
+                        clienteActivo
+                          ? 'bg-[rgba(22,163,74,0.15)] border-[rgba(22,163,74,0.4)] text-[#09090b]'
+                          : 'bg-[rgba(0,0,0,0.03)] border-[#e4e4e7] text-[#71717a]'
+                      }`}
+                    >
+                      <span className={`flex items-center justify-center w-3.5 h-3.5 rounded-[3px] border transition-all shrink-0 ${clienteActivo ? 'bg-[#16a34a] border-[#16a34a]' : 'bg-transparent border-[#d4d4d8]'}`}>
+                        {clienteActivo && (
+                          <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1.5 4L3.2 5.7L6.5 2.5" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                        )}
+                      </span>
+                      Cliente activo
+                    </button>
+                    {hasFilters && (
+                      <button
+                        onClick={clearAll}
+                        className="px-3 py-1.5 text-[12px] font-medium text-[#dc2626] bg-[rgba(220,38,38,0.08)] border border-[rgba(220,38,38,0.2)] rounded-[8px] active:bg-[rgba(220,38,38,0.14)] transition-colors"
+                      >
+                        Limpiar filtros
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Opciones de ruta (sólo con ruta armada o para elegir radio) */}
+                <div className="space-y-2.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a]">Ruta</p>
+                  <label className="flex items-center justify-between gap-2">
+                    <span className="text-[12px] text-[#71717a]">Radio de apagados cercanos</span>
+                    <select
+                      value={rutaRadio}
+                      onChange={e => cambiarRadio(Number(e.target.value))}
+                      className="px-2.5 py-1.5 text-[12px] rounded-[8px] border border-[#e4e4e7] bg-white text-[#09090b]"
+                    >
+                      {[200, 300, 400, 600, 800, 1000, 1500].map(r => <option key={r} value={r}>{r} m</option>)}
+                    </select>
+                  </label>
+
+                  {/* Aviso: paradas con ubicación aproximada */}
+                  {ruta && ruta.stops.some(s => s.aproximada) && (
+                    <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-[11.5px]">
+                      <span className="font-bold text-amber-800 shrink-0">⚠ {ruta.stops.filter(s => s.aproximada).length} aprox.</span>
+                      <span className="text-amber-700">El pin cae en el centro del barrio; guiate por la dirección.</span>
+                    </div>
+                  )}
+
+                  {/* Sumados a mano */}
+                  {ruta && ruta.stops.some(s => s.agregado) && (
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#0c5cab] mb-1.5">
+                        Sumados a la ruta ({ruta.stops.filter(s => s.agregado).length})
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {ruta.stops.filter(s => s.agregado).map(s => (
+                          <span key={s.pdv_id} className="inline-flex items-center gap-1.5 text-[11px] bg-[rgba(12,92,171,0.08)] border border-[rgba(12,92,171,0.25)] text-[#09090b] pl-2 pr-1 py-0.5 rounded-full">
+                            #{s.pdv_id} — {(s.razon_social ?? 's/n').slice(0, 20)}
+                            <button onClick={() => quitarPdv(s.pdv_id)} aria-label="Quitar de la ruta" className="w-5 h-5 flex items-center justify-center rounded-full text-[#71717a] active:bg-[rgba(220,38,38,0.1)]">×</button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Clientes apagados cercanos */}
+                  {ruta && ruta.sugerencias.length > 0 && (
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#dc2626]">
+                        Apagados cercanos ({ruta.sugerencias.length}) · ≤{rutaRadio} m
+                      </p>
+                      <p className="text-[11px] text-[#71717a] mb-2">Sin compra hace +3 meses, a pasos de tu recorrido.</p>
+                      <div className="flex flex-col gap-1.5">
+                        {ruta.sugerencias.map(s => (
+                          <div key={s.pdv_id} className="flex items-center justify-between gap-2 px-2.5 py-2 rounded-[8px] bg-white border border-[rgba(220,38,38,0.2)]">
+                            <button onClick={() => { setFocusPoint([s.lat, s.lon]); setSheetExpanded(false); }} className="min-w-0 text-left flex-1" aria-label="Ver en el mapa">
+                              <span className="block text-[12px] font-medium text-[#09090b] truncate">#{s.pdv_id} — {s.razon_social ?? 's/n'}</span>
+                              <span className="block text-[11px] text-[#71717a]">Última vta: {fmtDate(s.ultima_vta)} · a {s.dist_m} m</span>
+                            </button>
+                            <button onClick={() => sumarPdv(s.pdv_id)} disabled={rutaLoading} className="shrink-0 text-[11px] font-semibold text-white bg-[#0c5cab] active:bg-[#0a4f95] px-2.5 py-1.5 rounded-[7px] transition-colors disabled:opacity-60">
+                              + Sumar
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tramos de Google Maps + acciones secundarias */}
+                  {ruta && ruta.stops.length > 0 && (
+                    <div className="space-y-1.5">
+                      {gmapsLinks.length > 1 && (
+                        <p className="text-[11px] text-[#71717a] leading-snug">
+                          {ruta.stops.length} paradas → {gmapsLinks.length} tramos en Maps (abrí cada uno en orden).
+                        </p>
+                      )}
+                      {gmapsLinks.map((t, i) => (
+                        <a key={t.url} href={t.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium rounded-[8px] border border-[#e4e4e7] bg-white text-[#0c5cab] active:border-[#d4d4d8] transition-colors">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1112 6.5a2.5 2.5 0 010 5z" /></svg>
+                          {gmapsLinks.length === 1 ? 'Abrir en Google Maps' : `Tramo ${i + 1} (paradas ${t.desde}–${t.hasta})`}
+                        </a>
+                      ))}
+                      <div className="flex gap-2 pt-0.5">
+                        <button onClick={copiarCoords} className="flex-1 px-3 py-2 text-[12px] font-medium rounded-[8px] border border-[#e4e4e7] bg-white text-[#0c5cab] active:border-[#d4d4d8] transition-colors">
+                          {coordsCopied ? '✓ Copiado' : 'Copiar coords'}
+                        </button>
+                        <button onClick={limpiarRuta} className="flex-1 px-3 py-2 text-[12px] font-medium text-[#dc2626] bg-[rgba(220,38,38,0.08)] border border-[rgba(220,38,38,0.2)] rounded-[8px] active:bg-[rgba(220,38,38,0.14)] transition-colors">
+                          Limpiar ruta
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Referencias (leyenda de colores) */}
+                <div className="space-y-1.5 pb-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a]">Referencias</p>
+                  {LEGEND_ITEMS.map(l => (
+                    <div key={l.label} className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: l.color }} />
+                      <span className="text-[11.5px] text-[#71717a]">{l.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Barra de acción: Maps + PDF, siempre visible con ruta armada ── */}
+          {ruta && ruta.stops.length > 0 && (
+            <div className="flex-shrink-0 flex items-stretch gap-2 px-4 py-2.5 border-t border-[#e4e4e7] bg-white">
+              {gmapsLinks.length === 1 ? (
+                <a
+                  href={gmapsLinks[0].url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-[13px] font-semibold rounded-[10px] bg-[#0c5cab] text-white active:bg-[#0a4f95] transition-colors"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1112 6.5a2.5 2.5 0 010 5z" /></svg>
+                  Google Maps
+                </a>
+              ) : (
+                <button
+                  onClick={() => setSheetExpanded(true)}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-[13px] font-semibold rounded-[10px] bg-[#0c5cab] text-white active:bg-[#0a4f95] transition-colors"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1112 6.5a2.5 2.5 0 010 5z" /></svg>
+                  Maps · {gmapsLinks.length} tramos
+                </button>
+              )}
+              <button
+                onClick={exportarPDF}
+                disabled={pdfLoading}
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-[13px] font-semibold rounded-[10px] border border-[#e4e4e7] bg-white text-[#0c5cab] active:border-[#d4d4d8] transition-colors disabled:opacity-60"
+              >
+                {pdfLoading ? (
+                  <>
+                    <span className="w-3.5 h-3.5 rounded-full border-2 border-[#e4e4e7] border-t-[#0c5cab] animate-spin" />
+                    Generando…
+                  </>
+                ) : (
+                  <>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" /></svg>
+                    Exportar PDF
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

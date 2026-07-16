@@ -93,7 +93,7 @@ export default async function ConsolidadoPage({
           <div className="flex items-center gap-2 flex-wrap">
             {profile.rol === 'admin' && equipos.length > 0 && (
               <Suspense>
-                <SupervisorFilter equipos={equipos} current={equipo} />
+                <SupervisorFilter equipos={equipos} current={equipo} basePath="/dashboard/consolidado" />
               </Suspense>
             )}
             <Suspense>
