@@ -52,7 +52,12 @@ body {
 }
 
 .animate-rise {
-  animation: rise 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+  /* `backwards` (no `forwards`) evita que quede un transform identidad pegado al
+     terminar: con `both`, la animación "rellena" transform y el elemento queda
+     con matrix(1,0,0,1,0,0), que crea un containing-block para position:fixed y
+     rompía el centrado de los modales (footer fuera de pantalla). Al revertir a
+     transform:none, los modales vuelven a ser relativos al viewport. */
+  animation: rise 0.65s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 @keyframes pulse-dot {

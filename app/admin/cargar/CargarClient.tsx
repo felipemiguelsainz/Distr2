@@ -113,7 +113,7 @@ function VentasPreviewModal({
           </p>
         </div>
 
-        <div className="overflow-y-auto flex-1 px-6 pb-2">
+        <div className="overflow-y-auto flex-1 min-h-0 px-6 pb-2">
 
         {missing.length > 0 && (
           <div className="mb-4 px-3.5 py-2.5 rounded-[10px] bg-[#dc2626]/[0.08] border border-[#dc2626]/30 text-[12px] text-[#dc2626] font-medium">
