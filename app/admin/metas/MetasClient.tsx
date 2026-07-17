@@ -15,13 +15,19 @@ const inputCls = [
   'transition-all text-right text-[#09090b]',
 ].join(' ');
 
-export function MetasClient({ defaultAnio, defaultMes, vendedores = [] }: { defaultAnio: number; defaultMes: number; vendedores?: string[] }) {
+export type VendedorOpcion = { nombre: string; sinSupervisor: boolean; enMaestro: boolean };
+
+export function MetasClient({ defaultAnio, defaultMes, vendedores = [] }: { defaultAnio: number; defaultMes: number; vendedores?: VendedorOpcion[] }) {
   const [anio, setAnio] = useState(defaultAnio);
   const [mes,  setMes]  = useState(defaultMes);
   const [objetivos, setObjetivos] = useState<Record<string, string>>(
     Object.fromEntries(MONDELEZ_RUBROS.map(r => [r, '']))
   );
-  const [excluidos, setExcluidos] = useState<Set<string>>(new Set());
+  // Los que no dependen de un supervisor arrancan excluidos: su venta no se mueve
+  // con la gestión comercial, así que la meta se reparte entre los que sí tienen.
+  const [excluidos, setExcluidos] = useState<Set<string>>(
+    () => new Set(vendedores.filter(v => v.sinSupervisor).map(v => v.nombre)),
+  );
   const [excluidosOpen, setExcluidosOpen] = useState(false);
 
   function toggleExcluido(v: string) {
@@ -130,7 +136,8 @@ export function MetasClient({ defaultAnio, defaultMes, vendedores = [] }: { defa
             </svg>
           </button>
           <p className="text-[12px] text-[#71717a] mt-0.5">
-            No reciben meta; su parte se redistribuye entre los vendedores reales (ej: puntos de acopio).
+            No reciben meta; su parte se redistribuye entre los demás, así que a ellos les sube la meta.
+            Los que no tienen supervisor vienen excluidos por defecto (su venta no depende de la gestión comercial).
           </p>
           {excluidosOpen && (
             vendedores.length === 0
@@ -138,14 +145,28 @@ export function MetasClient({ defaultAnio, defaultMes, vendedores = [] }: { defa
               : (
                 <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5 max-h-64 overflow-y-auto pr-1">
                   {vendedores.map(v => (
-                    <label key={v} className="flex items-center gap-2 cursor-pointer">
+                    <label key={v.nombre} className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={excluidos.has(v)}
-                        onChange={() => toggleExcluido(v)}
+                        checked={excluidos.has(v.nombre)}
+                        onChange={() => toggleExcluido(v.nombre)}
                         className="accent-[#0c5cab] shrink-0"
                       />
-                      <span className="text-[12px] text-[#27272a] truncate" title={v}>{v}</span>
+                      <span className="text-[12px] text-[#27272a] truncate" title={v.nombre}>{v.nombre}</span>
+                      {v.sinSupervisor && (
+                        <span className="text-[9px] font-semibold uppercase px-1.5 py-px rounded-full shrink-0 bg-[rgba(217,119,6,0.1)] text-[#d97706] border border-[rgba(217,119,6,0.2)]" style={{fontFamily: "'JetBrains Mono', monospace"}}>
+                          sin sup.
+                        </span>
+                      )}
+                      {!v.enMaestro && (
+                        <span
+                          title="Vende, pero no figura en el maestro de vendedores: no sabemos si tiene supervisor."
+                          className="text-[9px] font-semibold uppercase px-1.5 py-px rounded-full shrink-0 bg-[rgba(220,38,38,0.1)] text-[#dc2626] border border-[rgba(220,38,38,0.2)]"
+                          style={{fontFamily: "'JetBrains Mono', monospace"}}
+                        >
+                          s/maestro
+                        </span>
+                      )}
                     </label>
                   ))}
                 </div>

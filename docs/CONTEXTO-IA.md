@@ -9,7 +9,7 @@ App de gestión de ventas para una distribuidora de Mondelez en el GBA.
 Stack: **Next.js 16 (App Router, Turbopack) + Supabase (Postgres) + Vercel**.
 Idioma del producto y de los textos: **español rioplatense**.
 Producción: **https://distr2.vercel.app** (auto-deploy desde `main`).
-_Última actualización: 2026-07-14 · migraciones hasta `040` · base nueva · IA = Claude · insights SERVE-ONLY + job en GitHub Actions (LIVE) · filtro de rango de fechas · UI sin emojis, tema claro._
+_Última actualización: 2026-07-17 · migraciones hasta `040` · base nueva · IA = Claude · insights SERVE-ONLY + job en GitHub Actions (LIVE) · filtro de rango de fechas · metas: los SIN SUPERVISOR no reciben meta (§13) · UI sin emojis, tema claro._
 
 ---
 
@@ -520,9 +520,32 @@ distingue la altura; **Google Geocoding** las cerraría mejor (upgrade de un ren
 - **Metas** (`/admin/metas`): admin carga objetivos Mondelez en $; el sistema
   calcula kg meta y los **distribuye por peso histórico** (kg de cada vendedor
   sobre el total del rubro, últ. 4 meses) vía `calcularMetasPreview`. Se pueden
-  **excluir vendedores no operativos** (ej: "VENTA OFICINA F.VA", puntos de
-  acopio) — `vendedoresExcluidos` filtra ANTES de calcular el total y su parte se
-  redistribuye entre los reales. Flujo: preview → guardar (persiste el preview).
+  **excluir vendedores no operativos** — `vendedoresExcluidos` filtra ANTES de
+  calcular el total y su parte se redistribuye entre los reales. Flujo: preview →
+  guardar (persiste el preview).
+- **⚠️ Los vendedores SIN SUPERVISOR no reciben meta (default, 2026-07-17).**
+  `vendedores.supervisor` trae el **literal `'SIN SUPERVISOR'`** (NO `null` —
+  `tieneSupervisor()` en `lib/constants.ts` cubre literal + vacío + null). Son 6:
+  VENTA OFICINA LANUS, VENTA OFICINA F.VA, JEREMIAS, DEPOSITO, CLAUDIA ZALAZAR,
+  VENDEDOR 28. Entran **pre-tildados** en el selector de excluidos (badge
+  `sin sup.`), destildables — es preview → guardar, no regla rígida.
+  - **Por qué:** son locales/oficina cuya venta no depende de la gestión
+    comercial; darles meta le robaba peso a los vendedores reales.
+  - **Decisión explícita del usuario: la meta TOTAL no baja.** Se reparte entre
+    menos ⇒ a los supervisados les **sube**: Biscuits **+68,9%**, Beverages
+    **+62%**, Chocolates **+13,3%** (medido contra la DB real). Casi todo el
+    efecto es **VENTA OFICINA F.VA sola** (~31% de los kilos totales, 141k kg en
+    4 meses). **Esto cascadea a las metas CCC** — mirar el preview antes de guardar.
+- **⚠️ Gap de datos abierto: los nombres de `ventas` no matchean el maestro.**
+  El reparto pesa por nombre EXACTO de `resumen_diario`, así que la exclusión los
+  erra: ventas dice **`VENTA OFICINA LANU`** (sin la S, 12.330 kg) vs maestro
+  `VENTA OFICINA LANUS`, y **`JEREMIAS - VDR`** vs `JEREMIAS`. Además venden sin
+  estar en el maestro (supervisor desconocido): `Sin Vendedor`, `RAUL VAZQUEZ`,
+  `ELIANA IGLESIAS`, `VICTORIA VELAZ`, `ENZO`, `NESTOR MIERA`, `CARLOS PAREDES`,
+  `VENDEDOR 25`. `app/admin/metas/page.tsx` los suma al selector con badge
+  **`s/maestro`** (sin tildar — no se adivina el supervisor) para excluirlos a
+  mano. **Arreglo de fondo: corregir los nombres en el maestro**, no en código.
+  Misma familia que las carteras huérfanas del mapa.
 - `metas` (kilos meta por vendedor/rubro/mes) · `metas_ccc` (objetivo de clientes;
   cascadeo con RPC `calcular_preset_ccc`, se recalcula en el upload de PDVs y NO
   pisa lo editado por el supervisor, `es_preset=false`).
