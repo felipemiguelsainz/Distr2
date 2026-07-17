@@ -9,7 +9,7 @@ App de gestión de ventas para una distribuidora de Mondelez en el GBA.
 Stack: **Next.js 16 (App Router, Turbopack) + Supabase (Postgres) + Vercel**.
 Idioma del producto y de los textos: **español rioplatense**.
 Producción: **https://distr2.vercel.app** (auto-deploy desde `main`).
-_Última actualización: 2026-07-17 · migraciones hasta `040` · base nueva · IA = Claude · insights SERVE-ONLY + job en GitHub Actions (LIVE) · filtro de rango de fechas · metas: los SIN SUPERVISOR no reciben meta (§13) · UI sin emojis, tema claro._
+_Última actualización: 2026-07-17 · migraciones hasta `040` · base nueva · IA = Claude · insights SERVE-ONLY + job en GitHub Actions (LIVE) · filtro de rango de fechas · metas: los SIN SUPERVISOR no reciben meta y julio-2026 ya se recalculó (§13) · UI sin emojis, tema claro._
 
 ---
 
@@ -335,6 +335,18 @@ distingue la altura; **Google Geocoding** las cerraría mejor (upgrade de un ren
 - Probar RPCs en una transacción con `ROLLBACK` para no ensuciar datos.
 - `npx tsc --noEmit` antes de dar por cerrado un cambio de código.
 - Scripts puntuales de diagnóstico: crearlos en `scripts/`, correrlos y borrarlos.
+- **Reusar el código REAL de la app en un script, no reimplementarlo** (una copia
+  del cálculo diverge del que corre en la UI). Para importar de `lib/` hace falta
+  **`-r tsconfig-paths/register`** o el alias `@/` no resuelve (`Cannot find module
+  '@/lib/...'`) — los `npm run load:*` no lo llevan porque no usan el alias:
+  `npx ts-node -r tsconfig-paths/register --project tsconfig.scripts.json scripts/x.ts`.
+  `tsconfig.scripts.json` incluye `lib/**` y excluye `app/**`; importar
+  `lib/supabase/server` (que trae `next/headers`) desde un script **funciona**.
+- **Un script que escribe en la DB NO puede invalidar el cache de Next**
+  (`revalidateTag` sólo corre dentro de la app). Los `fetch*Kpis` tienen
+  `revalidate: 300` ⇒ tras un write por script los dashboards muestran lo viejo
+  **hasta 5 min**. No es un bug: avisar y esperar, o hacerlo por la UI.
+- Los `*-backup-*.json` de `scripts/` están **gitignoreados** (no se commitean).
 
 ---
 
@@ -496,6 +508,14 @@ distingue la altura; **Google Geocoding** las cerraría mejor (upgrade de un ren
   (cuenta habilitada) ≠ `pdvs.activo` (padrón) — otro "activo" más, ojo.
 - Gestión de usuarios: `/admin/usuarios`. Helpers RLS reales:
   `get_user_vendedor` / `get_user_equipo`.
+- **⚠️ `'SIN SUPERVISOR'` es un EQUIPO del maestro, pero no un supervisor real** —
+  hay que filtrarlo de **todo** selector de equipos. Son **4 lugares** y es fácil
+  olvidarse de uno (pasó: `/dashboard/total` era el único que lo mostraba):
+  `app/dashboard/total/page.tsx` (`EntityFilter`), `app/dashboard/consolidado/
+  [nombre]`, `app/dashboard/consolidado-productos/[nombre]` y `app/admin/metas-ccc`
+  (los 3 con `SupervisorFilter`). Usar la constante `SIN_SUPERVISOR` de
+  `lib/constants.ts`, no el string suelto. Ojo: sacarlo del selector NO saca sus
+  ventas de los totales (son ~31% de los kilos) — sólo deja de ofrecerlo como equipo.
 - **⚠️ El equipo del supervisor sale de `profiles.equipo`, NO de `vendedores`.**
   Un supervisor normalmente **NO es una fila en `vendedores`** (no vende), así
   que derivar su equipo con `vendedores.eq('nombre', vendedor_nombre)` devuelve
@@ -523,6 +543,20 @@ distingue la altura; **Google Geocoding** las cerraría mejor (upgrade de un ren
   **excluir vendedores no operativos** — `vendedoresExcluidos` filtra ANTES de
   calcular el total y su parte se redistribuye entre los reales. Flujo: preview →
   guardar (persiste el preview).
+- **⚠️⚠️ Tocar el CÁLCULO no cambia las metas YA GUARDADAS.** `metas` es una tabla
+  persistida: un cambio en `calcularMetasPreview` sólo afecta al **próximo preview**.
+  Hasta que alguien corra **Calcular preview → Guardar**, la meta vieja sigue viva
+  en los dashboards. **Deployar NO alcanza** (nos pasó: se pusheó el cambio y la
+  oficina seguía con 29.745 kg). Todo cambio de regla de metas = código **+**
+  recálculo del mes en curso. `metas/guardar` **borra el mes entero** (`delete`
+  por anio+mes) antes de insertar, así que re-guardar es idempotente y limpia
+  los vendedores que dejaron de recibir meta.
+- **⚠️ Los objetivos Mondelez en $ NO se persisten** — los inputs de `/admin/metas`
+  arrancan vacíos cada vez, así que re-guardar un mes exige re-tipearlos. Se
+  **recuperan** de lo guardado: para un rubro Mondelez, `sum(neto_meta)` sobre
+  todos los vendedores **== `objetivo_neto`** (los pesos suman 1). Julio 2026 usó:
+  Beverages 197.571.480 · Biscuits 393.788.626 · Candies 51.094.451 ·
+  Chocolates 509.502.795 · Dry Mixes 24.838.035 · Gums 73.093.693.
 - **⚠️ Los vendedores SIN SUPERVISOR no reciben meta (default, 2026-07-17).**
   `vendedores.supervisor` trae el **literal `'SIN SUPERVISOR'`** (NO `null` —
   `tieneSupervisor()` en `lib/constants.ts` cubre literal + vacío + null). Son 6:
@@ -542,7 +576,12 @@ distingue la altura; **Google Geocoding** las cerraría mejor (upgrade de un ren
   `VENTA OFICINA LANUS`, y **`JEREMIAS - VDR`** vs `JEREMIAS`. Además venden sin
   estar en el maestro (supervisor desconocido): `Sin Vendedor`, `RAUL VAZQUEZ`,
   `ELIANA IGLESIAS`, `VICTORIA VELAZ`, `ENZO`, `NESTOR MIERA`, `CARLOS PAREDES`,
-  `VENDEDOR 25`. `app/admin/metas/page.tsx` los suma al selector con badge
+  `VENDEDOR 25`. **Julio 2026 se recalculó excluyendo también a `VENTA OFICINA
+  LANU` y `JEREMIAS - VDR` a mano** (los otros quedaron CON meta: `RAUL VAZQUEZ`
+  910 kg, `ELIANA IGLESIAS` 675 kg — no se sabe su supervisor, no se adivinó).
+  Resultado: total 102.030 → 102.039 kg (igual, la diferencia es redondeo), los
+  sin supervisor en 0 y el resto **+31% a +61%**.
+  `app/admin/metas/page.tsx` los suma al selector con badge
   **`s/maestro`** (sin tildar — no se adivina el supervisor) para excluirlos a
   mano. **Arreglo de fondo: corregir los nombres en el maestro**, no en código.
   Misma familia que las carteras huérfanas del mapa.
