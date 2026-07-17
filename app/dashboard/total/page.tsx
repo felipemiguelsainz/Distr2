@@ -7,6 +7,7 @@ import { RangoVendido } from '@/components/dashboard/RangoVendido';
 import { TrendChart, AvanceBarChart, RadarMetaChart } from '@/components/dashboard/LazyCharts';
 import { ClientesTable } from '@/components/dashboard/ClientesTable';
 import { fetchTotalKpis, fetchTrendData, fetchClientesData, fetchMetasCcc } from '@/lib/calculations/queries';
+import { SIN_SUPERVISOR } from '@/lib/constants';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
@@ -55,7 +56,13 @@ export default async function TotalDashboardPage({
     .order('nombre');
 
   const vendedores   = vData ?? [];
-  const supervisores = [...new Set(vendedores.map(v => v.equipo).filter(Boolean) as string[])].sort();
+  // 'SIN SUPERVISOR' es un equipo del maestro, pero no es un supervisor real: fuera
+  // del selector (igual que en consolidado, consolidado-productos y metas-ccc).
+  const supervisores = [...new Set(
+    vendedores
+      .map(v => v.equipo?.trim())
+      .filter((e): e is string => !!e && e !== SIN_SUPERVISOR),
+  )].sort((a, b) => a.localeCompare(b));
 
   // Subtítulo dinámico
   const subtitulo = vendedor
