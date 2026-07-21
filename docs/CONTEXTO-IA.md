@@ -9,7 +9,7 @@ App de gestión de ventas para una distribuidora de Mondelez en el GBA.
 Stack: **Next.js 16 (App Router, Turbopack) + Supabase (Postgres) + Vercel**.
 Idioma del producto y de los textos: **español rioplatense**.
 Producción: **https://distr2.vercel.app** (auto-deploy desde `main`).
-_Última actualización: 2026-07-17 · migraciones hasta `040` · base nueva · IA = Claude · insights SERVE-ONLY + job en GitHub Actions (LIVE) · filtro de rango de fechas · metas: los SIN SUPERVISOR no reciben meta y julio-2026 ya se recalculó (§13) · UI sin emojis, tema claro._
+_Última actualización: 2026-07-21 · migraciones hasta `040` · base nueva · IA = Claude · insights SERVE-ONLY + job en GitHub Actions (LIVE) y **SOLO-ADMIN** (§8) · filtro de rango de fechas · metas: los SIN SUPERVISOR no reciben meta y julio-2026 ya se recalculó (§13) + **la meta $ del supervisor estaba estimada, no cargada** (§13) · **costo de IA medido: 45 llamadas/noche ≈ $30/mes** (§9) · UI sin emojis, tema claro._
 
 ---
 
@@ -125,6 +125,12 @@ Next, leer la guía relevante en `node_modules/next/dist/docs/`.
 - Favicon: convención `app/favicon.ico` (Next inyecta el `<link>` solo).
 - El mapa se carga con `dynamic(() => import(...), { ssr: false })` porque Leaflet
   necesita `window` (no corre en SSR).
+- **⚠️ `useSearchParams` en un client component exige `<Suspense>` alrededor.** En dev
+  no se nota (las rutas se renderizan on-demand); **el que falla es el build de
+  producción**. Documentado en
+  `node_modules/next/dist/docs/01-app/03-api-reference/04-functions/use-search-params.md`.
+  Cada vez que muevas estado a la URL (`?vendedor=`, `?desde=`…), envolvé el cliente en
+  Suspense **en el mismo commit**, aunque `npm run dev` ande perfecto.
 
 ---
 
@@ -371,11 +377,46 @@ distingue la altura; **Google Geocoding** las cerraría mejor (upgrade de un ren
   tools reales contra la DB): responde con números exactos, sin alucinar.
   - **OJO en producción:** hay que cargar `OPENAI_API_KEY` en las env vars de
     Vercel; si no, el widget no aparece (degrada).
+  - **⚠️ Anthropic exige que el PRIMER mensaje sea `user`** (OpenAI lo tolera). El
+    historial es user/assistant alternado y **siempre tiene largo impar** (termina en
+    el user recién enviado), así que un `slice(-12)` pelado arranca en `assistant`
+    apenas hay 13+ mensajes → **400 y el chat quedaba roto a partir del 7º turno,
+    para siempre**. Fix: descartar los mensajes iniciales hasta que el primero sea
+    `user`. Cuidado al tocar el recorte del historial.
+  - **⚠️ Si el modelo no tiene tool para responder algo, DEDUCE en vez de admitirlo.**
+    Preguntar "¿de qué días hay info?" no tenía tool: agarraba la fecha suelta de
+    `get_ultima_carga` y contaba el calendario de cabeza → imposible acertar (no puede
+    saber que el 9-jul es feriado). El system prompt ya decía "si ninguna tool puede
+    responder, decilo" y **no alcanzó**: darle un dato parcial lo empuja a derivar.
+    Fix: tool `get_dias_con_datos` (lista de fechas + conteo + hábiles sin datos),
+    apoyada en los MISMOS RPCs que el dashboard (`kpi_tendencia` agrupa por fecha) para
+    que asistente y dashboard no puedan discrepar. **Regla: si una pregunta razonable no
+    tiene tool, agregá la tool — no alcanza con pedirle que no adivine.**
+  - **⚠️ El `catch` genérico escondía la causa real.** Todo caía en
+    `{ error: 'Error del asistente.' }` y el error verdadero quedaba sólo en el log del
+    server (invisible en Vercel para el usuario). Nos costó una sesión entera descubrir
+    que era **falta de crédito** (§9). Ahora `lib/ai/provider.ts` exporta **`LLMError`**
+    (lleva `status` + cuerpo crudo) y la ruta mapea a mensaje accionable en castellano:
+    sin crédito / credenciales inválidas / rate limit / proveedor caído. El cuerpo crudo
+    **nunca** se manda al browser, sólo al log.
 - **Módulo 3 — insights (HECHO):** página propia `/insights` (link en sidebar).
-  - **Flujo:** por default muestra la vista AGREGADA del alcance del usuario
-    (admin → "Total Empresa"; supervisor → su equipo; vendedor → su cartera).
-    El selector arranca neutro ("Filtrar por vendedor…"); elegir uno cambia a
-    esa cartera. El scope se respeta server-side (un vendedor NO ve la empresa).
+  - **⚠️ SOLO ADMIN desde 2026-07-21.** Antes lo veía cualquier rol con
+    `vendedor_nombre`. El bloqueo va en **cuatro** lugares y hay que tocarlos juntos:
+    `/insights` y `/insights/enfriandose` (redirect si `rol !== 'admin'`), el `Sidebar`
+    (que sólo esconde el link) **y las dos APIs** `/api/insights` +
+    `/api/insights/enfriandose`. **El redirect de página sólo esconde la UI:** sin el
+    chequeo en la API, un supervisor le pega a mano al endpoint y recibe los datos igual.
+    Vale para cualquier restricción de rol en esta app.
+  - Consecuencia de costo: los 40 análisis por vendedor que genera el job nocturno ahora
+    son un drill-down que sólo abre el admin, de a uno → ver §9.
+  - **Flujo:** por default muestra la vista AGREGADA (Total Empresa). El selector
+    arranca neutro ("Filtrar por vendedor…"); elegir uno cambia a esa cartera. El scope
+    igual se respeta server-side (`resolveCarteras`), no se confía en la UI.
+  - **El vendedor elegido vive en la URL (`?vendedor=X`), no en `useState`** — así
+    sobrevive a recargas y al botón atrás. "Ver en mapa" abre en **pestaña nueva**
+    (`target="_blank"`), para no perder la vista de Insights. Ojo: `EnfriandoseClient`
+    **ignoraba** el `?vendedor=` que Insights ya le pasaba (llegabas filtrado y veías
+    todos) — si agregás un cliente nuevo que reciba ese param, leelo de verdad.
   - **Churn ponderado por plata:** el churn se ordena por `valor_mensual`
     ($/mes histórico que facturaba cada apagado, RPC `pdvs_valor_12m` =
     neto últ. 12m / meses con compra), no por fecha. `churn.valor_total` = $/mes
@@ -443,19 +484,55 @@ distingue la altura; **Google Geocoding** las cerraría mejor (upgrade de un ren
   (selPdvs/selVendedores). Cierra el círculo insight → acción.
 - La narración de rutas se descartó (no aporta).
 
-## 9. Notas de costo/operación de IA
-- Modelo default barato (`gpt-4o-mini`). Subir a `gpt-4o` solo si hace falta.
-- Insights: cache se borra en la carga de ventas → regen lazy (sin botón ni cron).
-- Asistente: historial acotado a 12 msgs y máx 5 turnos de tools.
-- En Vercel: cargar `OPENAI_API_KEY` en env vars o la IA no aparece (degrada).
+## 9. Costo de la IA (medido, 2026-07-21)
+
+**El job nocturno NO es "una consulta por día": son 45 llamadas al LLM cada noche.**
+Una por cada alcance que la app puede mostrar: 1 Total Empresa + 4 equipos + 40
+vendedores activos (`daily-jobs.ts` arma los scopes desde `vendedores`).
+
+**Medición real** (sobre los payloads ya guardados en `ai_insights`, 43 scopes / 316 cards):
+
+| | por scope |
+|---|---|
+| Entrada | ~7.653 chars ≈ **2.968 tokens** (incluye ~900 del system prompt) |
+| Salida | ~5.965 chars ≈ **1.612 tokens** (7-8 cards) |
+
+Precios por millón de tokens (entrada/salida): **Sonnet 5** `$2/$10` con descuento de
+lanzamiento **hasta el 31-08-2026**, después `$3/$15`. **Haiku 4.5** `$1/$5` (no cambia).
+
+→ Con Sonnet 5: **~$0,99/día ≈ $29,78/mes**; desde septiembre **$44,66/mes**.
+
+- **La salida domina: ~73% del costo.** Las únicas dos palancas que mueven la aguja son
+  **escribir menos cards por noche** y **usar un modelo más barato**. Bajar `maxTokens`
+  NO ahorra (es un tope, se cobra lo generado).
+- **⚠️ `daily-jobs.ts` pasa `force: true` → saltea el cache diario que YA existe** en
+  `getOrCreateInsight`. Por eso regenera los 45 todas las noches, **incluidos sábados y
+  domingos**, cuando no se cargaron ventas y el `data` calculado da idéntico al del día
+  anterior. Saltear cuando el `data` no cambió es el único ahorro **sin contrapartida**
+  (no pierde ni frescura ni calidad) y se combina con cualquier otra medida.
+- **⚠️ Insights quedó SOLO-ADMIN (2026-07-21) → 40 de las 45 llamadas son análisis por
+  vendedor que sólo mira el admin, y de a uno.** Ahí está el grueso del desperdicio.
+  Opción evaluada: empresa+equipos diarios con Sonnet + los 40 vendedores **rotando ~6
+  por noche** (refresco semanal) con Haiku → **~$5,20/mes (−83%)**. La UI ya banca el
+  desfasaje: muestra "Datos al DD/MM/AAAA" + aviso azul si no es de hoy.
+  **Decisión pendiente de la empresa — NO implementado todavía.**
+- **El reintento ciego ante 0 cards** (`daily-jobs.ts`) duplica el costo de ese scope.
+  Hoy no dispara (0 scopes vacíos), pero es un 2x latente.
+- **⚠️ Sin crédito en la cuenta, TODO lo de IA cae junto** (asistente + insights + job
+  nocturno): la API devuelve `400 invalid_request_error` con *"Your credit balance is too
+  low"*. No es un bug de código — mirar Plans & Billing antes de debuggear.
+- El chat asistente se cobra aparte y es consumo variable (no entra en los números de arriba).
 
 ---
 
 ## 10. Mapa de archivos clave (dónde está cada cosa)
 
 **IA**
-- `lib/ai/provider.ts` — capa LLM agnóstica (OpenAI/Anthropic), `getLLMProvider`, `llmAvailable`.
+- `lib/ai/provider.ts` — capa LLM agnóstica (OpenAI/Anthropic), `getLLMProvider`, `llmAvailable`,
+  **`LLMError`** (status + cuerpo, con `mensajeUsuario` en castellano).
 - `lib/ai/tools.ts` — tools del asistente + `resolveCarteras` / `resolveVendedor`.
+  Tools: `get_pdvs_inactivos`, `get_pdv_info`, `get_ventas`, `get_ccc_por_categoria`,
+  `get_dias_con_datos`, `get_ultima_carga`.
 - `lib/ai/insights.ts` — datos de insights, action cards, `computeEnfriandose`, `esEnfriandose`.
 - `app/api/asistente/route.ts` — chat (tool-calling). `components/asistente/Asistente.tsx` — widget.
 - `app/api/insights/route.ts` + `app/insights/` — página de insights.
@@ -585,6 +662,29 @@ distingue la altura; **Google Geocoding** las cerraría mejor (upgrade de un ren
   **`s/maestro`** (sin tildar — no se adivina el supervisor) para excluirlos a
   mano. **Arreglo de fondo: corregir los nombres en el maestro**, no en código.
   Misma familia que las carteras huérfanas del mapa.
+- **⚠️⚠️ `buildKpi` ESTIMA la meta en $ si no le pasás `neto_meta_stored`** (`lib/calculations/
+  dashboard.ts`). El fallback es `kilos_meta × ($/kg realizado)` — un número plausible pero
+  **inventado**, que no es el objetivo cargado a mano en Configuración → Metas.
+  - **Nos rompió la vista de supervisor (2026-07-21):** `fetchSupervisorKpis` guardaba en
+    `metasVd` sólo `kilos_meta` y **descartaba `neto_meta`**, así que el camino `porVendedor`
+    llamaba a `buildKpi` sin `neto_meta_stored` y mostraba la estimación.
+    `fetchVendedorKpis` y `fetchTotalKpis` sí pasan el valor real → **la meta $ del supervisor
+    no coincidía ni con la matinal de Mondelez ni con el dashboard individual del vendedor**,
+    mientras que el acumulado sí coincidía (ese viene de ventas, no de metas).
+  - **Afectaba a TODOS los vendedores, no a algunos.** Medido sobre 07/2026: desvíos de hasta
+    **+55%**, y los vendedores **sin ventas en el mes mostraban meta $0** (sin ratio $/kg el
+    fallback no puede calcular nada). Lo que varía es cuánto, no si.
+  - **Regla:** cualquier camino nuevo que llame a `buildKpi` directo (sin pasar por
+    `buildKpisFromRpc`) **tiene que pasar `neto_meta_stored`**. Si un número de metas "casi
+    coincide" pero no exacto, sospechar de este fallback antes que de la query.
+  - Ojo también con el **caché**: `fetchSupervisorKpis` está en `unstable_cache`
+    (`revalidate: 300`, tag `kpis`) → el arreglo se ve recién al expirar.
+- **⚠️ Dos fuentes de verdad para "quién es del equipo"** (gap abierto, hoy no rompe):
+  `kpi_por_vendedor` scopea por **`resumen_diario.equipo`** (denormalizado en las ventas),
+  pero las metas se filtran por **`vendedores.equipo AND activo = true`** (el maestro).
+  Si alguien se da de baja del maestro con ventas del mes ya cargadas, aparece en la tabla
+  del supervisor **con meta 0**. Verificado 07/2026: sólo desalinean `Sin Vendedor` y
+  `VENTA OFICINA LANU`, ambos sin equipo. Misma familia que el gap de nombres de arriba.
 - `metas` (kilos meta por vendedor/rubro/mes) · `metas_ccc` (objetivo de clientes;
   cascadeo con RPC `calcular_preset_ccc`, se recalcula en el upload de PDVs y NO
   pisa lo editado por el supervisor, `es_preset=false`).
