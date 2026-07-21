@@ -48,6 +48,39 @@ export interface LLMProvider {
   chat(opts: ChatOptions): Promise<ChatResult>;
 }
 
+/**
+ * Error HTTP del proveedor. Lleva el status y el cuerpo crudo para que quien
+ * llame pueda distinguir "sin crédito" / "API key inválida" / "rate limit" de
+ * un error genérico. El cuerpo NUNCA se manda al browser: es para el log.
+ */
+export class LLMError extends Error {
+  constructor(
+    readonly provider: string,
+    readonly status: number,
+    readonly body: string,
+  ) {
+    super(`${provider} ${status}: ${body}`);
+    this.name = 'LLMError';
+  }
+
+  /** Mensaje en castellano apto para mostrarle al usuario final. */
+  get mensajeUsuario(): string {
+    if (this.status === 401 || this.status === 403) {
+      return 'El asistente no está configurado correctamente (credenciales de IA inválidas).';
+    }
+    if (this.status === 429) {
+      return 'El asistente está recibiendo demasiadas consultas. Probá de nuevo en un momento.';
+    }
+    if (/credit balance is too low|billing/i.test(this.body)) {
+      return 'El asistente no está disponible: la cuenta de IA se quedó sin crédito.';
+    }
+    if (this.status >= 500) {
+      return 'El proveedor de IA está caído. Probá de nuevo en unos minutos.';
+    }
+    return 'Error del asistente.';
+  }
+}
+
 // ---------------------------------------------------------------------------
 // OpenAI (Chat Completions API con function-calling)
 // ---------------------------------------------------------------------------
@@ -94,7 +127,7 @@ class OpenAIProvider implements LLMProvider {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.apiKey}` },
       body: JSON.stringify(body),
     });
-    if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
+    if (!res.ok) throw new LLMError('OpenAI', res.status, await res.text());
     const data = await res.json();
     const msg = data.choices?.[0]?.message ?? {};
     const toolCalls: ToolCall[] = (msg.tool_calls ?? []).map((tc: { id: string; function: { name: string; arguments: string } }) => ({
@@ -158,7 +191,7 @@ class AnthropicProvider implements LLMProvider {
       },
       body: JSON.stringify(body),
     });
-    if (!res.ok) throw new Error(`Anthropic ${res.status}: ${await res.text()}`);
+    if (!res.ok) throw new LLMError('Anthropic', res.status, await res.text());
     const data = await res.json();
     let text: string | null = null;
     const toolCalls: ToolCall[] = [];

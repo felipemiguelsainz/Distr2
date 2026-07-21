@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
-import { getLLMProvider, llmAvailable, type ChatMessage } from '@/lib/ai/provider';
+import { getLLMProvider, llmAvailable, LLMError, type ChatMessage } from '@/lib/ai/provider';
 import { toolDefs, runTool, type UserContext } from '@/lib/ai/tools';
 
 // Asistente de ventas: responde en lenguaje natural usando SOLO las tools
@@ -32,6 +32,9 @@ function systemPrompt(ctx: UserContext): string {
     '- "¿Cuántos clientes compraron [categoría] en [mes]?" → usá get_ccc_por_categoria',
     '- "¿Cuánto vendió [vendedor] en [categoría] en [mes]?" → usá get_ventas con rubro y mes_numero',
     '- "¿Hasta qué fecha hay datos?" → usá get_ultima_carga',
+    '- "¿De qué días hay info?" / "¿cuántos días trabajados van?" → usá get_dias_con_datos',
+    '- Nunca deduzcas cuántos días tienen datos contando el calendario o a partir',
+    '  de la última fecha: hay feriados y días sin carga. Pedí get_dias_con_datos.',
     '- "¿Qué clientes no compraron hace más de X meses?" → usá get_pdvs_inactivos',
   ].join('\n');
 }
@@ -54,8 +57,14 @@ export async function POST(req: Request) {
   if (!Array.isArray(incoming) || incoming.length === 0) {
     return NextResponse.json({ error: 'Falta el mensaje' }, { status: 400 });
   }
-  // Acotar el historial para controlar tokens/costo.
-  const trimmed = incoming.slice(-12);
+  // Acotar el historial para controlar tokens/costo. OJO: Anthropic exige que el
+  // primer mensaje sea 'user'. El historial es user/assistant alternado y siempre
+  // tiene largo impar (termina en el user recién enviado), así que un slice(-12)
+  // pelado arranca en 'assistant' apenas hay 13+ mensajes y devuelve 400. Por eso
+  // descartamos los mensajes iniciales hasta que el primero sea 'user'.
+  const ventana = incoming.slice(-12);
+  while (ventana.length > 0 && ventana[0].role !== 'user') ventana.shift();
+  const trimmed = ventana.length > 0 ? ventana : incoming.slice(-1);
 
   const ctx: UserContext = { rol: profile.rol, vendedor_nombre: profile.vendedor_nombre, equipo: profile.equipo };
   const svc = createServiceClient();
@@ -86,6 +95,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ reply: 'No pude completar la consulta (demasiados pasos).' });
   } catch (e) {
     console.error('[asistente]', e);
+    // Los errores del proveedor (sin crédito, API key inválida, rate limit) son
+    // accionables: mostrarlos en vez de esconderlos tras un genérico.
+    if (e instanceof LLMError) {
+      return NextResponse.json({ error: e.mensajeUsuario }, { status: e.status === 429 ? 429 : 503 });
+    }
     return NextResponse.json({ error: 'Error del asistente.' }, { status: 500 });
   }
 }

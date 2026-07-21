@@ -303,6 +303,86 @@ const TOOLS: Tool[] = [
     },
   },
 
+  // -------- Qué días de un mes tienen ventas cargadas ---------------------
+  {
+    def: {
+      name: 'get_dias_con_datos',
+      description: 'Días de un mes que tienen ventas cargadas: la lista exacta de fechas, cuántos son (días trabajados) y qué días hábiles del mes faltan. Usar SIEMPRE para "¿de qué días hay info?", "¿cuántos días trabajados van?", "¿falta cargar algún día?". NUNCA deducir la cantidad de días a partir de la última fecha: hay feriados y días sin carga que solo se ven mirando los datos.',
+      parameters: {
+        type: 'object',
+        properties: {
+          mes:  { type: 'number', description: 'Mes (1-12). Default mes actual.' },
+          anio: { type: 'number', description: 'Año. Default año actual.' },
+        },
+      },
+    },
+    async run(args, ctx, svc) {
+      const today = new Date();
+      const mes  = Number(args.mes)  || today.getMonth() + 1;
+      const anio = Number(args.anio) || today.getFullYear();
+      const mm    = String(mes).padStart(2, '0');
+      const desde = `${anio}-${mm}-01`;
+      const hasta = `${anio}-${mm}-${String(new Date(anio, mes, 0).getDate()).padStart(2, '0')}`;
+
+      // Scoping por rol, igual que get_ventas.
+      let p_equipo: string | null = null;
+      let p_vendedor: string | null = null;
+      let alcance = 'Total Empresa';
+      if (ctx.rol === 'vendedor' && ctx.vendedor_nombre) {
+        p_vendedor = ctx.vendedor_nombre;
+        alcance = ctx.vendedor_nombre;
+      } else if (ctx.rol === 'supervisor') {
+        let equipo = ctx.equipo ?? '';
+        if (!equipo && ctx.vendedor_nombre) {
+          const { data: v } = await svc.from('vendedores').select('equipo').eq('nombre', ctx.vendedor_nombre).single();
+          equipo = v?.equipo ?? '';
+        }
+        if (!equipo) return { error: 'No tenés un equipo asignado.' };
+        p_equipo = equipo;
+        alcance = `Equipo ${equipo}`;
+      }
+
+      // kpi_tendencia agrupa por fecha: devuelve exactamente un renglón por día
+      // con ventas, que es la misma definición de "día trabajado" que usa el
+      // dashboard (kpi_dias_trabajados = COUNT DISTINCT fecha sobre esa tabla).
+      const [{ data: dias }, { data: cfg }] = await Promise.all([
+        svc.rpc('kpi_tendencia', { p_desde: desde, p_hasta: hasta, p_equipo, p_vendedor }),
+        svc.from('config_meses').select('dias_laborables').eq('anio', anio).eq('mes', mes).maybeSingle(),
+      ]);
+
+      const fechas = ((dias ?? []) as { fecha: string }[])
+        .map((r) => String(r.fecha).slice(0, 10))
+        .sort();
+      const conDatos = new Set(fechas);
+
+      // Días hábiles (lun-vie) del mes, hasta hoy si el mes está en curso, que
+      // NO tienen ventas: feriados o cargas pendientes. El asistente no puede
+      // inferirlos, así que se los damos calculados.
+      const finDeVentana = (anio === today.getFullYear() && mes === today.getMonth() + 1)
+        ? today.getDate()
+        : new Date(anio, mes, 0).getDate();
+      const habilesSinDatos: string[] = [];
+      for (let d = 1; d <= finDeVentana; d++) {
+        const dow = new Date(anio, mes - 1, d).getDay();
+        if (dow === 0 || dow === 6) continue;
+        const iso = `${anio}-${mm}-${String(d).padStart(2, '0')}`;
+        if (!conDatos.has(iso)) habilesSinDatos.push(iso);
+      }
+
+      return {
+        periodo: `${anio}-${mm}`,
+        alcance,
+        dias_con_datos: fechas.length,
+        fechas,
+        primera_fecha: fechas[0] ?? null,
+        ultima_fecha: fechas[fechas.length - 1] ?? null,
+        dias_laborables_del_mes: cfg?.dias_laborables ?? null,
+        dias_habiles_sin_datos: habilesSinDatos,
+        nota: 'dias_con_datos es el conteo real de días con ventas (lo mismo que muestra el dashboard). Los días de dias_habiles_sin_datos son hábiles sin ventas: feriados o cargas pendientes.',
+      };
+    },
+  },
+
   // -------- Fecha de la última carga / hasta cuándo hay datos --------------
   {
     def: {
