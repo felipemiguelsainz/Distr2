@@ -169,14 +169,18 @@ const _fetchSupervisorKpisImpl = unstable_cache(
 
   const metasTotal    = new Map<string, number>();
   const netoMetaTotal = new Map<string, number>();
-  const metasVd       = new Map<string, Map<string, number>>();
+  // Por vendedor guardamos kilos Y neto: el neto_meta cargado a mano (Configuración
+  // → Metas) es el objetivo $ exacto. Si no se pasa, buildKpi lo ESTIMA como
+  // kilos_meta × ($/kg realizado), y la meta de facturación del supervisor deja de
+  // coincidir con la del dashboard individual (y con la matinal).
+  const metasVd = new Map<string, Map<string, { kilos: number; neto: number | null }>>();
   for (const m of metas ?? []) {
     metasTotal.set(m.rubro, (metasTotal.get(m.rubro) ?? 0) + Number(m.kilos_meta));
     if (m.neto_meta != null) {
       netoMetaTotal.set(m.rubro, (netoMetaTotal.get(m.rubro) ?? 0) + Number(m.neto_meta));
     }
-    const vm = metasVd.get(m.vendedor_nombre) ?? new Map<string, number>();
-    vm.set(m.rubro, Number(m.kilos_meta));
+    const vm = metasVd.get(m.vendedor_nombre) ?? new Map<string, { kilos: number; neto: number | null }>();
+    vm.set(m.rubro, { kilos: Number(m.kilos_meta), neto: m.neto_meta != null ? Number(m.neto_meta) : null });
     metasVd.set(m.vendedor_nombre, vm);
   }
 
@@ -194,14 +198,15 @@ const _fetchSupervisorKpisImpl = unstable_cache(
 
   const porVendedor: KpiVendedor[] = vendedores.flatMap((v) => {
     const vRows  = vdRows.filter(r => r.vendedor === v);
-    const vMetas = metasVd.get(v) ?? new Map<string, number>();
+    const vMetas = metasVd.get(v) ?? new Map<string, { kilos: number; neto: number | null }>();
     const vMap   = new Map(vRows.map(r => [r.rubro, { kilos: Number(r.kilos), neto: Number(r.neto) }]));
     const rubros = new Set([...vMetas.keys(), ...vRows.map(r => r.rubro)]);
     return [...rubros].map(rubro => ({
       ...buildKpi({
         acumulado:         vMap.get(rubro)?.kilos ?? 0,
         neto_acumulado:    vMap.get(rubro)?.neto  ?? 0,
-        meta:              vMetas.get(rubro) ?? 0,
+        meta:              vMetas.get(rubro)?.kilos ?? 0,
+        neto_meta_stored:  vMetas.get(rubro)?.neto ?? null,
         acumulado_minus7:  0,
         acumulado_minus14: 0,
         acumulado_aa:      0,
