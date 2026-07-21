@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   Users, UserCheck, Clock, AlertTriangle, RefreshCw, TrendingUp, TrendingDown, MapPin,
   ChevronDown, ArrowRight, Check, Building2,
@@ -60,7 +61,21 @@ function esDeHoy(iso: string | null): boolean {
 }
 
 export function InsightsClient({ vendedores }: { vendedores: string[] }) {
-  const [vendedor, setVendedor] = useState(''); // '' = vista agregada (empresa/equipo)
+  // El vendedor vive en la URL (?vendedor=X), no en estado local: así sobrevive a
+  // recargas y al botón atrás del browser (p.ej. volviendo desde el mapa).
+  // '' = vista agregada (empresa/equipo).
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const vendedor = searchParams.get('vendedor') ?? '';
+
+  const setVendedor = useCallback((v: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (v) params.set('vendedor', v); else params.delete('vendedor');
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }, [searchParams, router, pathname]);
+
   const [payload, setPayload] = useState<Payload | null>(null);
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -339,6 +354,8 @@ function ActionCard({ card, when, vendedor, clientes }: { card: InsightCard; whe
               {refClientes.length > 0 && (
                 <a
                   href={`/mapa?pdvs=${refClientes.map((c) => c.pdv_id).join(',')}${vendedor ? `&vendedor=${encodeURIComponent(vendedor)}` : ''}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
                 >
                   <MapPin className="w-4 h-4" />

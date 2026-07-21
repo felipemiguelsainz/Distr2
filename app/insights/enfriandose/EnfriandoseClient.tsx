@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Clock, ChevronDown, RefreshCw, MapPin, ClipboardList } from 'lucide-react';
 
 interface Cliente {
@@ -25,7 +26,20 @@ function zonaRojaStyle(diasRestantes: number) {
 }
 
 export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores: string[]; mostrarVendedor: boolean }) {
-  const [vendedor, setVendedor] = useState('');
+  // El vendedor vive en la URL (?vendedor=X): así respeta el filtro con el que se
+  // llegó desde Insights y sobrevive a recargas y al botón atrás.
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const vendedor = searchParams.get('vendedor') ?? '';
+
+  const setVendedor = useCallback((v: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (v) params.set('vendedor', v); else params.delete('vendedor');
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }, [searchParams, router, pathname]);
+
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [valorTotal, setValorTotal] = useState(0);
   const [kgTotal, setKgTotal] = useState(0);
@@ -81,7 +95,7 @@ export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores:
             </div>
           )}
           {mapsHref && (
-            <a href={mapsHref} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition">
+            <a href={mapsHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition">
               <MapPin className="w-4 h-4" /> Ver en mapa
             </a>
           )}

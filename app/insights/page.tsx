@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
@@ -12,6 +13,8 @@ export default async function InsightsPage() {
   const { data: profile } = await supabase
     .from('profiles').select('rol, vendedor_nombre, equipo').eq('id', user.id).single();
   if (!profile) redirect('/login');
+  // Insights es solo para admin.
+  if (profile.rol !== 'admin') redirect('/');
 
   const svc = createServiceClient();
   const carteras = await resolveCarteras(svc, { rol: profile.rol, vendedor_nombre: profile.vendedor_nombre, equipo: profile.equipo });
@@ -37,7 +40,10 @@ export default async function InsightsPage() {
               </p>
             </>
           ) : (
-            <InsightsClient vendedores={vendedores} />
+            // InsightsClient lee ?vendedor= con useSearchParams → necesita Suspense.
+            <Suspense fallback={<p className="text-sm text-gray-500">Cargando…</p>}>
+              <InsightsClient vendedores={vendedores} />
+            </Suspense>
           )}
         </div>
       </div>
