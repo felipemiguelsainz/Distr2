@@ -9,7 +9,7 @@ App de gestión de ventas para una distribuidora de Mondelez en el GBA.
 Stack: **Next.js 16 (App Router, Turbopack) + Supabase (Postgres) + Vercel**.
 Idioma del producto y de los textos: **español rioplatense**.
 Producción: **https://distr2.vercel.app** (auto-deploy desde `main`).
-_Última actualización: 2026-07-21 · migraciones hasta `040` · base nueva · IA = Claude · insights SERVE-ONLY + job en GitHub Actions (LIVE) y **SOLO-ADMIN** (§8) · filtro de rango de fechas · metas: los SIN SUPERVISOR no reciben meta y julio-2026 ya se recalculó (§13) + **la meta $ del supervisor estaba estimada, no cargada** (§13) · **costo de IA medido: 45 llamadas/noche ≈ $30/mes** (§9) · UI sin emojis, tema claro._
+_Última actualización: 2026-07-28 · migraciones hasta `040` · base nueva · IA = Claude · insights SERVE-ONLY + job en GitHub Actions (LIVE) y **admin + supervisor (su equipo), el vendedor no** (§8) · filtro de rango de fechas · metas: los SIN SUPERVISOR no reciben meta y julio-2026 ya se recalculó (§13) + **la meta $ del supervisor estaba estimada, no cargada** (§13) · **costo de IA medido: 45 llamadas/noche ≈ $30/mes** (§9) · UI sin emojis, tema claro._
 
 ---
 
@@ -400,15 +400,22 @@ distingue la altura; **Google Geocoding** las cerraría mejor (upgrade de un ren
     sin crédito / credenciales inválidas / rate limit / proveedor caído. El cuerpo crudo
     **nunca** se manda al browser, sólo al log.
 - **Módulo 3 — insights (HECHO):** página propia `/insights` (link en sidebar).
-  - **⚠️ SOLO ADMIN desde 2026-07-21.** Antes lo veía cualquier rol con
-    `vendedor_nombre`. El bloqueo va en **cuatro** lugares y hay que tocarlos juntos:
-    `/insights` y `/insights/enfriandose` (redirect si `rol !== 'admin'`), el `Sidebar`
+  - **⚠️ ADMIN + SUPERVISOR (desde 2026-07-28); el vendedor NO.** Historia: hasta el
+    2026-07-21 lo veía cualquier rol con `vendedor_nombre`, ese día quedó solo-admin y
+    el 2026-07-28 se reabrió al supervisor. El corte va en **cuatro** lugares y hay que
+    tocarlos juntos: `/insights` y `/insights/enfriandose` (redirect), el `Sidebar`
     (que sólo esconde el link) **y las dos APIs** `/api/insights` +
     `/api/insights/enfriandose`. **El redirect de página sólo esconde la UI:** sin el
-    chequeo en la API, un supervisor le pega a mano al endpoint y recibe los datos igual.
+    chequeo en la API, cualquiera le pega a mano al endpoint y recibe los datos igual.
     Vale para cualquier restricción de rol en esta app.
-  - Consecuencia de costo: los 40 análisis por vendedor que genera el job nocturno ahora
-    son un drill-down que sólo abre el admin, de a uno → ver §9.
+  - **El supervisor ve el scope de SU equipo**, no el de la empresa: la vista agregada
+    resuelve `equipo:<profiles.equipo>` (scope que el job nocturno ya genera) y el
+    dropdown sólo lista las carteras de su equipo (`resolveCarteras`). El equipo sale de
+    `resolveEquipo` (`profiles.equipo`, con fallback a `vendedores` por nombre) — la
+    MISMA función que usa `resolveCarteras`, si no el supervisor sin `profiles.equipo`
+    veía la lista de su equipo pero "Sin equipo asignado" en la agregada.
+  - Consecuencia de costo: los 40 análisis por vendedor que genera el job nocturno los
+    abre el admin (todos) o el supervisor (los de su equipo), de a uno → ver §9.
   - **Flujo:** por default muestra la vista AGREGADA (Total Empresa). El selector
     arranca neutro ("Filtrar por vendedor…"); elegir uno cambia a esa cartera. El scope
     igual se respeta server-side (`resolveCarteras`), no se confía en la UI.
@@ -510,8 +517,9 @@ lanzamiento **hasta el 31-08-2026**, después `$3/$15`. **Haiku 4.5** `$1/$5` (n
   domingos**, cuando no se cargaron ventas y el `data` calculado da idéntico al del día
   anterior. Saltear cuando el `data` no cambió es el único ahorro **sin contrapartida**
   (no pierde ni frescura ni calidad) y se combina con cualquier otra medida.
-- **⚠️ Insights quedó SOLO-ADMIN (2026-07-21) → 40 de las 45 llamadas son análisis por
-  vendedor que sólo mira el admin, y de a uno.** Ahí está el grueso del desperdicio.
+- **⚠️ 40 de las 45 llamadas son análisis por vendedor que se miran de a uno** (el admin
+  todos, cada supervisor los de su equipo desde el 2026-07-28). Ahí está el grueso del
+  desperdicio.
   Opción evaluada: empresa+equipos diarios con Sonnet + los 40 vendedores **rotando ~6
   por noche** (refresco semanal) con Haiku → **~$5,20/mes (−83%)**. La UI ya banca el
   desfasaje: muestra "Datos al DD/MM/AAAA" + aviso azul si no es de hoy.

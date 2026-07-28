@@ -14,8 +14,10 @@ export async function GET(req: Request) {
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
   const { data: profile } = await supabase.from('profiles').select('rol, vendedor_nombre, equipo').eq('id', user.id).single();
   if (!profile) return NextResponse.json({ error: 'Sin perfil' }, { status: 403 });
-  // Insights es solo para admin (mismo bloqueo que /insights).
-  if (profile.rol !== 'admin') return NextResponse.json({ error: 'Sin acceso a Insights' }, { status: 403 });
+  // Insights es para admin y supervisor (mismo bloqueo que /insights).
+  if (profile.rol !== 'admin' && profile.rol !== 'supervisor') {
+    return NextResponse.json({ error: 'Sin acceso a Insights' }, { status: 403 });
+  }
 
   const svc = createServiceClient();
   const ctx: UserContext = { rol: profile.rol, vendedor_nombre: profile.vendedor_nombre, equipo: profile.equipo };

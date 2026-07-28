@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { llmAvailable } from '@/lib/ai/provider';
-import { resolveCarteras, type UserContext } from '@/lib/ai/tools';
+import { resolveCarteras, resolveEquipo, type UserContext } from '@/lib/ai/tools';
 import { getLatestInsight } from '@/lib/ai/insights';
 
 // La app SÓLO sirve lo cacheado (rápido). Generar tarda ~35s y no entra en Vercel
@@ -24,8 +24,12 @@ async function resolveScope(svc: SvcClient, vendedorParam: string | null):
   if (!user) return { error: 'No autenticado', status: 401 };
   const { data: profile } = await supabase.from('profiles').select('rol, vendedor_nombre, equipo').eq('id', user.id).single();
   if (!profile) return { error: 'Sin perfil', status: 403 };
-  // Insights es solo para admin (mismo bloqueo que /insights).
-  if (profile.rol !== 'admin') return { error: 'Sin acceso a Insights', status: 403 };
+  // Insights es para admin y supervisor (mismo bloqueo que /insights). El
+  // vendedor no lo tiene: el redirect de página sólo esconde la UI, así que el
+  // corte va también acá.
+  if (profile.rol !== 'admin' && profile.rol !== 'supervisor') {
+    return { error: 'Sin acceso a Insights', status: 403 };
+  }
 
   const ctx: UserContext = { rol: profile.rol, vendedor_nombre: profile.vendedor_nombre, equipo: profile.equipo };
   const allowed = await resolveCarteras(svc, ctx);
@@ -39,8 +43,12 @@ async function resolveScope(svc: SvcClient, vendedorParam: string | null):
   // Vista agregada (default)
   if (ctx.rol === 'admin') return { scopeKey: 'empresa:total' };
   if (ctx.rol === 'supervisor') {
-    if (!ctx.equipo) return { error: 'Sin equipo asignado', status: 403 };
-    return { scopeKey: `equipo:${ctx.equipo}` };
+    // Mismo equipo que usó resolveCarteras (con el fallback a `vendedores`), si
+    // no el supervisor sin profiles.equipo vería la lista de su equipo pero un
+    // "sin equipo asignado" en la vista agregada.
+    const equipo = await resolveEquipo(svc, ctx);
+    if (!equipo) return { error: 'Sin equipo asignado', status: 403 };
+    return { scopeKey: `equipo:${equipo}` };
   }
   if (ctx.rol === 'vendedor' && ctx.vendedor_nombre) return { scopeKey: `vendedor:${ctx.vendedor_nombre}` };
   return { error: 'Sin alcance', status: 403 };

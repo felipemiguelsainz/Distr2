@@ -18,6 +18,21 @@ export interface UserContext {
 }
 
 /**
+ * Equipo del supervisor. Sale de profiles.equipo (canónico); si viene vacío se
+ * intenta derivar de `vendedores` por nombre — pero OJO: el supervisor NO
+ * siempre es una fila en vendedores, así que puede quedar null.
+ */
+export async function resolveEquipo(
+  svc: SupabaseClient,
+  ctx: UserContext
+): Promise<string | null> {
+  if (ctx.equipo) return ctx.equipo;
+  if (!ctx.vendedor_nombre) return null;
+  const { data: v } = await svc.from('vendedores').select('equipo').eq('nombre', ctx.vendedor_nombre).single();
+  return v?.equipo ?? null;
+}
+
+/**
  * Carteras que el usuario puede ver. null = todas (admin).
  * vendedor → su cartera; supervisor → carteras activas de su equipo.
  */
@@ -28,13 +43,7 @@ export async function resolveCarteras(
   if (ctx.rol === 'admin') return null;
   if (ctx.rol === 'vendedor') return ctx.vendedor_nombre ? [ctx.vendedor_nombre] : [];
   if (ctx.rol === 'supervisor') {
-    // El equipo del supervisor sale de profiles.equipo (canónico); el supervisor
-    // NO siempre es una fila en vendedores, así que no se puede derivar por nombre.
-    let equipo = ctx.equipo ?? null;
-    if (!equipo && ctx.vendedor_nombre) {
-      const { data: v } = await svc.from('vendedores').select('equipo').eq('nombre', ctx.vendedor_nombre).single();
-      equipo = v?.equipo ?? null;
-    }
+    const equipo = await resolveEquipo(svc, ctx);
     if (!equipo) return [];
     const { data: eq } = await svc.from('vendedores').select('nombre').eq('equipo', equipo).eq('activo', true);
     return (eq ?? []).map((r: { nombre: string }) => r.nombre);

@@ -13,8 +13,8 @@ export default async function EnfriandosePage() {
   const { data: profile } = await supabase
     .from('profiles').select('rol, vendedor_nombre, equipo').eq('id', user.id).single();
   if (!profile) redirect('/login');
-  // Insights es solo para admin.
-  if (profile.rol !== 'admin') redirect('/');
+  // Insights es para admin y supervisor (el supervisor ve el scope de su equipo).
+  if (profile.rol !== 'admin' && profile.rol !== 'supervisor') redirect('/');
 
   const svc = createServiceClient();
   const carteras = await resolveCarteras(svc, { rol: profile.rol, vendedor_nombre: profile.vendedor_nombre, equipo: profile.equipo });

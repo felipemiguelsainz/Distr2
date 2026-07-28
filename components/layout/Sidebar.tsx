@@ -110,8 +110,8 @@ function buildNav(rol: Rol, vendedorNombre: string | null, supervisores: Supervi
     items.push({ href: '/mapa',            label: 'Mapa de PDVs',    icon: <MapPinIcon /> });
   }
 
-  // Insights (IA) solo para admin. Perfil, para todos los roles.
-  if (rol === 'admin') {
+  // Insights (IA) para admin y supervisor. Perfil, para todos los roles.
+  if (rol === 'admin' || rol === 'supervisor') {
     items.push({ href: '/insights', label: 'Insights', icon: <SparkIcon /> });
   }
   items.push({ href: '/perfil', label: 'Mi perfil', icon: <PersonIcon /> });
