@@ -254,24 +254,28 @@ export async function getOrCreateInsight(
   svc: SupabaseClient,
   opts: { scopeKey: string; label: string; carteras: string[] | null; avance: InsightAvance[]; today: Date; force?: boolean; model?: string }
 ): Promise<{ payload: InsightPayload; generated_at: string }> {
-  // Cache DIARIO (YYYY-MM-DD): se genera 1 vez por día por scope y se sirve el
-  // resto del día. Ahorra créditos (no regenera en cada carga de ventas) y da
-  // un análisis fresco cada día.
+  // El `periodo` (YYYY-MM-DD) sigue siendo la clave de la fila, pero la VALIDEZ
+  // del cache es de 7 DÍAS: el job que genera los insights pasó a ser semanal
+  // (lunes), así que un insight del lunes tiene que servir toda la semana.
   const periodo = opts.today.toISOString().slice(0, 10);
+  const VALIDEZ_MS = 7 * 24 * 60 * 60 * 1000;
 
   if (!opts.force) {
-    const { data: row } = await svc
+    const desde = new Date(opts.today.getTime() - VALIDEZ_MS).toISOString();
+    const { data: rows } = await svc
       .from('ai_insights')
       .select('payload, generated_at')
       .eq('scope_key', opts.scopeKey)
-      .eq('periodo', periodo)
-      .single();
+      .gte('generated_at', desde)
+      .order('generated_at', { ascending: false })
+      .limit(5);
     // Sólo servir el cache si tiene cards. Una entrada vieja con cards=[] (p.ej.
     // de cuando el LLM truncaba) se trata como MISS y se regenera, en vez de
     // mostrarle al vendedor "sin acciones" indefinidamente.
-    const cached = row?.payload as InsightPayload | undefined;
-    if (cached && (cached.cards?.length ?? 0) > 0) {
-      return { payload: cached, generated_at: row!.generated_at };
+    for (const row of (rows ?? []) as { payload: InsightPayload; generated_at: string }[]) {
+      if ((row.payload?.cards?.length ?? 0) > 0) {
+        return { payload: row.payload, generated_at: row.generated_at };
+      }
     }
   }
 
@@ -284,7 +288,7 @@ export async function getOrCreateInsight(
   // cacheado todo el período hasta la siguiente carga de ventas.
   if (cards.length > 0) {
     await svc.from('ai_insights').upsert({ scope_key: opts.scopeKey, periodo, payload, generated_at });
-    // Cache diario: dejar 1 sola fila por scope (borrar días anteriores).
+    // Dejar 1 sola fila por scope (borrar las corridas anteriores).
     await svc.from('ai_insights').delete().eq('scope_key', opts.scopeKey).neq('periodo', periodo);
   }
   return { payload, generated_at };

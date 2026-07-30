@@ -1,14 +1,14 @@
 /**
- * Trabajos diarios pesados que NO entran en Vercel free (límite 10s/función):
+ * Trabajos pesados que NO entran en Vercel free (límite 10s/función):
  *   1) geo-fix: re-geocodifica los PDV imprecisos nuevos (Nominatim, 1 req/seg).
- *   2) insights: genera el análisis diario PROFUNDO con Sonnet para cada scope.
+ *   2) insights: genera el análisis PROFUNDO con Haiku para cada scope.
  *
- * Pensado para correr en GitHub Actions (cron nocturno, sin límite de tiempo).
+ * Pensado para correr en GitHub Actions (cron SEMANAL, sin límite de tiempo).
  * La app de Vercel sólo SIRVE lo que este job dejó cacheado en Supabase.
  *
  * Uso local:  npx ts-node -T -P tsconfig.scripts.json -r tsconfig-paths/register scripts/daily-jobs.ts
  * Env: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ANTHROPIC_API_KEY,
- *      AI_PROVIDER=anthropic. Opcional: INSIGHTS_MODEL (default claude-sonnet-5),
+ *      AI_PROVIDER=anthropic. Opcional: INSIGHTS_MODEL (default claude-haiku-4-5-20251001),
  *      INSIGHTS_LIMIT (para probar con pocos scopes).
  */
 import { createClient } from '@supabase/supabase-js';
@@ -38,7 +38,9 @@ if (faltan.length) {
 }
 
 const svc = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
-const MODEL = process.env.INSIGHTS_MODEL || 'claude-sonnet-5';
+// Haiku 4.5 ($1/$5 por millón de tokens) en vez de Sonnet 5 ($3/$15): ~3x más
+// barato. Con el job SEMANAL (no diario) el costo de insights baja ~20x.
+const MODEL = process.env.INSIGHTS_MODEL || 'claude-haiku-4-5-20251001';
 const LIMIT = process.env.INSIGHTS_LIMIT ? Number(process.env.INSIGHTS_LIMIT) : Infinity;
 
 async function geoFix() {
