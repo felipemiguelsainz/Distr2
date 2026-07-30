@@ -20,12 +20,29 @@ export interface ConsolidadoProductoRow {
 // ---------------------------------------------------------------------------
 // Catálogo de productos (rubro → artículos) — cacheado
 // ---------------------------------------------------------------------------
+// El catálogo NO depende del período elegido: sale de `catalogo_productos`, la
+// tabla materializada con TODOS los artículos que alguna vez se vendieron. Si
+// está vacía (la migración 020 la creó vacía y sólo se llena al recargar ventas),
+// el buscador mostraba "0 de 0": la repoblamos al vuelo con la service key —
+// `recalcular_catalogo_productos` está revocada para authenticated y tarda ~2s.
 export const fetchCatalogoProductos = cache(async (): Promise<CatalogoItem[]> => {
   const supabase = await createClient();
+  const map = (data: unknown) =>
+    ((data ?? []) as { rubro: string; articulo: string }[])
+      .map((r) => ({ rubro: r.rubro, articulo: r.articulo }));
+
   const { data } = await supabase.rpc('productos_catalogo');
-  return (data ?? []).map((r: { rubro: string; articulo: string }) => ({
-    rubro: r.rubro, articulo: r.articulo,
-  }));
+  const items = map(data);
+  if (items.length > 0) return items;
+
+  const svc = createServiceClient();
+  const { error } = await svc.rpc('recalcular_catalogo_productos');
+  if (error) {
+    console.error('[catalogo-productos] no se pudo repoblar el catálogo:', error.message);
+    return items;
+  }
+  const { data: retry } = await supabase.rpc('productos_catalogo');
+  return map(retry);
 });
 
 // ---------------------------------------------------------------------------
