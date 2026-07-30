@@ -287,6 +287,76 @@ function CccVendedorTable({ data, metaByVendedor }: { data: CccRow[]; metaByVend
 }
 
 // ---------------------------------------------------------------------------
+// Filtro de rubros — multi-select (ninguno / algunos / todos)
+// ---------------------------------------------------------------------------
+function RubroFilter({
+  rubros,
+  seleccionados,
+  onToggle,
+  onAll,
+  onNone,
+}: {
+  rubros:        string[];
+  seleccionados: Set<string>;
+  onToggle:      (rubro: string) => void;
+  onAll:         () => void;
+  onNone:        () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const todos = seleccionados.size === rubros.length;
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-2 px-3 py-2 text-[12px] bg-[#ffffff] border border-[#e4e4e7] rounded-[8px] text-[#27272a] hover:border-[#d4d4d8] transition-all"
+      >
+        <span className="text-[10px] uppercase tracking-[0.08em] text-[#71717a]" style={MONO}>Rubros</span>
+        <span className="font-semibold tabular-nums" style={MONO}>
+          {todos ? 'Todos' : `${seleccionados.size}/${rubros.length}`}
+        </span>
+        <svg className={`w-3.5 h-3.5 text-[#71717a] transition-transform ${open ? 'rotate-180' : ''}`}
+             fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {open && (
+        <>
+          {/* click afuera para cerrar */}
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 z-20 mt-2 w-56 bg-[#ffffff] rounded-2xl border border-[#e4e4e7] shadow-xl shadow-black/10 overflow-hidden">
+            <div className="px-3 py-2 border-b border-[#e4e4e7] flex items-center justify-between">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a]" style={MONO}>
+                {seleccionados.size} de {rubros.length}
+              </span>
+              <div className="flex items-center gap-2">
+                <button onClick={onAll}  className="text-[11px] text-[#0c5cab] hover:underline">Todos</button>
+                <span className="text-[#e4e4e7]">·</span>
+                <button onClick={onNone} className="text-[11px] text-[#71717a] hover:underline">Ninguno</button>
+              </div>
+            </div>
+            <div className="max-h-[260px] overflow-y-auto p-2 space-y-0.5">
+              {rubros.map((r) => (
+                <label key={r} className="flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-[rgba(12,92,171,0.04)]">
+                  <input
+                    type="checkbox"
+                    checked={seleccionados.has(r)}
+                    onChange={() => onToggle(r)}
+                    className="accent-[#0c5cab]"
+                  />
+                  <span className="text-[12px] text-[#27272a]">{r}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 export function ConsolidadoClient({
@@ -302,12 +372,57 @@ export function ConsolidadoClient({
   const [openNeto, setOpenNeto] = useState(true);
   const [openCcc,  setOpenCcc]  = useState(true);
 
-  const aggregated = useMemo(() => aggregateByVendedor(porVendedor), [porVendedor]);
+  const todosLosRubros = useMemo(
+    () => [...new Set(porVendedor.map((r) => r.rubro))].filter(Boolean).sort((a, b) => a.localeCompare(b)),
+    [porVendedor],
+  );
 
+  const [rubrosSel, setRubrosSel] = useState<Set<string>>(() => new Set(todosLosRubros));
+  // Al cambiar de mes/equipo llegan otros rubros y el componente NO se remonta:
+  // re-seleccionamos todos para no dejar la tabla filtrada por rubros que ya no existen.
+  const firma = todosLosRubros.join('|');
+  const [firmaPrev, setFirmaPrev] = useState(firma);
+  if (firma !== firmaPrev) {
+    setFirmaPrev(firma);
+    setRubrosSel(new Set(todosLosRubros));
+  }
+
+  // Filtrar ANTES de agregar: así los totales por vendedor y el TOTAL de la
+  // tabla se recalculan sobre los rubros elegidos.
+  const filasFiltradas = useMemo(
+    () => porVendedor.filter((r) => !r.rubro || rubrosSel.has(r.rubro)),
+    [porVendedor, rubrosSel],
+  );
+  const aggregated = useMemo(() => aggregateByVendedor(filasFiltradas), [filasFiltradas]);
+
+  const toggleRubro = (rubro: string) => setRubrosSel((prev) => {
+    const n = new Set(prev);
+    if (n.has(rubro)) n.delete(rubro); else n.add(rubro);
+    return n;
+  });
+
+  const filtroActivo = rubrosSel.size !== todosLosRubros.length;
   const card = 'bg-[#ffffff] rounded-2xl border border-[#e4e4e7] hover:border-[#d4d4d8] transition-all duration-200 shadow-xl shadow-black/5 overflow-hidden';
 
   return (
     <div className="space-y-4">
+      {todosLosRubros.length > 0 && (
+        <div className="flex items-center justify-end gap-3 flex-wrap">
+          {filtroActivo && (
+            <p className="text-[11px] text-[#71717a]">
+              KG y $ filtrados por rubro. CCC no se filtra (es por cliente, no por rubro).
+            </p>
+          )}
+          <RubroFilter
+            rubros={todosLosRubros}
+            seleccionados={rubrosSel}
+            onToggle={toggleRubro}
+            onAll={() => setRubrosSel(new Set(todosLosRubros))}
+            onNone={() => setRubrosSel(new Set())}
+          />
+        </div>
+      )}
+
       {/* KG */}
       <div className={card}>
         <SectionHeader title="Volumen (KG)" open={openKg} onToggle={() => setOpenKg(v => !v)} />
