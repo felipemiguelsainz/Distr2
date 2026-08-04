@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { fetchConsolidadoPorProducto } from '@/lib/calculations/productos';
+import { MAX_PERIODOS, Periodo } from '@/lib/periodos';
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,11 +20,23 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json() as {
-      equipo: string; anio: number; mes: number; articulos: string[] | null;
+      equipo: string; periodos: Periodo[]; articulos: string[] | null;
     };
-    const { equipo, anio, mes, articulos } = body;
-    if (!equipo || !anio || !mes) {
+    const { equipo, articulos } = body;
+
+    // Períodos: se validan acá porque llegan del cliente (y acotan el nº de RPCs).
+    const periodos = (Array.isArray(body.periodos) ? body.periodos : [])
+      .filter((p) =>
+        Number.isInteger(p?.anio) && p.anio >= 2000 && p.anio <= 2100 &&
+        Number.isInteger(p?.mes)  && p.mes  >= 1    && p.mes  <= 12)
+      .slice(0, MAX_PERIODOS);
+    if (periodos.length === 0) {
       return NextResponse.json({ error: 'Parámetros inválidos.' }, { status: 400 });
+    }
+
+    // equipo vacío = Total Empresa: sólo admin.
+    if (!equipo && profile.rol !== 'admin') {
+      return NextResponse.json({ error: 'Prohibido.' }, { status: 403 });
     }
 
     // Un supervisor solo puede consultar su propio equipo (de profiles.equipo).
@@ -40,7 +53,7 @@ export async function POST(request: NextRequest) {
     }
 
     const filas = await fetchConsolidadoPorProducto(
-      equipo, anio, mes,
+      equipo, periodos,
       Array.isArray(articulos) ? articulos : null,
       new Date(),
     );

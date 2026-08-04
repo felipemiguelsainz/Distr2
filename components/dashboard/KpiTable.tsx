@@ -34,11 +34,15 @@ const KG_CURRENT: ColDef[] = [
   { key: 'avance_vs_aa_pct',  label: 'vsAA',      type: 'pct_signed', colorFn: vsAaColor },
 ];
 
-// Meses pasados — KG
+// Meses cerrados — KG. Incluye Meta y Cumpl. (cierre vs meta): sin esto, al pasar
+// al mes siguiente no había forma de ver cómo cerró el mes contra su objetivo.
 const KG_PAST: ColDef[] = [
-  { key: 'acumulado',        label: 'Acum.',  type: 'kg' },
-  { key: 'acumulado_aa',     label: 'AA',     type: 'kg' },
-  { key: 'avance_vs_aa_pct', label: 'vsAA',  type: 'pct_signed', colorFn: vsAaColor },
+  { key: 'meta',             label: 'Meta',   type: 'kg' },
+  { key: 'acumulado',        label: 'Cierre', type: 'kg' },
+  { key: 'avance_pct',       label: 'Cumpl.', type: 'pct',        colorFn: avanceColor },
+  { key: 'media_real',       label: 'Med.R',  type: 'kg',                             mobileHidden: true },
+  { key: 'acumulado_aa',     label: 'AA',     type: 'kg',                             mobileHidden: true },
+  { key: 'avance_vs_aa_pct', label: 'vsAA',   type: 'pct_signed', colorFn: vsAaColor },
 ];
 
 // Mes corriente — Neto. Prioritarias en mobile: Meta, Acum., Av%, vsAA.
@@ -55,11 +59,14 @@ const NETO_CURRENT: ColDef[] = [
   { key: 'neto_vs_aa_pct',         label: 'vsAA',  type: 'pct_signed', colorFn: vsAaColor },
 ];
 
-// Meses pasados — Neto
+// Meses cerrados — Neto
 const NETO_PAST: ColDef[] = [
-  { key: 'neto_acumulado',    label: 'Acum.', type: 'currency' },
-  { key: 'neto_acumulado_aa', label: 'AA',    type: 'currency' },
-  { key: 'neto_vs_aa_pct',    label: 'vsAA',  type: 'pct_signed', colorFn: vsAaColor },
+  { key: 'neto_meta',         label: 'Meta',   type: 'currency' },
+  { key: 'neto_acumulado',    label: 'Cierre', type: 'currency' },
+  { key: 'avance_pct',        label: 'Cumpl.', type: 'pct',        colorFn: avanceColor },
+  { key: 'neto_media_real',   label: 'Med.R',  type: 'currency',                       mobileHidden: true },
+  { key: 'neto_acumulado_aa', label: 'AA',     type: 'currency',                       mobileHidden: true },
+  { key: 'neto_vs_aa_pct',    label: 'vsAA',   type: 'pct_signed', colorFn: vsAaColor },
 ];
 
 // ---------------------------------------------------------------------------
@@ -70,13 +77,13 @@ function buildTotal(data: KpiRubro[]): KpiRubro {
     const v = r[key]; return acc + (typeof v === 'number' ? v : 0);
   }, 0);
 
-  const isPast        = data.every(r => r.meta === null);
+  const hasMeta       = data.some(r => r.meta !== null);
   const hasTend       = data.some(r => r.tendencia !== null);
   const hasNetoTend   = data.some(r => r.neto_tendencia !== null);
   const hasMediaNec   = data.some(r => r.media_necesaria !== null);
   const hasNetoMediaNec = data.some(r => r.neto_media_necesaria !== null);
 
-  const meta      = isPast ? null : sum('meta');
+  const meta      = hasMeta ? sum('meta') : null;
   const acumulado = sum('acumulado');
   const acum_aa   = sum('acumulado_aa');
   const neto      = sum('neto_acumulado');
@@ -84,6 +91,7 @@ function buildTotal(data: KpiRubro[]): KpiRubro {
 
   return {
     rubro:                  'TOTAL',
+    cerrado:                data.length > 0 && data.every(r => r.cerrado),
     meta,
     acumulado,
     avance_pct:             (() => {
@@ -100,12 +108,12 @@ function buildTotal(data: KpiRubro[]): KpiRubro {
     avance_vs_aa_pct:       acum_aa > 0 ? ((acumulado - acum_aa) / acum_aa) * 100 : 0,
     neto_acumulado:         neto,
     neto_tendencia:         hasNetoTend ? sum('neto_tendencia') : null,
-    neto_meta:              isPast ? null : (() => {
+    neto_meta:              (() => {
                               // Sum stored neto_meta from rows (exact $ objectives)
                               const stored = data.reduce((s, r) => s + (r.neto_meta ?? 0), 0);
                               if (stored > 0) return stored;
                               // Fall back to ratio estimate if none stored yet
-                              return acumulado > 0 ? sum('meta') * (neto / acumulado) : null;
+                              return acumulado > 0 && meta ? meta * (neto / acumulado) : null;
                             })(),
     neto_media_real:        sum('neto_media_real'),
     neto_media_necesaria:   hasNetoMediaNec ? sum('neto_media_necesaria') : null,
@@ -158,7 +166,8 @@ function Cell({ col, row, isTotal, darkBg = false }: { col: ColDef; row: KpiRubr
 type RowKind = 'data' | 'subtotal' | 'total';
 
 function DataTable({ data, label, isKg }: { data: KpiRubro[]; label: string; isKg: boolean }) {
-  const isPast = data.length > 0 && data[0].meta === null;
+  // Período cerrado → columnas de cierre (Meta / Cierre / Cumpl.), sin proyección.
+  const isPast = data.length > 0 && data.every(r => r.cerrado);
   const cols   = isKg
     ? (isPast ? KG_PAST   : KG_CURRENT)
     : (isPast ? NETO_PAST : NETO_CURRENT);

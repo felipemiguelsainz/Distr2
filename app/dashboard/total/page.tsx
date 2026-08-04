@@ -1,13 +1,12 @@
 import { AppShell } from '@/components/layout/AppShell';
-import { MonthFilter } from '@/components/ui/MonthFilter';
-import { RangeFilter } from '@/components/ui/RangeFilter';
-import { EntityFilter } from '@/components/ui/EntityFilter';
+import { FilterBar } from '@/components/ui/FilterBar';
 import { KpiTable } from '@/components/dashboard/KpiTable';
 import { RangoVendido } from '@/components/dashboard/RangoVendido';
 import { TrendChart, AvanceBarChart, RadarMetaChart } from '@/components/dashboard/LazyCharts';
 import { ClientesTable } from '@/components/dashboard/ClientesTable';
-import { fetchTotalKpis, fetchTrendData, fetchClientesData, fetchMetasCcc } from '@/lib/calculations/queries';
+import { fetchTotalKpisMulti, fetchTrendData, fetchClientesData, fetchMetasCcc } from '@/lib/calculations/queries';
 import { SIN_SUPERVISOR } from '@/lib/constants';
+import { Periodo, labelPeriodos, resolverPeriodos } from '@/lib/periodos';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
@@ -17,6 +16,7 @@ import { EmptyMonth } from '@/components/ui/EmptyMonth';
 interface SearchParams {
   mes?:        string;
   anio?:       string;
+  equipo?:     string;
   supervisor?: string;
   vendedor?:   string;
   desde?:      string;
@@ -32,9 +32,9 @@ export default async function TotalDashboardPage({
 }) {
   const params = await searchParams;
   const today  = new Date();
-  const mes    = parseInt(params.mes  ?? String(today.getMonth() + 1), 10);
-  const anio   = parseInt(params.anio ?? String(today.getFullYear()),  10);
-  const supervisor = params.supervisor ?? '';
+  const sel    = resolverPeriodos(params, today);
+  // `supervisor` es el nombre viejo del param; se sigue aceptando por links guardados.
+  const supervisor = params.equipo ?? params.supervisor ?? '';
   const vendedor   = params.vendedor   ?? '';
   const desde = isDate(params.desde) ? params.desde! : '';
   const hasta = isDate(params.hasta) ? params.hasta! : '';
@@ -65,11 +65,12 @@ export default async function TotalDashboardPage({
   )].sort((a, b) => a.localeCompare(b));
 
   // Subtítulo dinámico
-  const subtitulo = vendedor
+  const alcance = vendedor
     ? vendedor
     : supervisor
       ? `Supervisor: ${supervisor}`
       : 'Todos los rubros y equipos';
+  const subtitulo = `${alcance} · ${sel.label}`;
 
   return (
     <AppShell>
@@ -79,17 +80,21 @@ export default async function TotalDashboardPage({
             <h1 className="text-[22px] font-bold tracking-[-0.02em] text-[#09090b]">Total Empresa</h1>
             <p className="text-[13px] text-[#71717a] mt-0.5">{subtitulo}</p>
           </div>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-wrap">
-            <Suspense>
-              <EntityFilter supervisores={supervisores} vendedores={vendedores} />
-            </Suspense>
-            <Suspense>
-              <MonthFilter defaultMes={mes} defaultAnio={anio} />
-            </Suspense>
-            <Suspense>
-              <RangeFilter desde={desde} hasta={hasta} />
-            </Suspense>
-          </div>
+          <Suspense>
+            <FilterBar
+              meses={sel.meses}
+              anios={sel.anios}
+              equipos={supervisores}
+              equipoActual={supervisor}
+              equipoParam="equipo"
+              permitirTotalEmpresa
+              vendedores={vendedores}
+              vendedorActual={vendedor}
+              mostrarRango
+              desde={desde}
+              hasta={hasta}
+            />
+          </Suspense>
         </div>
 
         {desde && hasta && (
@@ -100,7 +105,8 @@ export default async function TotalDashboardPage({
 
         <Suspense fallback={<KpiSkeleton />}>
           <TotalKpiSection
-            mes={mes} anio={anio} todayIso={today.toISOString()}
+            periodos={sel.periodos} principal={sel.principal} multi={sel.multi}
+            todayIso={today.toISOString()}
             supervisor={supervisor} vendedor={vendedor}
           />
         </Suspense>
@@ -110,10 +116,11 @@ export default async function TotalDashboardPage({
 }
 
 async function TotalKpiSection({
-  mes, anio, todayIso, supervisor, vendedor,
+  periodos, principal, multi, todayIso, supervisor, vendedor,
 }: {
-  mes:        number;
-  anio:       number;
+  periodos:   Periodo[];
+  principal:  Periodo;
+  multi:      boolean;
   todayIso:   string;
   supervisor: string;
   vendedor:   string;
@@ -122,25 +129,39 @@ async function TotalKpiSection({
   const equipo = supervisor || undefined;
   const vnd    = vendedor   || undefined;
 
+  // Tendencia y CCC son mensuales y no se suman (los clientes se repiten entre
+  // meses): con varios períodos elegidos se muestran los del más reciente.
+  const { anio, mes } = principal;
+
   const [kpis, trend, { rows: clientes, cartera3mTotal, cccMesTotal, cccPrevTotal, cccAaTotal }, metasCcc] = await Promise.all([
-    fetchTotalKpis(anio, mes, today, equipo, vnd),
+    fetchTotalKpisMulti(periodos, today, equipo, vnd),
     fetchTrendData({ equipo, vendedor: vnd }, anio, mes),
     fetchClientesData(anio, mes, today, equipo, vnd),
     fetchMetasCcc(anio, mes, equipo, vnd),
   ]);
 
   const metaTotal = kpis.reduce((s, k) => s + (k.meta ?? 0), 0);
+  const labelPrincipal = labelPeriodos([principal]);
 
   if (kpis.length === 0) return <EmptyMonth mes={mes} anio={anio} />;
 
   return (
     <div className="space-y-7">
       <KpiTable data={kpis} />
-      <ClientesTable data={clientes} cartera3mTotal={cartera3mTotal} cccMesTotal={cccMesTotal} cccPrevTotal={cccPrevTotal} cccAaTotal={cccAaTotal} metaPorRubro={metasCcc.porRubro} metaTotal={metasCcc.total} />
+      <ClientesTable
+        data={clientes} cartera3mTotal={cartera3mTotal} cccMesTotal={cccMesTotal}
+        cccPrevTotal={cccPrevTotal} cccAaTotal={cccAaTotal}
+        metaPorRubro={metasCcc.porRubro} metaTotal={metasCcc.total}
+        caption={multi ? `Clientes: ${labelPrincipal} (no se suman entre meses)` : undefined}
+      />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <AvanceBarChart data={kpis} title="Proyección vs Meta por Rubro" />
         <div className="flex flex-col gap-5">
-          <TrendChart data={trend} title="Tendencia KG acumulada" meta={metaTotal} />
+          <TrendChart
+            data={trend}
+            title={`Tendencia KG acumulada — ${labelPrincipal}`}
+            meta={multi ? undefined : metaTotal}
+          />
           <RadarMetaChart data={kpis} title="Cumplimiento vs Meta · Por Rubro" />
         </div>
       </div>

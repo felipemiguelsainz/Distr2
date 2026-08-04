@@ -72,13 +72,15 @@ export interface Planificacion {
 // Dashboard KPIs
 export interface KpiRubro {
   rubro: string;
+  /** true si el período ya cerró (mes anterior al corriente). Manda el set de columnas. */
+  cerrado: boolean;
   // KG
-  meta: number | null;            // null para meses pasados
+  meta: number | null;            // la meta se muestra también en meses cerrados (cierre vs meta)
   acumulado: number;
   avance_pct: number;
-  tendencia: number | null;       // null para meses pasados
+  tendencia: number | null;       // null en meses cerrados: ya no se proyecta
   media_real: number;
-  media_necesaria: number | null; // null para meses pasados
+  media_necesaria: number | null; // null en meses cerrados
   mismo_dia_minus7: number;
   mismo_dia_minus14: number;
   acumulado_aa: number;

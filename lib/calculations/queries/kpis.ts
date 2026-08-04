@@ -1,7 +1,8 @@
 import { unstable_cache } from 'next/cache';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
-import { buildKpi } from '../dashboard';
+import { buildKpi, mergeKpis, mergeKpisVendedor } from '../dashboard';
 import { KpiRubro, KpiVendedor } from '@/lib/types';
+import { Periodo } from '@/lib/periodos';
 import {
   dateStr, cutoffDate, pad, aaCutoffDate,
   fetchDiasLaborables, buildKpisFromRpc, vendedoresByEquipo,
@@ -41,7 +42,7 @@ const _fetchTotalKpisImpl = unstable_cache(
     todayIso: string,
     eq:      string | null,
     vnd:     string | null,
-  ): Promise<KpiRubro[]> => {
+  ): Promise<{ kpis: KpiRubro[]; diasTrabajados: number }> => {
   const today    = new Date(todayIso);
   const supabase = createServiceClient();
   const start    = `${pad(year, month)}-01`;
@@ -90,15 +91,20 @@ const _fetchTotalKpisImpl = unstable_cache(
     }
   }
 
-  return buildKpisFromRpc(
-    (cur  ?? []) as RpcKpiRow[],
-    (r7   ?? []) as RpcKpiRow[],
-    (r14  ?? []) as RpcKpiRow[],
-    (raa  ?? []) as RpcKpiRow[],
-    metasMap, netoMetaMap, year, month, today,
-    diasLab,
-    (diasTrabData as number) ?? 0,
-  );
+  const diasTrabajados = (diasTrabData as number) ?? 0;
+
+  return {
+    kpis: buildKpisFromRpc(
+      (cur  ?? []) as RpcKpiRow[],
+      (r7   ?? []) as RpcKpiRow[],
+      (r14  ?? []) as RpcKpiRow[],
+      (raa  ?? []) as RpcKpiRow[],
+      metasMap, netoMetaMap, year, month, today,
+      diasLab,
+      diasTrabajados,
+    ),
+    diasTrabajados,
+  };
   },
   ['fetchTotalKpis'],
   { revalidate: 300, tags: ['kpis'] },
@@ -111,7 +117,21 @@ export async function fetchTotalKpis(
   equipo?:  string,
   vendedor?: string,
 ): Promise<KpiRubro[]> {
-  return _fetchTotalKpisImpl(year, month, dateStr(today), equipo ?? null, vendedor ?? null);
+  const { kpis } = await _fetchTotalKpisImpl(year, month, dateStr(today), equipo ?? null, vendedor ?? null);
+  return kpis;
+}
+
+/** Igual que fetchTotalKpis pero sumando varios períodos (ver mergeKpis). */
+export async function fetchTotalKpisMulti(
+  periodos:  Periodo[],
+  today:     Date,
+  equipo?:   string,
+  vendedor?: string,
+): Promise<KpiRubro[]> {
+  const partes = await Promise.all(periodos.map((p) =>
+    _fetchTotalKpisImpl(p.anio, p.mes, dateStr(today), equipo ?? null, vendedor ?? null),
+  ));
+  return mergeKpis(partes);
 }
 
 // ---------------------------------------------------------------------------
@@ -123,7 +143,7 @@ const _fetchSupervisorKpisImpl = unstable_cache(
     year:     number,
     month:    number,
     todayIso: string,
-  ): Promise<{ totales: KpiRubro[]; porVendedor: KpiVendedor[] }> => {
+  ): Promise<{ totales: KpiRubro[]; porVendedor: KpiVendedor[]; diasTrabajados: number }> => {
   const today    = new Date(todayIso);
   const supabase = createServiceClient();
   const start    = `${pad(year, month)}-01`;
@@ -221,7 +241,7 @@ const _fetchSupervisorKpisImpl = unstable_cache(
     }));
   });
 
-  return { totales, porVendedor };
+  return { totales, porVendedor, diasTrabajados: diasTrab };
   },
   ['fetchSupervisorKpis'],
   { revalidate: 300, tags: ['kpis'] },
@@ -233,7 +253,28 @@ export async function fetchSupervisorKpis(
   month:  number,
   today:  Date,
 ): Promise<{ totales: KpiRubro[]; porVendedor: KpiVendedor[] }> {
-  return _fetchSupervisorKpisImpl(equipo, year, month, dateStr(today));
+  const { totales, porVendedor } = await _fetchSupervisorKpisImpl(equipo, year, month, dateStr(today));
+  return { totales, porVendedor };
+}
+
+/**
+ * Igual que fetchSupervisorKpis pero sumando varios períodos.
+ * `equipo` vacío = TODOS los equipos (vista Total Empresa del consolidado).
+ */
+export async function fetchSupervisorKpisMulti(
+  equipo:   string,
+  periodos: Periodo[],
+  today:    Date,
+): Promise<{ totales: KpiRubro[]; porVendedor: KpiVendedor[] }> {
+  const partes = await Promise.all(periodos.map((p) =>
+    _fetchSupervisorKpisImpl(equipo, p.anio, p.mes, dateStr(today)),
+  ));
+  return {
+    totales: mergeKpis(partes.map(p => ({ kpis: p.totales, diasTrabajados: p.diasTrabajados }))),
+    porVendedor: mergeKpisVendedor(
+      partes.map(p => ({ kpis: p.porVendedor, diasTrabajados: p.diasTrabajados })),
+    ),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -245,7 +286,7 @@ const _fetchVendedorKpisImpl = unstable_cache(
     year:     number,
     month:    number,
     todayIso: string,
-  ): Promise<KpiRubro[]> => {
+  ): Promise<{ kpis: KpiRubro[]; diasTrabajados: number }> => {
   const today    = new Date(todayIso);
   const supabase = createServiceClient();
   const start    = `${pad(year, month)}-01`;
@@ -280,15 +321,20 @@ const _fetchVendedorKpisImpl = unstable_cache(
     if (m.neto_meta != null) netoMetaMap.set(m.rubro, Number(m.neto_meta));
   }
 
-  return buildKpisFromRpc(
-    (cur  ?? []) as RpcKpiRow[],
-    (r7   ?? []) as RpcKpiRow[],
-    (r14  ?? []) as RpcKpiRow[],
-    (raa  ?? []) as RpcKpiRow[],
-    metasMap, netoMetaMap, year, month, today,
-    diasLab,
-    (diasTrabData as number) ?? 0,
-  );
+  const diasTrabajados = (diasTrabData as number) ?? 0;
+
+  return {
+    kpis: buildKpisFromRpc(
+      (cur  ?? []) as RpcKpiRow[],
+      (r7   ?? []) as RpcKpiRow[],
+      (r14  ?? []) as RpcKpiRow[],
+      (raa  ?? []) as RpcKpiRow[],
+      metasMap, netoMetaMap, year, month, today,
+      diasLab,
+      diasTrabajados,
+    ),
+    diasTrabajados,
+  };
   },
   ['fetchVendedorKpis'],
   { revalidate: 300, tags: ['kpis'] },
@@ -300,7 +346,20 @@ export async function fetchVendedorKpis(
   month:    number,
   today:    Date,
 ): Promise<KpiRubro[]> {
-  return _fetchVendedorKpisImpl(vendedor, year, month, dateStr(today));
+  const { kpis } = await _fetchVendedorKpisImpl(vendedor, year, month, dateStr(today));
+  return kpis;
+}
+
+/** Igual que fetchVendedorKpis pero sumando varios períodos. */
+export async function fetchVendedorKpisMulti(
+  vendedor: string,
+  periodos: Periodo[],
+  today:    Date,
+): Promise<KpiRubro[]> {
+  const partes = await Promise.all(periodos.map((p) =>
+    _fetchVendedorKpisImpl(vendedor, p.anio, p.mes, dateStr(today)),
+  ));
+  return mergeKpis(partes);
 }
 
 // ---------------------------------------------------------------------------

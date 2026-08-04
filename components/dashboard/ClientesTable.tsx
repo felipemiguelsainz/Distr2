@@ -37,6 +37,7 @@ export function ClientesTable({
   cccAaTotal,
   metaPorRubro = {},
   metaTotal = 0,
+  caption,
 }: {
   data: ClientesRubro[];
   cartera3mTotal: number;
@@ -45,6 +46,8 @@ export function ClientesTable({
   cccAaTotal:   number;
   metaPorRubro?: Record<string, number>;
   metaTotal?:    number;
+  /** Aclaración de período: los clientes no se suman entre meses. */
+  caption?: string;
 }) {
   if (data.length === 0) return null;
 
@@ -83,6 +86,9 @@ export function ClientesTable({
         >
           Clientes con Compra — Por Categoría
         </p>
+        {caption && (
+          <p className="text-[11px] text-[#71717a] mt-1">{caption}</p>
+        )}
       </div>
 
       <div className="overflow-x-auto">

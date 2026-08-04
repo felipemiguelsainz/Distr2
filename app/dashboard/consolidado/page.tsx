@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { TOTAL_EMPRESA } from '@/lib/periodos';
 
 export default async function ConsolidadoIndexPage() {
   const supabase = await createClient();
@@ -30,21 +31,6 @@ export default async function ConsolidadoIndexPage() {
     redirect(`/dashboard/consolidado/${encodeURIComponent(eq)}`);
   }
 
-  // admin: redirect to first equipo alphabetically
-  const { data: vRows } = await supabase
-    .from('vendedores')
-    .select('equipo')
-    .eq('activo', true)
-    .not('equipo', 'is', null);
-
-  const equipos = Array.from(
-    new Set(
-      (vRows ?? [])
-        .map((v) => (v.equipo as string | null)?.trim())
-        .filter((e): e is string => !!e && e !== 'SIN SUPERVISOR'),
-    ),
-  ).sort((a, b) => a.localeCompare(b));
-
-  if (equipos.length === 0) redirect('/dashboard/total');
-  redirect(`/dashboard/consolidado/${encodeURIComponent(equipos[0])}`);
+  // admin: arranca en Total Empresa (todos los equipos); desde el filtro baja a uno
+  redirect(`/dashboard/consolidado/${TOTAL_EMPRESA}`);
 }

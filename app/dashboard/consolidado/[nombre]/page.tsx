@@ -1,9 +1,10 @@
 import { AppShell } from '@/components/layout/AppShell';
-import { MonthFilter } from '@/components/ui/MonthFilter';
-import { SupervisorFilter } from '@/components/ui/SupervisorFilter';
+import { FilterBar } from '@/components/ui/FilterBar';
 import { KpiSkeleton } from '@/components/ui/Skeleton';
 import { EmptyMonth } from '@/components/ui/EmptyMonth';
-import { fetchSupervisorKpis, fetchCCCByEquipo, fetchMetasCccByVendedor } from '@/lib/calculations/queries';
+import { fetchSupervisorKpisMulti, fetchCCCByEquipo, fetchMetasCccByVendedor } from '@/lib/calculations/queries';
+import { Periodo, TOTAL_EMPRESA, labelPeriodos, resolverPeriodos } from '@/lib/periodos';
+import { SIN_SUPERVISOR } from '@/lib/constants';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
@@ -21,11 +22,13 @@ export default async function ConsolidadoPage({
 }) {
   const { nombre } = await params;
   const sp          = await searchParams;
-  const equipo      = decodeURIComponent(nombre);
+  const segmento    = decodeURIComponent(nombre);
+  // El segmento sentinel significa "todos los equipos" (sólo admin).
+  const esTotal     = segmento === TOTAL_EMPRESA;
+  const equipo      = esTotal ? '' : segmento;
 
   const today = new Date();
-  const mes   = parseInt(sp.mes  ?? String(today.getMonth() + 1), 10);
-  const anio  = parseInt(sp.anio ?? String(today.getFullYear()),   10);
+  const sel   = resolverPeriodos(sp, today);
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -43,7 +46,7 @@ export default async function ConsolidadoPage({
     redirect(`/dashboard/vendedor/${encodeURIComponent(profile.vendedor_nombre ?? '')}`);
   }
 
-  // Supervisors can only see their own equipo
+  // Supervisors can only see their own equipo (nunca el total de la empresa)
   if (profile.rol === 'supervisor') {
     let myEquipo = profile.equipo ?? '';
     if (!myEquipo) {
@@ -59,6 +62,9 @@ export default async function ConsolidadoPage({
     }
   }
 
+  // Total Empresa es exclusivo de admin
+  if (esTotal && profile.rol !== 'admin') redirect('/');
+
   // For admin: load equipo list to populate the supervisor filter
   let equipos: string[] = [];
   if (profile.rol === 'admin') {
@@ -72,41 +78,45 @@ export default async function ConsolidadoPage({
       new Set(
         (vRows ?? [])
           .map((v) => (v.equipo as string | null)?.trim())
-          .filter((e): e is string => !!e && e !== 'SIN SUPERVISOR'),
+          .filter((e): e is string => !!e && e !== SIN_SUPERVISOR),
       ),
     ).sort((a, b) => a.localeCompare(b));
   }
 
+  const titulo = esTotal ? 'Total Empresa' : equipo;
+
   return (
     <AppShell>
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#71717a]"
                style={{ fontFamily: "'JetBrains Mono', monospace" }}>
               Consolidado
             </p>
             <h1 className="text-[22px] font-bold tracking-[-0.02em] text-[#09090b] mt-0.5">
-              {equipo}
+              {titulo}
             </h1>
+            <p className="text-[13px] text-[#71717a] mt-0.5">{sel.label}</p>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {profile.rol === 'admin' && equipos.length > 0 && (
-              <Suspense>
-                <SupervisorFilter equipos={equipos} current={equipo} basePath="/dashboard/consolidado" />
-              </Suspense>
-            )}
-            <Suspense>
-              <MonthFilter defaultMes={mes} defaultAnio={anio} />
-            </Suspense>
-          </div>
+          <Suspense>
+            <FilterBar
+              meses={sel.meses}
+              anios={sel.anios}
+              equipos={profile.rol === 'admin' ? equipos : undefined}
+              equipoActual={equipo}
+              equipoBasePath="/dashboard/consolidado"
+              permitirTotalEmpresa={profile.rol === 'admin'}
+            />
+          </Suspense>
         </div>
 
         <Suspense fallback={<KpiSkeleton />}>
           <ConsolidadoSection
             equipo={equipo}
-            mes={mes}
-            anio={anio}
+            periodos={sel.periodos}
+            principal={sel.principal}
+            multi={sel.multi}
             todayIso={today.toISOString()}
           />
         </Suspense>
@@ -117,24 +127,35 @@ export default async function ConsolidadoPage({
 
 async function ConsolidadoSection({
   equipo,
-  mes,
-  anio,
+  periodos,
+  principal,
+  multi,
   todayIso,
 }: {
-  equipo:   string;
-  mes:      number;
-  anio:     number;
-  todayIso: string;
+  equipo:    string;   // '' = todos los equipos
+  periodos:  Periodo[];
+  principal: Periodo;
+  multi:     boolean;
+  todayIso:  string;
 }) {
   const today = new Date(todayIso);
+  // El CCC no se suma entre meses: se toma el del período más reciente.
+  const { anio, mes } = principal;
 
-  const [{ totales, porVendedor }, ccc, metaCccByVendedor] = await Promise.all([
-    fetchSupervisorKpis(equipo, anio, mes, today),
+  const [{ porVendedor, totales }, ccc, metaCccByVendedor] = await Promise.all([
+    fetchSupervisorKpisMulti(equipo, periodos, today),
     fetchCCCByEquipo(equipo, anio, mes),
     fetchMetasCccByVendedor(equipo, anio, mes),
   ]);
 
   if (totales.length === 0) return <EmptyMonth mes={mes} anio={anio} />;
 
-  return <ConsolidadoClient porVendedor={porVendedor} ccc={ccc} metaCccByVendedor={metaCccByVendedor} />;
+  return (
+    <ConsolidadoClient
+      porVendedor={porVendedor}
+      ccc={ccc}
+      metaCccByVendedor={metaCccByVendedor}
+      cccCaption={multi ? `CCC: ${labelPeriodos([principal])} (no se suma entre meses)` : undefined}
+    />
+  );
 }

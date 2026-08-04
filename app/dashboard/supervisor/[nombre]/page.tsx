@@ -1,13 +1,11 @@
 import { AppShell } from '@/components/layout/AppShell';
-import { MonthFilter } from '@/components/ui/MonthFilter';
-import { RangeFilter } from '@/components/ui/RangeFilter';
+import { FilterBar } from '@/components/ui/FilterBar';
 import { RangoVendido } from '@/components/dashboard/RangoVendido';
-import { VendedorFilter } from '@/components/ui/VendedorFilter';
 import { KpiTable } from '@/components/dashboard/KpiTable';
 import { TrendChart } from '@/components/dashboard/LazyCharts';
-import { CoberturaTable } from '@/components/dashboard/CoberturaTable';
 import { ClientesTable } from '@/components/dashboard/ClientesTable';
-import { fetchSupervisorKpis, fetchVendedorKpis, fetchTrendData, fetchClientesData, fetchMetasCcc } from '@/lib/calculations/queries';
+import { fetchSupervisorKpisMulti, fetchVendedorKpisMulti, fetchTrendData, fetchClientesData, fetchMetasCcc } from '@/lib/calculations/queries';
+import { Periodo, labelPeriodos, resolverPeriodos } from '@/lib/periodos';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
@@ -41,8 +39,7 @@ export default async function SupervisorDashboardPage({
   const vendedorNombre = decodeURIComponent(nombre);
 
   const today = new Date();
-  const mes = parseInt(sp.mes ?? String(today.getMonth() + 1), 10);
-  const anio = parseInt(sp.anio ?? String(today.getFullYear()), 10);
+  const sel   = resolverPeriodos(sp, today);
   const vendedorSel = sp.vendedor ?? '';
   const desde = isDate(sp.desde) ? sp.desde! : '';
   const hasta = isDate(sp.hasta) ? sp.hasta! : '';
@@ -110,19 +107,16 @@ export default async function SupervisorDashboardPage({
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-[22px] font-bold tracking-[-0.02em] text-[#09090b]">{vendedor || vendedorNombre}</h1>
-            <p className="text-[13px] text-[#71717a] mt-0.5">Equipo: {equipo}</p>
+            <p className="text-[13px] text-[#71717a] mt-0.5">Equipo: {equipo} · {sel.label}</p>
           </div>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-wrap">
-            <Suspense>
-              <VendedorFilter vendedores={vendedores} current={vendedor} />
-            </Suspense>
-            <Suspense>
-              <MonthFilter defaultMes={mes} defaultAnio={anio} />
-            </Suspense>
-            <Suspense>
-              <RangeFilter desde={desde} hasta={hasta} />
-            </Suspense>
-          </div>
+          <Suspense>
+            <FilterBar
+              meses={sel.meses} anios={sel.anios}
+              vendedores={vendedores.map((n) => ({ nombre: n }))}
+              vendedorActual={vendedor}
+              mostrarRango desde={desde} hasta={hasta}
+            />
+          </Suspense>
         </div>
 
         {desde && hasta && (
@@ -133,9 +127,15 @@ export default async function SupervisorDashboardPage({
 
         <Suspense fallback={<KpiSkeleton />}>
           {vendedor ? (
-            <VendedorFilteredSection vendedor={vendedor} mes={mes} anio={anio} todayIso={today.toISOString()} />
+            <VendedorFilteredSection
+              vendedor={vendedor} periodos={sel.periodos} principal={sel.principal}
+              multi={sel.multi} todayIso={today.toISOString()}
+            />
           ) : (
-            <SupervisorKpiSection equipo={equipo} mes={mes} anio={anio} todayIso={today.toISOString()} />
+            <SupervisorKpiSection
+              equipo={equipo} periodos={sel.periodos} principal={sel.principal}
+              multi={sel.multi} todayIso={today.toISOString()}
+            />
           )}
         </Suspense>
       </div>
@@ -145,18 +145,24 @@ export default async function SupervisorDashboardPage({
 
 async function SupervisorKpiSection({
   equipo,
-  mes,
-  anio,
+  periodos,
+  principal,
+  multi,
   todayIso,
 }: {
-  equipo: string;
-  mes: number;
-  anio: number;
-  todayIso: string;
+  equipo:    string;
+  periodos:  Periodo[];
+  principal: Periodo;
+  multi:     boolean;
+  todayIso:  string;
 }) {
   const today = new Date(todayIso);
+  // Clientes y tendencia son mensuales: con varios períodos, los del más reciente.
+  const { anio, mes } = principal;
+  const labelPrincipal = labelPeriodos([principal]);
+
   const [{ totales, porVendedor }, trend, { rows: clientes, cartera3mTotal, cccMesTotal, cccPrevTotal, cccAaTotal }, metasCcc] = await Promise.all([
-    fetchSupervisorKpis(equipo, anio, mes, today),
+    fetchSupervisorKpisMulti(equipo, periodos, today),
     fetchTrendData({ equipo }, anio, mes),
     fetchClientesData(anio, mes, today, equipo),
     fetchMetasCcc(anio, mes, equipo),
@@ -174,9 +180,14 @@ async function SupervisorKpiSection({
         <KpiTable data={totales} />
       </section>
 
-      <ClientesTable data={clientes} cartera3mTotal={cartera3mTotal} cccMesTotal={cccMesTotal} cccPrevTotal={cccPrevTotal} cccAaTotal={cccAaTotal} metaPorRubro={metasCcc.porRubro} metaTotal={metasCcc.total} />
+      <ClientesTable
+        data={clientes} cartera3mTotal={cartera3mTotal} cccMesTotal={cccMesTotal}
+        cccPrevTotal={cccPrevTotal} cccAaTotal={cccAaTotal}
+        metaPorRubro={metasCcc.porRubro} metaTotal={metasCcc.total}
+        caption={multi ? `Clientes: ${labelPrincipal} (no se suman entre meses)` : undefined}
+      />
 
-      <TrendChart data={trend} title="Tendencia KG diaria — Equipo" />
+      <TrendChart data={trend} title={`Tendencia KG diaria — Equipo · ${labelPrincipal}`} />
 
       <section>
         <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a] mb-3" style={{fontFamily: "'JetBrains Mono', monospace"}}>Por vendedor</p>
@@ -189,18 +200,23 @@ async function SupervisorKpiSection({
 // Vista acotada a un solo vendedor del equipo (filtro in-place del supervisor).
 async function VendedorFilteredSection({
   vendedor,
-  mes,
-  anio,
+  periodos,
+  principal,
+  multi,
   todayIso,
 }: {
-  vendedor: string;
-  mes:      number;
-  anio:     number;
-  todayIso: string;
+  vendedor:  string;
+  periodos:  Periodo[];
+  principal: Periodo;
+  multi:     boolean;
+  todayIso:  string;
 }) {
   const today = new Date(todayIso);
+  const { anio, mes } = principal;
+  const labelPrincipal = labelPeriodos([principal]);
+
   const [kpis, trend, { rows: clientes, cartera3mTotal, cccMesTotal, cccPrevTotal, cccAaTotal }, metasCcc] = await Promise.all([
-    fetchVendedorKpis(vendedor, anio, mes, today),
+    fetchVendedorKpisMulti(vendedor, periodos, today),
     fetchTrendData({ vendedor }, anio, mes),
     fetchClientesData(anio, mes, today, undefined, vendedor),
     fetchMetasCcc(anio, mes, undefined, vendedor),
@@ -211,8 +227,13 @@ async function VendedorFilteredSection({
   return (
     <div className="space-y-8">
       <KpiTable data={kpis} />
-      <ClientesTable data={clientes} cartera3mTotal={cartera3mTotal} cccMesTotal={cccMesTotal} cccPrevTotal={cccPrevTotal} cccAaTotal={cccAaTotal} metaPorRubro={metasCcc.porRubro} metaTotal={metasCcc.total} />
-      <TrendChart data={trend} title={`Tendencia KG diaria — ${vendedor}`} />
+      <ClientesTable
+        data={clientes} cartera3mTotal={cartera3mTotal} cccMesTotal={cccMesTotal}
+        cccPrevTotal={cccPrevTotal} cccAaTotal={cccAaTotal}
+        metaPorRubro={metasCcc.porRubro} metaTotal={metasCcc.total}
+        caption={multi ? `Clientes: ${labelPrincipal} (no se suman entre meses)` : undefined}
+      />
+      <TrendChart data={trend} title={`Tendencia KG diaria — ${vendedor} · ${labelPrincipal}`} />
     </div>
   );
 }
@@ -233,10 +254,11 @@ function VendedorSummaryTable({
     const rows = porVendedor.filter((k) => k.vendedor === v);
     const meta = rows.reduce((s, r) => s + (r.meta ?? 0), 0);
     const acumulado = rows.reduce((s, r) => s + r.acumulado, 0);
-    const avance_pct = meta > 0 ? (acumulado / meta) * 100 : 0;
     const tendencia = rows.some(r => r.tendencia !== null)
-      ? rows.reduce((s, r) => s + (r.tendencia ?? 0), 0)
+      ? rows.reduce((s, r) => s + (r.tendencia ?? r.acumulado), 0)
       : null;
+    // El avance va sobre la tendencia; en meses cerrados, sobre el acumulado real.
+    const avance_pct = meta > 0 ? ((tendencia ?? acumulado) / meta) * 100 : 0;
     return { v, meta, acumulado, avance_pct, tendencia };
   });
 

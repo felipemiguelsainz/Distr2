@@ -119,3 +119,21 @@ export const vendedoresByEquipo = cache(async (equipo: string): Promise<string[]
     .eq('activo', true);
   return (data ?? []).map(v => v.nombre);
 });
+
+// ---------------------------------------------------------------------------
+// Todos los vendedores activos — memoizada por request.
+// La usa la vista "Total Empresa" del consolidado (equipo vacío = sin filtro).
+// ---------------------------------------------------------------------------
+export const vendedoresTodos = cache(async (): Promise<string[]> => {
+  const svc = createServiceClient();
+  const { data } = await svc
+    .from('vendedores')
+    .select('nombre')
+    .eq('activo', true);
+  return (data ?? []).map(v => v.nombre);
+});
+
+/** Vendedores del equipo, o TODOS los activos si `equipo` viene vacío. */
+export async function vendedoresDelScope(equipo: string): Promise<string[]> {
+  return equipo ? vendedoresByEquipo(equipo) : vendedoresTodos();
+}

@@ -2,7 +2,7 @@
 
 Documento de producto. Estado de lo implementado y roadmap de integración de IA.
 
-_Última actualización: 2026-05-19_
+_Última actualización: 2026-08-04_
 
 ---
 
@@ -36,20 +36,41 @@ Security (RLS) en PostgreSQL.
   tendencia, avance %, media real, media necesaria.
 - **Consolidado** (`/dashboard/consolidado/[equipo]`) — KPIs por vendedor de un equipo,
   en tres tablas: Volumen KG, Volumen $, CCC (Clientes con Compra). El admin elige
-  equipo con un selector; el supervisor ve directamente el suyo.
+  equipo con un selector —incluida la opción **Total Empresa**, que agrega los tres
+  equipos—; el supervisor ve directamente el suyo.
 - **Por producto** (`/dashboard/consolidado-productos/[equipo]`) — el mismo consolidado
   pero filtrable por producto: un buscador con los ~460 artículos agrupados por rubro
-  permite tildar los que se quieran y las tablas se recalculan en vivo.
+  permite tildar los que se quieran y las tablas se recalculan en vivo. También
+  acepta Total Empresa (sólo admin).
 - **Dashboard de vendedor** (`/dashboard/vendedor/[nombre]`) — vista individual:
   KPIs, tendencia diaria, CCC, cobertura de SKUs clave, clientes por rubro.
 
-### 3.2 Cálculo de KPIs
+### 3.2 Filtros
+Todos los dashboards usan la misma barra (`components/ui/FilterBar.tsx`):
+
+- **Botón Aplicar** — la selección se arma en local y se navega una sola vez. Nada
+  recarga hasta tocar Aplicar.
+- **Multi-mes y multi-año** — `?mes=6,7,8&anio=2026`. Los períodos elegidos (años ×
+  meses) se **suman**: acumulado, meta, días laborables y comparativos AA. Los meses
+  futuros se descartan. Tope: 24 períodos.
+  - La **tendencia** agregada = cierre real de los meses cerrados + proyección del
+    mes en curso.
+  - El **CCC**, la **tendencia diaria** y la **cobertura** son mensuales y no se
+    suman (los clientes se repiten entre meses): se muestran los del período más
+    reciente elegido, aclarado en el encabezado de cada tabla.
+- **Cierre mes pasado** — atajo que salta al mes anterior cerrado.
+- **Total Empresa** — opción del selector de equipo, sólo admin (segmento
+  `__total__` en la URL).
+
+### 3.3 Cálculo de KPIs
 - **Avance %** se calcula sobre la **tendencia** (proyección a fin de mes), no sobre
   el acumulado — salvo en meses cerrados, donde cae al acumulado.
 - **Tendencia** = media diaria real × días laborables del mes.
 - **Días trabajados** = días distintos con ventas cargadas del mes corriente.
+- **Meses cerrados** — muestran **Meta / Cierre / Cumpl.**: cómo cerró el mes contra
+  su objetivo. No muestran tendencia ni media necesaria (ya no hay nada que proyectar).
 
-### 3.3 Metas
+### 3.4 Metas
 - Carga de objetivos mensuales (`/admin/metas`).
 - **Rubros Mondelez:** el admin ingresa el objetivo en $; el sistema lo convierte a
   kg con el ratio $/kg del mes anterior.
@@ -57,7 +78,7 @@ Security (RLS) en PostgreSQL.
   vs. el mes anterior en el año previo.
 - La meta total de cada rubro se distribuye entre vendedores según su peso histórico.
 
-### 3.4 Carga de datos
+### 3.5 Carga de datos
 - **Ventas** — archivo Excel diario/mensual. Upsert por `(fecha, pdv, comprobante, sku)`;
   re-subir un archivo corregido sobrescribe. Dispara el recálculo de las tablas
   pre-agregadas.
@@ -66,10 +87,10 @@ Security (RLS) en PostgreSQL.
 - **Vendedores** — maestro de vendedores. Al cambiar equipos, recalcula el histórico.
 - **Geo PDVs** — coordenadas para el mapa.
 
-### 3.5 Mapa de PDVs
+### 3.6 Mapa de PDVs
 - `/mapa` — visualización geográfica de los puntos de venta con clustering.
 
-### 3.6 Panel admin
+### 3.7 Panel admin
 - Configuración de días laborables por mes (usado para tendencia y media necesaria).
 
 ---

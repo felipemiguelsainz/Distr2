@@ -363,10 +363,13 @@ export function ConsolidadoClient({
   porVendedor,
   ccc,
   metaCccByVendedor,
+  cccCaption,
 }: {
   porVendedor:       KpiVendedor[];
   ccc:               CccRow[];
   metaCccByVendedor: Record<string, number>;
+  /** Aclaración de período para el CCC (no se suma entre meses). */
+  cccCaption?:       string;
 }) {
   const [openKg,   setOpenKg]   = useState(true);
   const [openNeto, setOpenNeto] = useState(true);
@@ -441,7 +444,11 @@ export function ConsolidadoClient({
 
       {/* CCC */}
       <div className={card}>
-        <SectionHeader title="CCC — Clientes con Compra" open={openCcc} onToggle={() => setOpenCcc(v => !v)} />
+        <SectionHeader
+          title={cccCaption ? `CCC — Clientes con Compra · ${cccCaption}` : 'CCC — Clientes con Compra'}
+          open={openCcc}
+          onToggle={() => setOpenCcc(v => !v)}
+        />
         <div className={openCcc ? '' : 'hidden lg:block'}>
           <CccVendedorTable data={ccc} metaByVendedor={metaCccByVendedor} />
         </div>

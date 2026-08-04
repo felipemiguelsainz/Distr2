@@ -3,6 +3,7 @@
 import { useMemo, useState, useCallback, useRef } from 'react';
 import { formatKg, formatCurrency } from '@/lib/calculations/dashboard';
 import type { CatalogoItem, ConsolidadoProductoRow } from '@/lib/calculations/productos';
+import type { Periodo } from '@/lib/periodos';
 
 const MONO: React.CSSProperties = { fontFamily: "'JetBrains Mono', monospace" };
 const CARD = 'bg-[#ffffff] rounded-2xl border border-[#e4e4e7] shadow-xl shadow-black/5 overflow-hidden';
@@ -210,16 +211,16 @@ function ProductoSelector({
 // ---------------------------------------------------------------------------
 export function ProductosClient({
   equipo,
-  mes,
-  anio,
+  periodos,
   catalogo,
   filasIniciales,
+  cccCaption,
 }: {
   equipo:         string;
-  mes:            number;
-  anio:           number;
+  periodos:       Periodo[];
   catalogo:       CatalogoItem[];
   filasIniciales: ConsolidadoProductoRow[];
+  cccCaption?:    string;
 }) {
   const allArticulos = useMemo(() => catalogo.map((c) => c.articulo), [catalogo]);
   const [seleccionados, setSeleccionados] = useState<Set<string>>(() => new Set(allArticulos));
@@ -237,7 +238,7 @@ export function ProductosClient({
         const res = await fetch('/api/consolidado-productos', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ equipo, anio, mes, articulos }),
+          body: JSON.stringify({ equipo, periodos, articulos }),
         });
         const data = await res.json();
         if (res.ok) setFilas(data.filas ?? []);
@@ -245,7 +246,7 @@ export function ProductosClient({
         setLoading(false);
       }
     }, 350);
-  }, [equipo, anio, mes, allArticulos.length]);
+  }, [equipo, periodos, allArticulos.length]);
 
   const apply = useCallback((next: Set<string>) => {
     setSeleccionados(next);
@@ -299,7 +300,7 @@ export function ProductosClient({
           ]}
         />
         <VendedorTable
-          title="CCC — Clientes con Compra"
+          title={cccCaption ? `CCC — Clientes con Compra · ${cccCaption}` : 'CCC — Clientes con Compra'}
           data={ordenadas}
           cols={[
             { label: 'Clientes', value: (r) => r.ccc, fmt: (v) => String(Math.round(v)) },

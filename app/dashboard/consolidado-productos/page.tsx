@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { TOTAL_EMPRESA } from '@/lib/periodos';
 
 export default async function ConsolidadoProductosIndexPage() {
   const supabase = await createClient();
@@ -30,21 +31,6 @@ export default async function ConsolidadoProductosIndexPage() {
     redirect(`/dashboard/consolidado-productos/${encodeURIComponent(eq)}`);
   }
 
-  // admin: primer equipo alfabético
-  const { data: vRows } = await supabase
-    .from('vendedores')
-    .select('equipo')
-    .eq('activo', true)
-    .not('equipo', 'is', null);
-
-  const equipos = Array.from(
-    new Set(
-      (vRows ?? [])
-        .map((v) => (v.equipo as string | null)?.trim())
-        .filter((e): e is string => !!e && e !== 'SIN SUPERVISOR'),
-    ),
-  ).sort((a, b) => a.localeCompare(b));
-
-  if (equipos.length === 0) redirect('/dashboard/total');
-  redirect(`/dashboard/consolidado-productos/${encodeURIComponent(equipos[0])}`);
+  // admin: arranca en Total Empresa (todos los equipos)
+  redirect(`/dashboard/consolidado-productos/${TOTAL_EMPRESA}`);
 }

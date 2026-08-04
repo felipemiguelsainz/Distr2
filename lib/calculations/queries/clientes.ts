@@ -1,7 +1,7 @@
 import { unstable_cache } from 'next/cache';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { CccData, CoberturaItem, ClientesRubro } from '@/lib/types';
-import { dateStr, monthRange, vendedoresByEquipo } from './shared';
+import { dateStr, monthRange, vendedoresByEquipo, vendedoresDelScope } from './shared';
 
 // ---------------------------------------------------------------------------
 // CCC — Clientes que compraron (un vendedor, mes vs mes anterior)
@@ -38,7 +38,8 @@ export async function fetchCCC(
 }
 
 // ---------------------------------------------------------------------------
-// CCC por vendedor para un equipo completo
+// CCC por vendedor para un equipo completo.
+// `equipo` vacío = TODOS los equipos (vista Total Empresa del consolidado).
 // ---------------------------------------------------------------------------
 export async function fetchCCCByEquipo(
   equipo: string,
@@ -46,7 +47,7 @@ export async function fetchCCCByEquipo(
   month:  number,
 ): Promise<{ vendedor: string; mes_actual: number; mes_anterior: number; variacion_pct: number }[]> {
   const svc      = createServiceClient();
-  const vendedores = await vendedoresByEquipo(equipo);
+  const vendedores = await vendedoresDelScope(equipo);
   if (vendedores.length === 0) return [];
 
   const mm      = String(month).padStart(2, '0');
@@ -62,8 +63,8 @@ export async function fetchCCCByEquipo(
   const prevHasta   = `${prevYear}-${prevMm}-${String(prevLastDay).padStart(2, '0')}`;
 
   const [{ data: mesData, error: mesErr }, { data: prevData, error: prevErr }] = await Promise.all([
-    svc.rpc('ccc_por_vendedor', { p_desde: mesDesde, p_hasta: mesHasta, p_equipo: equipo }),
-    svc.rpc('ccc_por_vendedor', { p_desde: prevDesde, p_hasta: prevHasta, p_equipo: equipo }),
+    svc.rpc('ccc_por_vendedor', { p_desde: mesDesde, p_hasta: mesHasta, p_equipo: equipo || null }),
+    svc.rpc('ccc_por_vendedor', { p_desde: prevDesde, p_hasta: prevHasta, p_equipo: equipo || null }),
   ]);
   if (mesErr)  console.error('[fetchCCCByEquipo] mes error:',  mesErr.message);
   if (prevErr) console.error('[fetchCCCByEquipo] prev error:', prevErr.message);
@@ -143,7 +144,7 @@ const _fetchMetasCccByVendedorImpl = unstable_cache(
     month:  number,
   ): Promise<Record<string, number>> => {
   const svc        = createServiceClient();
-  const vendedores = await vendedoresByEquipo(equipo);
+  const vendedores = await vendedoresDelScope(equipo);
   if (vendedores.length === 0) return {};
 
   const { data } = await svc

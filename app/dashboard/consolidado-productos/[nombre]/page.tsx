@@ -1,11 +1,12 @@
 import { AppShell } from '@/components/layout/AppShell';
-import { MonthFilter } from '@/components/ui/MonthFilter';
-import { SupervisorFilter } from '@/components/ui/SupervisorFilter';
+import { FilterBar } from '@/components/ui/FilterBar';
 import { KpiSkeleton } from '@/components/ui/Skeleton';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { fetchCatalogoProductos, fetchConsolidadoPorProducto } from '@/lib/calculations/productos';
+import { Periodo, TOTAL_EMPRESA, labelPeriodos, resolverPeriodos } from '@/lib/periodos';
+import { SIN_SUPERVISOR } from '@/lib/constants';
 import { ProductosClient } from './ProductosClient';
 
 interface PageParams  { nombre: string }
@@ -20,11 +21,12 @@ export default async function ConsolidadoProductosPage({
 }) {
   const { nombre } = await params;
   const sp          = await searchParams;
-  const equipo      = decodeURIComponent(nombre);
+  const segmento    = decodeURIComponent(nombre);
+  const esTotal     = segmento === TOTAL_EMPRESA;
+  const equipo      = esTotal ? '' : segmento;
 
   const today = new Date();
-  const mes   = parseInt(sp.mes  ?? String(today.getMonth() + 1), 10);
-  const anio  = parseInt(sp.anio ?? String(today.getFullYear()),   10);
+  const sel   = resolverPeriodos(sp, today);
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -56,6 +58,9 @@ export default async function ConsolidadoProductosPage({
     }
   }
 
+  // Total Empresa es exclusivo de admin
+  if (esTotal && profile.rol !== 'admin') redirect('/');
+
   let equipos: string[] = [];
   if (profile.rol === 'admin') {
     const { data: vRows } = await supabase
@@ -68,7 +73,7 @@ export default async function ConsolidadoProductosPage({
       new Set(
         (vRows ?? [])
           .map((v) => (v.equipo as string | null)?.trim())
-          .filter((e): e is string => !!e && e !== 'SIN SUPERVISOR'),
+          .filter((e): e is string => !!e && e !== SIN_SUPERVISOR),
       ),
     ).sort((a, b) => a.localeCompare(b));
   }
@@ -76,30 +81,37 @@ export default async function ConsolidadoProductosPage({
   return (
     <AppShell>
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#71717a]"
                style={{ fontFamily: "'JetBrains Mono', monospace" }}>
               Consolidado por producto
             </p>
             <h1 className="text-[22px] font-bold tracking-[-0.02em] text-[#09090b] mt-0.5">
-              {equipo}
+              {esTotal ? 'Total Empresa' : equipo}
             </h1>
+            <p className="text-[13px] text-[#71717a] mt-0.5">{sel.label}</p>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {profile.rol === 'admin' && equipos.length > 0 && (
-              <Suspense>
-                <SupervisorFilter equipos={equipos} current={equipo} basePath="/dashboard/consolidado-productos" />
-              </Suspense>
-            )}
-            <Suspense>
-              <MonthFilter defaultMes={mes} defaultAnio={anio} />
-            </Suspense>
-          </div>
+          <Suspense>
+            <FilterBar
+              meses={sel.meses}
+              anios={sel.anios}
+              equipos={profile.rol === 'admin' ? equipos : undefined}
+              equipoActual={equipo}
+              equipoBasePath="/dashboard/consolidado-productos"
+              permitirTotalEmpresa={profile.rol === 'admin'}
+            />
+          </Suspense>
         </div>
 
         <Suspense fallback={<KpiSkeleton />}>
-          <Section equipo={equipo} mes={mes} anio={anio} todayIso={today.toISOString()} />
+          <Section
+            equipo={equipo}
+            periodos={sel.periodos}
+            principal={sel.principal}
+            multi={sel.multi}
+            todayIso={today.toISOString()}
+          />
         </Suspense>
       </div>
     </AppShell>
@@ -108,29 +120,31 @@ export default async function ConsolidadoProductosPage({
 
 async function Section({
   equipo,
-  mes,
-  anio,
+  periodos,
+  principal,
+  multi,
   todayIso,
 }: {
-  equipo:   string;
-  mes:      number;
-  anio:     number;
-  todayIso: string;
+  equipo:    string;   // '' = todos los equipos
+  periodos:  Periodo[];
+  principal: Periodo;
+  multi:     boolean;
+  todayIso:  string;
 }) {
   const today = new Date(todayIso);
 
   const [catalogo, filasIniciales] = await Promise.all([
     fetchCatalogoProductos(),
-    fetchConsolidadoPorProducto(equipo, anio, mes, null, today),
+    fetchConsolidadoPorProducto(equipo, periodos, null, today),
   ]);
 
   return (
     <ProductosClient
       equipo={equipo}
-      mes={mes}
-      anio={anio}
+      periodos={periodos}
       catalogo={catalogo}
       filasIniciales={filasIniciales}
+      cccCaption={multi ? `CCC: ${labelPeriodos([principal])} (no se suma entre meses)` : undefined}
     />
   );
 }

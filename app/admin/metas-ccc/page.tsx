@@ -1,5 +1,5 @@
-import { MonthFilter } from '@/components/ui/MonthFilter';
-import { SupervisorFilter } from '@/components/ui/SupervisorFilter';
+import { FilterBar } from '@/components/ui/FilterBar';
+import { resolverPeriodos } from '@/lib/periodos';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
@@ -26,8 +26,10 @@ export default async function SupervisorMetasPage({
 
   const svc = createServiceClient();
   const today = new Date();
-  const mes = parseInt(sp.mes ?? String(today.getMonth() + 1), 10);
-  const anio = parseInt(sp.anio ?? String(today.getFullYear()), 10);
+  // Las metas se cargan de a un período: acá el filtro es de selección única.
+  const sel  = resolverPeriodos(sp, today);
+  const mes  = sel.principal.mes;
+  const anio = sel.principal.anio;
 
   // Determinar equipo y (para admin) la lista de equipos.
   let equipo = '';
@@ -95,12 +97,15 @@ export default async function SupervisorMetasPage({
             </p>
             <h1 className="text-[22px] font-bold tracking-[-0.02em] text-[#09090b] mt-0.5">{equipo || '—'}</h1>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {profile.rol === 'admin' && equipos.length > 0 && (
-              <Suspense><SupervisorFilter equipos={equipos} current={equipo} /></Suspense>
-            )}
-            <Suspense><MonthFilter defaultMes={mes} defaultAnio={anio} /></Suspense>
-          </div>
+          <Suspense>
+            <FilterBar
+              meses={[mes]}
+              anios={[anio]}
+              periodoUnico
+              equipos={profile.rol === 'admin' && equipos.length > 0 ? equipos : undefined}
+              equipoActual={equipo}
+            />
+          </Suspense>
         </div>
 
         {/* Qué es y para qué sirve */}

@@ -1,6 +1,5 @@
 import { AppShell } from '@/components/layout/AppShell';
-import { MonthFilter } from '@/components/ui/MonthFilter';
-import { RangeFilter } from '@/components/ui/RangeFilter';
+import { FilterBar } from '@/components/ui/FilterBar';
 import { RangoVendido } from '@/components/dashboard/RangoVendido';
 import { KpiTable } from '@/components/dashboard/KpiTable';
 import { TrendChart } from '@/components/dashboard/LazyCharts';
@@ -8,13 +7,14 @@ import { CccCard } from '@/components/dashboard/CccCard';
 import { CoberturaTable } from '@/components/dashboard/CoberturaTable';
 import { ClientesTable } from '@/components/dashboard/ClientesTable';
 import {
-  fetchVendedorKpis,
+  fetchVendedorKpisMulti,
   fetchTrendData,
   fetchCCC,
   fetchCobertura,
   fetchClientesData,
   fetchMetasCcc,
 } from '@/lib/calculations/queries';
+import { Periodo, labelPeriodos, resolverPeriodos } from '@/lib/periodos';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
@@ -72,8 +72,7 @@ export default async function VendedorDashboardPage({
   }
 
   const today = new Date();
-  const mes = parseInt(sp.mes ?? String(today.getMonth() + 1), 10);
-  const anio = parseInt(sp.anio ?? String(today.getFullYear()), 10);
+  const sel   = resolverPeriodos(sp, today);
   const desde = isDate(sp.desde) ? sp.desde! : '';
   const hasta = isDate(sp.hasta) ? sp.hasta! : '';
 
@@ -93,16 +92,15 @@ export default async function VendedorDashboardPage({
             <p className="text-[13px] text-[#71717a] mt-0.5">
               {vData?.equipo && `Equipo: ${vData.equipo}`}
               {vData?.supervisor && ` · Supervisor: ${vData.supervisor}`}
+              {` · ${sel.label}`}
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-wrap">
-            <Suspense>
-              <MonthFilter defaultMes={mes} defaultAnio={anio} />
-            </Suspense>
-            <Suspense>
-              <RangeFilter desde={desde} hasta={hasta} />
-            </Suspense>
-          </div>
+          <Suspense>
+            <FilterBar
+              meses={sel.meses} anios={sel.anios}
+              mostrarRango desde={desde} hasta={hasta}
+            />
+          </Suspense>
         </div>
 
         {desde && hasta && (
@@ -115,8 +113,9 @@ export default async function VendedorDashboardPage({
           <VendedorKpiSection
             vendedor={vendedor}
             cartera={cartera}
-            mes={mes}
-            anio={anio}
+            periodos={sel.periodos}
+            principal={sel.principal}
+            multi={sel.multi}
             todayIso={today.toISOString()}
           />
         </Suspense>
@@ -128,19 +127,26 @@ export default async function VendedorDashboardPage({
 async function VendedorKpiSection({
   vendedor,
   cartera,
-  mes,
-  anio,
+  periodos,
+  principal,
+  multi,
   todayIso,
 }: {
-  vendedor: string;
-  cartera: string | null;
-  mes: number;
-  anio: number;
-  todayIso: string;
+  vendedor:  string;
+  cartera:   string | null;
+  periodos:  Periodo[];
+  principal: Periodo;
+  multi:     boolean;
+  todayIso:  string;
 }) {
   const today = new Date(todayIso);
+  // CCC, cobertura y tendencia son mensuales y no se suman: con varios períodos
+  // elegidos se muestran los del más reciente.
+  const { anio, mes } = principal;
+  const labelPrincipal = labelPeriodos([principal]);
+
   const [kpis, trend, ccc, cobertura, { rows: clientes, cartera3mTotal, cccMesTotal, cccPrevTotal, cccAaTotal }, metasCcc] = await Promise.all([
-    fetchVendedorKpis(vendedor, anio, mes, today),
+    fetchVendedorKpisMulti(vendedor, periodos, today),
     fetchTrendData({ vendedor }, anio, mes),
     fetchCCC(vendedor, anio, mes),
     fetchCobertura(vendedor, cartera, anio, mes),
@@ -153,11 +159,16 @@ async function VendedorKpiSection({
   return (
     <div className="space-y-7">
       <KpiTable data={kpis} />
-      <ClientesTable data={clientes} cartera3mTotal={cartera3mTotal} cccMesTotal={cccMesTotal} cccPrevTotal={cccPrevTotal} cccAaTotal={cccAaTotal} metaPorRubro={metasCcc.porRubro} metaTotal={metasCcc.total} />
+      <ClientesTable
+        data={clientes} cartera3mTotal={cartera3mTotal} cccMesTotal={cccMesTotal}
+        cccPrevTotal={cccPrevTotal} cccAaTotal={cccAaTotal}
+        metaPorRubro={metasCcc.porRubro} metaTotal={metasCcc.total}
+        caption={multi ? `Clientes: ${labelPrincipal} (no se suman entre meses)` : undefined}
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <CccCard data={ccc} />
-        <TrendChart data={trend} title="KG acumulados por día" />
+        <TrendChart data={trend} title={`KG acumulados por día — ${labelPrincipal}`} />
       </div>
 
       <CoberturaTable data={cobertura} />
