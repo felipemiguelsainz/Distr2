@@ -1,6 +1,7 @@
 import { cache } from 'react';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { Periodo } from '@/lib/periodos';
+import { mapConLimite, PERIODOS_EN_PARALELO } from './queries/shared';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -114,8 +115,8 @@ export async function fetchConsolidadoPorProducto(
   articulos: string[] | null,
   today:     Date,
 ): Promise<ConsolidadoProductoRow[]> {
-  const partes = await Promise.all(
-    periodos.map((p) => fetchConsolidadoUnPeriodo(equipo, p.anio, p.mes, articulos, today)),
+  const partes = await mapConLimite(periodos, PERIODOS_EN_PARALELO, (p) =>
+    fetchConsolidadoUnPeriodo(equipo, p.anio, p.mes, articulos, today),
   );
 
   if (partes.length === 1) return partes[0].filas;

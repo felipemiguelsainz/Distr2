@@ -1,5 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { AppShell } from '@/components/layout/AppShell';
+import { SinEquipo } from '@/components/ui/SinEquipo';
 import { TOTAL_EMPRESA } from '@/lib/periodos';
 
 export default async function ConsolidadoIndexPage() {
@@ -28,6 +30,9 @@ export default async function ConsolidadoIndexPage() {
         .single();
       eq = me?.equipo ?? '';
     }
+    // Sin equipo no hay a dónde ir: redirigir con segmento vacío vuelve acá
+    // y arma un bucle de redirects.
+    if (!eq) return <AppShell><SinEquipo /></AppShell>;
     redirect(`/dashboard/consolidado/${encodeURIComponent(eq)}`);
   }
 

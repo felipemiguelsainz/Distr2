@@ -46,7 +46,7 @@ export function routeLength(dist: number[][], order: number[]): number {
 }
 
 /** Construye un orden inicial con vecino más cercano desde `start`. */
-export function nearestNeighbor(dist: number[][], start = 0): number[] {
+function nearestNeighbor(dist: number[][], start = 0): number[] {
   const n = dist.length;
   const used = new Array(n).fill(false);
   const order = [start];
@@ -71,7 +71,7 @@ export function nearestNeighbor(dist: number[][], start = 0): number[] {
  * Mejora 2-opt sobre una ruta abierta (no vuelve al origen). Invierte segmentos
  * mientras reduzca la distancia total. Itera hasta no encontrar mejoras.
  */
-export function twoOpt(dist: number[][], order: number[]): number[] {
+function twoOpt(dist: number[][], order: number[]): number[] {
   const route = order.slice();
   let improved = true;
   while (improved) {

@@ -171,14 +171,28 @@ Pendientes priorizados de las auditorías (seguridad, performance, flujo, DB):
 
 | Prioridad | Tema |
 |-----------|------|
-| 🔴 Alta | RLS de `resumen_clientes_pdv` sin scope por equipo/vendedor (leak de datos). |
-| 🔴 Alta | Validación server-side de inputs en endpoints admin (`config-meses`, `metas/preview`). |
-| 🔴 Alta | Validación de archivos en uploads (tamaño / tipo). |
 | 🟠 Media | Drift de nombres: ~10 vendedores en `ventas` no matchean el maestro. |
 | 🟠 Media | Race condition en el recálculo de `resumen_diario` ante uploads concurrentes. |
-| 🟠 Media | CHECK constraints faltantes (`config_meses`, `metas`). |
+| 🟠 Media | CHECK constraints faltantes (`config_meses`, `metas`) — hoy se validan sólo en la API. |
+| 🟠 Media | Un archivo de PDVs corto/mal armado da de baja al resto del maestro (sólo se valida que no venga vacío). |
+| 🟡 Baja | `config_meses` se carga a mano cada mes; sin fila no hay tendencia ni contador de días. |
 | 🟡 Baja | DB cerca del límite del plan Free (452/500 MB). |
 | 🟡 Baja | Sin audit log de acciones admin. |
+
+Resueltos (auditoría 2026-08-05):
+
+- RLS de `resumen_clientes_pdv` — ya tiene políticas por equipo (`rcp_supervisor`) y
+  por vendedor (`rcp_vendedor`). Verificado contra `pg_policies`.
+- Validación server-side en endpoints admin — `config-meses`, `metas/preview` y
+  `metas/guardar` validan rango de año/mes y tipos. `metas/guardar` además
+  descarta filas sin vendedor o con kilos no numéricos: borra el mes antes de
+  insertar, un año mal tipeado borraba las metas de otro período.
+- Validación de archivos en el upload de ventas (25 MB + extensión). Los otros
+  tres uploads reciben JSON ya parseado en el browser, acotado por
+  `proxyClientMaxBodySize: 30mb`.
+- El rol para los guards sale de `profiles` (no de `user_metadata`, que el propio
+  usuario puede editar) y el proxy corta a las cuentas desactivadas en toda ruta,
+  incluidas las `/api`.
 
 ---
 

@@ -63,7 +63,9 @@ export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores:
     }
   }, [vendedor]);
 
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [vendedor]);
+  // Fetch al montar y al cambiar de vendedor (no es sync de estado).
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { load(); }, [load]);
 
   const mapsHref = clientes.length
     ? `/mapa?pdvs=${clientes.slice(0, 200).map((c) => c.pdv_id).join(',')}${vendedor ? `&vendedor=${encodeURIComponent(vendedor)}` : ''}`

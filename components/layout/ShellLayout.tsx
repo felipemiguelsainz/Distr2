@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 
 interface ShellLayoutProps {
@@ -15,10 +15,13 @@ export function ShellLayout({ sidebar, children, floating }: ShellLayoutProps) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
-  // Close sidebar on navigation (mobile)
-  useEffect(() => {
+  // Cerrar el sidebar al navegar (mobile). Se ajusta en render y no en un
+  // efecto: así no queda un frame con el menú abierto sobre la página nueva.
+  const [pathPrev, setPathPrev] = useState(pathname);
+  if (pathPrev !== pathname) {
+    setPathPrev(pathname);
     setOpen(false);
-  }, [pathname]);
+  }
 
   return (
     <div className="flex h-dvh bg-[#fafafa]">

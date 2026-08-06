@@ -16,7 +16,7 @@ import { EmptyMonth } from '@/components/ui/EmptyMonth';
 interface SearchParams {
   mes?:        string;
   anio?:       string;
-  equipo?:     string;
+  /** Equipo. Se llama `supervisor` porque en el maestro el equipo ES el supervisor. */
   supervisor?: string;
   vendedor?:   string;
   desde?:      string;
@@ -33,8 +33,7 @@ export default async function TotalDashboardPage({
   const params = await searchParams;
   const today  = new Date();
   const sel    = resolverPeriodos(params, today);
-  // `supervisor` es el nombre viejo del param; se sigue aceptando por links guardados.
-  const supervisor = params.equipo ?? params.supervisor ?? '';
+  const supervisor = params.supervisor ?? '';
   const vendedor   = params.vendedor   ?? '';
   const desde = isDate(params.desde) ? params.desde! : '';
   const hasta = isDate(params.hasta) ? params.hasta! : '';
@@ -86,7 +85,7 @@ export default async function TotalDashboardPage({
               anios={sel.anios}
               equipos={supervisores}
               equipoActual={supervisor}
-              equipoParam="equipo"
+              equipoParam="supervisor"
               permitirTotalEmpresa
               vendedores={vendedores}
               vendedorActual={vendedor}

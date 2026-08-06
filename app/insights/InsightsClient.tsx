@@ -105,7 +105,9 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
     }
   }, [vendedor]);
 
-  useEffect(() => { load(false); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [vendedor]);
+  // Fetch de los insights al montar y al cambiar de vendedor (no es sync de estado).
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { load(false); }, [load]);
 
   const d = payload?.data;
   const esEmpresa = !vendedor;

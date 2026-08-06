@@ -1,4 +1,5 @@
 import { AppShell } from '@/components/layout/AppShell';
+import { SinEquipo } from '@/components/ui/SinEquipo';
 import { FilterBar } from '@/components/ui/FilterBar';
 import { RangoVendido } from '@/components/dashboard/RangoVendido';
 import { KpiTable } from '@/components/dashboard/KpiTable';
@@ -84,6 +85,8 @@ export default async function SupervisorDashboardPage({
         .single();
       myEquipo = me?.equipo ?? '';
     }
+    // Sin equipo: redirigir a un segmento vacío arma un bucle de redirects.
+    if (!myEquipo) return <AppShell><SinEquipo /></AppShell>;
     if (myEquipo !== equipo) {
       redirect(`/dashboard/supervisor/${encodeURIComponent(myEquipo)}`);
     }

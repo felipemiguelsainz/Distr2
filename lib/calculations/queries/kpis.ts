@@ -6,6 +6,7 @@ import { Periodo } from '@/lib/periodos';
 import {
   dateStr, cutoffDate, pad, aaCutoffDate,
   fetchDiasLaborables, buildKpisFromRpc, vendedoresByEquipo,
+  mapConLimite, PERIODOS_EN_PARALELO,
   RpcKpiRow, RpcVendRow,
 } from './shared';
 
@@ -128,9 +129,9 @@ export async function fetchTotalKpisMulti(
   equipo?:   string,
   vendedor?: string,
 ): Promise<KpiRubro[]> {
-  const partes = await Promise.all(periodos.map((p) =>
+  const partes = await mapConLimite(periodos, PERIODOS_EN_PARALELO, (p) =>
     _fetchTotalKpisImpl(p.anio, p.mes, dateStr(today), equipo ?? null, vendedor ?? null),
-  ));
+  );
   return mergeKpis(partes);
 }
 
@@ -266,9 +267,9 @@ export async function fetchSupervisorKpisMulti(
   periodos: Periodo[],
   today:    Date,
 ): Promise<{ totales: KpiRubro[]; porVendedor: KpiVendedor[] }> {
-  const partes = await Promise.all(periodos.map((p) =>
+  const partes = await mapConLimite(periodos, PERIODOS_EN_PARALELO, (p) =>
     _fetchSupervisorKpisImpl(equipo, p.anio, p.mes, dateStr(today)),
-  ));
+  );
   return {
     totales: mergeKpis(partes.map(p => ({ kpis: p.totales, diasTrabajados: p.diasTrabajados }))),
     porVendedor: mergeKpisVendedor(
@@ -356,9 +357,9 @@ export async function fetchVendedorKpisMulti(
   periodos: Periodo[],
   today:    Date,
 ): Promise<KpiRubro[]> {
-  const partes = await Promise.all(periodos.map((p) =>
+  const partes = await mapConLimite(periodos, PERIODOS_EN_PARALELO, (p) =>
     _fetchVendedorKpisImpl(vendedor, p.anio, p.mes, dateStr(today)),
-  ));
+  );
   return mergeKpis(partes);
 }
 

@@ -14,19 +14,33 @@ export async function POST(request: NextRequest) {
     const { anio, mes, preview } = await request.json() as {
       anio: number; mes: number; preview: MetaPreviewRubro[];
     };
-    if (!anio || !mes || !Array.isArray(preview)) {
+    // El período se valida por rango, no sólo por truthy: más abajo se BORRAN las
+    // metas de (anio, mes) antes de insertar. Un año mal tipeado borraría las de
+    // otro mes.
+    const a = Number(anio), m = Number(mes);
+    if (!Number.isInteger(a) || a < 2000 || a > 2100) {
+      return NextResponse.json({ error: 'Año inválido.' }, { status: 400 });
+    }
+    if (!Number.isInteger(m) || m < 1 || m > 12) {
+      return NextResponse.json({ error: 'Mes inválido (1-12).' }, { status: 400 });
+    }
+    if (!Array.isArray(preview)) {
       return NextResponse.json({ error: 'Parámetros inválidos.' }, { status: 400 });
     }
 
     const rows: { anio: number; mes: number; vendedor_nombre: string; rubro: string; kilos_meta: number; neto_meta: number | null }[] = [];
     for (const p of preview) {
+      if (!p?.rubro || !Array.isArray(p.vendedores)) continue;
       for (const v of p.vendedores) {
+        const kg   = Number(v?.kg_meta);
+        const neto = v?.neto_meta == null ? null : Number(v.neto_meta);
+        if (!v?.vendedor || !Number.isFinite(kg) || kg < 0) continue;
         rows.push({
-          anio, mes,
+          anio: a, mes: m,
           vendedor_nombre: v.vendedor,
           rubro:           p.rubro,
-          kilos_meta:      v.kg_meta,
-          neto_meta:       v.neto_meta ?? null,
+          kilos_meta:      kg,
+          neto_meta:       neto != null && Number.isFinite(neto) ? neto : null,
         });
       }
     }
@@ -38,7 +52,7 @@ export async function POST(request: NextRequest) {
     const supabase = createServiceClient();
 
     // Borrar metas previas del mes para no acumular duplicados con valores viejos
-    await supabase.from('metas').delete().eq('anio', anio).eq('mes', mes);
+    await supabase.from('metas').delete().eq('anio', a).eq('mes', m);
 
     // Insertar en chunks para evitar payloads enormes
     const CHUNK = 500;

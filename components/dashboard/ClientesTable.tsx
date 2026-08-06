@@ -106,7 +106,7 @@ export function ClientesTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-[#e4e4e7]">
-            {rows.map((row, idx) => {
+            {rows.map((row) => {
               const isTotal = row.rubro === 'TOTAL';
               const barPct  = pctBar(row.clientes_mes, isTotal ? row.cartera_activa_3m : maxCartera);
 

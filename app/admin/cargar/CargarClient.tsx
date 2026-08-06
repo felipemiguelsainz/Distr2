@@ -672,13 +672,6 @@ export function CargarClient() {
   const MESES =['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const currentYear = new Date().getFullYear();
 
-  const selectCls = [
-    'px-3 py-[7px] text-[13px] font-medium w-full',
-    'bg-[rgba(0,0,0,0.02)] border border-[#e4e4e7] rounded-[8px]',
-    'text-[#09090b] focus:outline-none focus:border-[rgba(12,92,171,0.4)] focus:bg-[rgba(0,0,0,0.03)]',
-    'transition-all',
-  ].join(' ');
-
   return (
     <div className="max-w-4xl mx-auto space-y-7">
       <h1 className="text-[22px] font-bold tracking-[-0.02em] text-[#09090b]">Cargar Archivos</h1>

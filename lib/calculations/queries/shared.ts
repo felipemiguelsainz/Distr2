@@ -45,6 +45,29 @@ export function aaCutoffDate(year: number, month: number, today: Date): string {
 }
 
 // ---------------------------------------------------------------------------
+// Map con límite de concurrencia.
+//
+// Cada período de los dashboards dispara ~6 RPCs. Con 12 períodos elegidos eso
+// son 72 consultas: lanzadas todas juntas saturan el pooler de Supabase (plan
+// free) y se caen por timeout. De a 3 períodos el tiempo total apenas cambia y
+// no se rompe nada.
+// ---------------------------------------------------------------------------
+export async function mapConLimite<T, R>(
+  items: T[],
+  limite: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const out: R[] = [];
+  for (let i = 0; i < items.length; i += limite) {
+    out.push(...await Promise.all(items.slice(i, i + limite).map(fn)));
+  }
+  return out;
+}
+
+/** Períodos que se resuelven en paralelo (ver mapConLimite). */
+export const PERIODOS_EN_PARALELO = 3;
+
+// ---------------------------------------------------------------------------
 // Fetch días laborables de config_meses — cached 1h (changes at most once/month)
 // ---------------------------------------------------------------------------
 export const fetchDiasLaborables = unstable_cache(

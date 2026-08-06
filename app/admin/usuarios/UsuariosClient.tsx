@@ -71,8 +71,16 @@ export function UsuariosClient({ supervisores, vendedores, currentUserId }: Prop
     setLoadingList(false);
   }, []);
 
+  // Carga inicial de la lista. Es un fetch al montar, no un sync de estado:
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadUsuarios(); }, [loadUsuarios]);
-  useEffect(() => { setTarget(''); }, [rol]);
+
+  // Al cambiar de rol, el destinatario elegido (vendedor/equipo) deja de aplicar.
+  const [rolPrev, setRolPrev] = useState(rol);
+  if (rolPrev !== rol) {
+    setRolPrev(rol);
+    setTarget('');
+  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();

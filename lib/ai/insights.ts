@@ -7,7 +7,6 @@
 // ---------------------------------------------------------------------------
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getLLMProvider } from './provider';
-import type { KpiRubro } from '@/lib/types';
 
 export interface InsightAvance {
   rubro: string; avance_pct: number; acumulado: number; meta: number | null; tendencia: number | null;
@@ -41,17 +40,6 @@ function monthsAgoISO(months: number): string {
   const d = new Date();
   d.setMonth(d.getMonth() - months);
   return d.toISOString().slice(0, 10);
-}
-
-/** Convierte KpiRubro[] (de fetch*Kpis) al formato de avance del insight. */
-export function avanceFromKpis(kpis: KpiRubro[]): InsightAvance[] {
-  return kpis.map((k) => ({
-    rubro: k.rubro,
-    avance_pct: Math.round(k.avance_pct),
-    acumulado: Math.round(k.acumulado),
-    meta: k.meta != null ? Math.round(k.meta) : null,
-    tendencia: k.tendencia != null ? Math.round(k.tendencia) : null,
-  }));
 }
 
 /**

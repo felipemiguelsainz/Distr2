@@ -49,26 +49,6 @@ export interface Meta {
   kilos_meta: number;
 }
 
-export interface ResumenDiario {
-  fecha: string;
-  vendedor: string;
-  supervisor: string | null;
-  equipo: string | null;
-  rubro: string;
-  kilos: number;
-  neto: number;
-  pdvs_activos: number;
-}
-
-export interface Planificacion {
-  id: string;
-  fecha: string;
-  vendedor_nombre: string;
-  rubro: string;
-  kilos_planificado: number;
-  kilos_real: number | null;
-}
-
 // Dashboard KPIs
 export interface KpiRubro {
   rubro: string;

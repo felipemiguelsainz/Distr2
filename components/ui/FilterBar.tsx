@@ -3,7 +3,7 @@
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { CalendarRange, Check, ChevronDown, RotateCcw, X } from 'lucide-react';
-import { MESES_CORTOS, MESES_LARGOS, TOTAL_EMPRESA, mesPasado, labelPeriodos } from '@/lib/periodos';
+import { MAX_PERIODOS, MESES_CORTOS, MESES_LARGOS, TOTAL_EMPRESA, mesPasado, labelPeriodos } from '@/lib/periodos';
 
 // ---------------------------------------------------------------------------
 // Barra de filtros única (equipo · vendedor · meses · años · rango de fechas).
@@ -92,10 +92,31 @@ function Popover({
         <span className="font-semibold">{resumen}</span>
         <ChevronDown className={`w-3.5 h-3.5 text-[#71717a] transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
+
       {open && (
-        <div className="absolute right-0 z-30 mt-1.5 min-w-[220px] rounded-[12px] border border-[#e4e4e7] bg-white shadow-xl shadow-black/10 p-2">
-          {children}
-        </div>
+        <>
+          {/* En mobile el panel es un bottom-sheet: anclado al botón se saldría de
+              pantalla (los controles arrancan pegados al borde izquierdo). Mismo
+              patrón que los filtros del mapa. */}
+          <div className="fixed inset-0 z-[9998] bg-black/30 lg:hidden" onClick={() => setOpen(false)} />
+          <div className="fixed inset-x-0 bottom-0 z-[9999] max-h-[75vh] rounded-t-2xl border-t border-[#e4e4e7] pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_32px_rgba(0,0,0,0.2)] bg-white flex flex-col
+                          lg:absolute lg:inset-x-auto lg:bottom-auto lg:top-full lg:right-0 lg:mt-1.5 lg:min-w-[220px] lg:max-h-[70vh] lg:rounded-[12px] lg:border lg:pb-0 lg:shadow-xl lg:shadow-black/10">
+            {/* Encabezado — sólo mobile */}
+            <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-[#e4e4e7] lg:hidden">
+              <span className="text-[14px] font-semibold text-[#09090b]">{label}</span>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="text-[13px] font-semibold text-[#0c5cab] px-2 py-1 -mr-2"
+              >
+                Listo
+              </button>
+            </div>
+            <div className="overflow-y-auto overscroll-contain p-2">
+              {children}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
@@ -259,13 +280,17 @@ export function FilterBar({
     dHasta === hasta;
 
   // ── Resúmenes de los popovers ─────────────────────────────────────────
+  // Con muchos meses elegidos el botón se estiraba y rompía la barra: a partir
+  // de 4 se resume en un contador.
   const resumenMeses = mesesSel.length === 0
     ? 'Ninguno'
     : mesesSel.length === 1
       ? MESES_LARGOS[mesesSel[0] - 1]
       : mesesSel.length === 12
         ? 'Todos'
-        : mesesSel.map((m) => MESES_CORTOS[m - 1]).join(', ');
+        : mesesSel.length <= 3
+          ? mesesSel.map((m) => MESES_CORTOS[m - 1]).join(', ')
+          : `${mesesSel.length} meses`;
 
   const resumenAnios = aniosSel.length === 0
     ? 'Ninguno'
@@ -294,7 +319,7 @@ export function FilterBar({
             label="Equipo"
             resumen={equipo || (permitirTotalEmpresa ? 'Total Empresa' : 'Todos')}
           >
-            <div className="max-h-[260px] overflow-y-auto">
+            <div>
               {permitirTotalEmpresa && (
                 <OpcionCheck activo={equipo === ''} onClick={() => elegirEquipo('')}>
                   Total Empresa
@@ -312,7 +337,7 @@ export function FilterBar({
         {/* ── Vendedor ── */}
         {vendedores && vendedores.length > 0 && (
           <Popover label="Vendedor" resumen={vendedor || 'Todos'}>
-            <div className="max-h-[260px] overflow-y-auto">
+            <div>
               <OpcionCheck activo={vendedor === ''} onClick={() => setVend('')}>
                 Todos los vendedores
               </OpcionCheck>
@@ -417,9 +442,11 @@ export function FilterBar({
         </button>
         {!sinCambios && (
           <span className="text-[11px] text-[#71717a]" style={MONO}>
-            {periodosPreview.length > 0
-              ? `${labelPeriodos(periodosPreview)} — tocá Aplicar`
-              : 'Elegí al menos un mes y un año'}
+            {periodosPreview.length === 0
+              ? 'Elegí al menos un mes y un año'
+              : periodosPreview.length > MAX_PERIODOS
+                ? `${periodosPreview.length} períodos — se toman los últimos ${MAX_PERIODOS}`
+                : `${labelPeriodos(periodosPreview)} — tocá Aplicar`}
           </span>
         )}
       </div>

@@ -25,8 +25,12 @@ export const MESES_CORTOS = [
 
 export interface Periodo { anio: number; mes: number }
 
-/** Tope de períodos por consulta: cada uno dispara su propia tanda de RPCs. */
-export const MAX_PERIODOS = 24;
+/**
+ * Tope de períodos por consulta. Cada período dispara ~6 RPCs, así que 12 son
+ * ~72 consultas (de a 3 en paralelo, ver mapConLimite). Más que eso deja de ser
+ * un análisis y pasa a ser una descarga: para eso está el export a Excel.
+ */
+export const MAX_PERIODOS = 12;
 
 const ord = (p: Periodo) => p.anio * 12 + (p.mes - 1);
 

@@ -1,4 +1,5 @@
 import { AppShell } from '@/components/layout/AppShell';
+import { SinEquipo } from '@/components/ui/SinEquipo';
 import { FilterBar } from '@/components/ui/FilterBar';
 import { KpiSkeleton } from '@/components/ui/Skeleton';
 import { createClient } from '@/lib/supabase/server';
@@ -53,6 +54,8 @@ export default async function ConsolidadoProductosPage({
         .single();
       myEquipo = meVendedor?.equipo ?? '';
     }
+    // Sin equipo: redirigir a un segmento vacío arma un bucle de redirects.
+    if (!myEquipo) return <AppShell><SinEquipo /></AppShell>;
     if (myEquipo !== equipo) {
       redirect(`/dashboard/consolidado-productos/${encodeURIComponent(myEquipo)}`);
     }
