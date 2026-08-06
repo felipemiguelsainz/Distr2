@@ -5,6 +5,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-
 import MarkerClusterGroup from 'react-leaflet-markercluster';
 import L from 'leaflet';
 import type { PdvGeo, RutaResponse, RutaStop } from './types';
+import { PdvsTable, type EstadoPdv } from './PdvsTable';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -42,6 +43,15 @@ function recencyColor(ultimaVta: string | null): string {
 // así que el naranja solo "pisa" esos casos (nunca un rojo, que es >90 días).
 function pdvColor(p: PdvGeo): string {
   return p.enfriandose ? COLOR_ENFRIANDOSE : recencyColor(p.ultima_vta);
+}
+
+// Mismo criterio que el color del pin, pero con texto — para el listado.
+function pdvEstado(p: PdvGeo): EstadoPdv {
+  const color = pdvColor(p);
+  if (color === COLOR_ENFRIANDOSE) return { label: 'Enfriándose', color };
+  if (color === COLOR_ACTIVO)      return { label: 'Activo',      color };
+  if (color === COLOR_TIBIO)       return { label: '+1 mes',      color };
+  return { label: p.ultima_vta ? '+3 meses' : 'Nunca compró', color };
 }
 
 function makeIcon(color: string, aproximada?: boolean) {
@@ -324,23 +334,28 @@ export default function MapaClient() {
     return m;
   }, [puntos]);
 
-  const [selVendedores,  setSelVendedores]  = useState<Set<string>>(new Set());
+  // Deep-link desde Insights: /mapa?pdvs=1,2,3&vendedor=NOMBRE → pre-filtra.
+  // Se lee en el inicializador (no en un efecto) porque el mapa se monta con
+  // ssr:false: `window` ya existe en el primer render y así no hay un frame
+  // con TODOS los PDVs antes de aplicar el filtro.
+  const deepLink = useState(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const pdvs = sp.get('pdvs');
+    const vend = sp.get('vendedor');
+    return {
+      pdvs: new Set((pdvs ?? '').split(',').map(s => s.trim()).filter(Boolean)),
+      vendedores: new Set(vend ? [vend] : []),
+    };
+  })[0];
+
+  const [selVendedores,  setSelVendedores]  = useState<Set<string>>(deepLink.vendedores);
   const [selZonas,       setSelZonas]       = useState<Set<string>>(new Set());
   const [selPartidos,    setSelPartidos]    = useState<Set<string>>(new Set());
   const [selCanales,     setSelCanales]     = useState<Set<string>>(new Set());
   const [selDias,        setSelDias]        = useState<Set<string>>(new Set());
-  const [selPdvs,        setSelPdvs]        = useState<Set<string>>(new Set());
+  const [selPdvs,        setSelPdvs]        = useState<Set<string>>(deepLink.pdvs);
   const [ruteable,       setRuteable]       = useState<RuteableFilter>('todos');
   const [clienteActivo,  setClienteActivo]  = useState(false);
-
-  // Deep-link desde Insights: /mapa?pdvs=1,2,3&vendedor=NOMBRE → pre-filtra.
-  useEffect(() => {
-    const sp = new URLSearchParams(window.location.search);
-    const pdvs = sp.get('pdvs');
-    const vend = sp.get('vendedor');
-    if (pdvs) setSelPdvs(new Set(pdvs.split(',').map(s => s.trim()).filter(Boolean)));
-    if (vend) setSelVendedores(new Set([vend]));
-  }, []);
 
   // --- Ruteo (Módulo 1) ---
   const [rutaOpen,    setRutaOpen]    = useState(false);
@@ -353,16 +368,20 @@ export default function MapaClient() {
   const [rutaRadio,   setRutaRadio]   = useState(400); // radio apagados cercanos (m)
   const [rutaExtras,  setRutaExtras]  = useState<Set<number>>(new Set()); // PDVs sumados a mano
 
+  // Listado de PDVs debajo del mapa (desktop) / a pantalla completa (mobile).
+  const [listaOpen, setListaOpen] = useState(false);
+
   // Panel de filtros colapsable (Fix 1): recuerda la preferencia en localStorage.
-  const [panelColapsado, setPanelColapsado] = useState(false);
-  useEffect(() => {
+  // Igual que el deep-link, se resuelve en el inicializador (ssr:false) para que
+  // el panel no aparezca abierto y se cierre solo un frame después.
+  const [panelColapsado, setPanelColapsado] = useState(() => {
     try {
       const stored = localStorage.getItem('mapa_panel_colapsado');
       // Con preferencia guardada, respetarla. Sin ella, en mobile (<lg) arrancar
       // COLAPSADO para que el mapa ocupe casi toda la pantalla (Fix 2).
-      setPanelColapsado(stored !== null ? stored === '1' : window.innerWidth < 1024);
-    } catch { /* ignore */ }
-  }, []);
+      return stored !== null ? stored === '1' : window.innerWidth < 1024;
+    } catch { return false; }
+  });
   const togglePanel = useCallback(() => {
     setPanelColapsado(v => {
       const next = !v;
@@ -433,6 +452,13 @@ export default function MapaClient() {
   }, [ruta, rutaExtras, fetchRutaWith]);
 
   const limpiarRuta = useCallback(() => { setRuta(null); setRutaError(null); setRutaExtras(new Set()); }, []);
+
+  // Click en una fila del listado → centrar el mapa en ese PDV. En mobile el
+  // listado tapa el mapa, así que además se cierra para que se vea el pin.
+  const focusPdv = useCallback((p: PdvGeo) => {
+    setFocusPoint([p.latitud, p.longitud]);
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) setListaOpen(false);
+  }, []);
 
   // Copiar las coordenadas en orden de visita (a prueba de errores: lat,lon).
   const [coordsCopied, setCoordsCopied] = useState(false);
@@ -673,6 +699,20 @@ export default function MapaClient() {
                 </div>
               ))}
             </div>
+            <button
+              onClick={() => setListaOpen(v => !v)}
+              title="Ver el listado de los PDVs que se están mostrando"
+              className={`flex items-center gap-1.5 shrink-0 px-2.5 py-1.5 text-[12px] font-medium rounded-[8px] border transition-colors ${
+                listaOpen
+                  ? 'border-[rgba(12,92,171,0.4)] bg-[rgba(12,92,171,0.08)] text-[#0c5cab]'
+                  : 'border-[#e4e4e7] bg-white text-[#71717a] hover:text-[#09090b] hover:border-[#d4d4d8]'
+              }`}
+            >
+              {listaOpen ? 'Ocultar listado' : 'Ver listado'}
+              {!loading && (
+                <span className="tabular-nums opacity-70">({filtered.length.toLocaleString('es-AR')})</span>
+              )}
+            </button>
             <button
               onClick={togglePanel}
               title={panelColapsado ? 'Mostrar filtros' : 'Ocultar filtros'}
@@ -964,7 +1004,10 @@ export default function MapaClient() {
       {/* ── Map ── */}
       {/* En mobile va full-bleed (sin padding ni card) y el bottom sheet flota
           encima; en desktop mantiene el card con padding y bordes redondeados. */}
-      <div className="flex-1 relative min-h-0 lg:px-6 lg:pb-6">
+      <div className="flex-1 relative min-h-0 flex flex-col gap-3 lg:px-6 lg:pb-6">
+        {/* Mapa. Con el listado abierto cede la mitad de abajo en desktop; en
+            mobile se queda entero y el listado va a pantalla completa encima. */}
+        <div className={`relative min-h-0 ${listaOpen ? 'flex-1 lg:flex-none lg:h-[52%]' : 'flex-1'}`}>
         <div ref={mapaRef} className="relative h-full w-full overflow-hidden border-[#e4e4e7] lg:rounded-2xl lg:border">
           {loading && (
             <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-[#fafafa]/70 backdrop-blur-sm">
@@ -985,6 +1028,9 @@ export default function MapaClient() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               crossOrigin="anonymous"
             />
+            {/* Centrado puntual: lo usan el listado y la lista de apagados de la ruta. */}
+            <FlyTo point={focusPoint} />
+
             {!ruta && (
             <MarkerClusterGroup chunkedLoading>
               {filtered.map(p => (
@@ -1035,7 +1081,6 @@ export default function MapaClient() {
                   positions={ruta.stops.map(s => [s.lat, s.lon] as [number, number])}
                   sig={`${ruta.vendedor}|${ruta.dia}|${ruta.stops.length}`}
                 />
-                <FlyTo point={focusPoint} />
                 {ruta.geometry.length >= 2 && (
                   <Polyline
                     positions={ruta.geometry}
@@ -1142,13 +1187,19 @@ export default function MapaClient() {
                 </select>
               </label>
             </div>
-            <div className="flex items-stretch gap-2">
+            <div className="flex flex-wrap items-stretch gap-2">
               <button
                 onClick={armarRuta}
                 disabled={rutaLoading}
-                className="flex-1 px-3.5 py-2.5 text-[13px] font-semibold rounded-[10px] bg-[#0c5cab] text-white hover:bg-[#0a4f95] transition-colors disabled:opacity-60"
+                className="flex-1 min-w-[130px] px-3.5 py-2.5 text-[13px] font-semibold rounded-[10px] bg-[#0c5cab] text-white hover:bg-[#0a4f95] transition-colors disabled:opacity-60"
               >
                 {rutaLoading ? 'Calculando…' : ruta && ruta.stops.length > 0 ? 'Rearmar ruta' : 'Armar ruta'}
+              </button>
+              <button
+                onClick={() => setListaOpen(true)}
+                className="px-3.5 py-2.5 text-[13px] font-medium rounded-[10px] border border-[#e4e4e7] bg-white text-[#0c5cab] active:bg-[rgba(12,92,171,0.06)] transition-colors"
+              >
+                Listado
               </button>
               <button
                 onClick={() => setSheetExpanded(v => !v)}
@@ -1376,6 +1427,34 @@ export default function MapaClient() {
             </div>
           )}
         </div>
+        </div>
+        {/* ── fin del bloque del mapa ── */}
+
+        {/* ── Listado (desktop): mitad de abajo, con scroll propio ── */}
+        {listaOpen && (
+          <div className="hidden lg:flex flex-1 min-h-0">
+            <PdvsTable
+              pdvs={filtered}
+              total={puntos.length}
+              estado={pdvEstado}
+              onFocus={focusPdv}
+              onClose={() => setListaOpen(false)}
+            />
+          </div>
+        )}
+
+        {/* ── Listado (mobile): pantalla completa sobre el mapa ── */}
+        {listaOpen && (
+          <div className="lg:hidden absolute inset-0 z-[1200] bg-white">
+            <PdvsTable
+              pdvs={filtered}
+              total={puntos.length}
+              estado={pdvEstado}
+              onFocus={focusPdv}
+              onClose={() => setListaOpen(false)}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
