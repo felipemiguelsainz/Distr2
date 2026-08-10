@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useCallback, useRef } from 'react';
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { formatKg, formatCurrency } from '@/lib/calculations/dashboard';
 import type { CatalogoItem, ConsolidadoProductoRow } from '@/lib/calculations/productos';
 import type { Periodo } from '@/lib/periodos';
@@ -96,6 +96,7 @@ function VendedorTable({
 // ---------------------------------------------------------------------------
 function ProductoSelector({
   catalogo,
+  totalArticulos,
   seleccionados,
   onToggleArticulo,
   onToggleRubro,
@@ -103,6 +104,9 @@ function ProductoSelector({
   onNone,
 }: {
   catalogo:        CatalogoItem[];
+  /** Artículos distintos. No es catalogo.length: un artículo puede estar en
+      varios rubros y aparece una fila por cada uno. */
+  totalArticulos:  number;
   seleccionados:   Set<string>;
   onToggleArticulo: (articulo: string) => void;
   onToggleRubro:   (articulos: string[], select: boolean) => void;
@@ -128,7 +132,7 @@ function ProductoSelector({
     <div className={CARD}>
       <div className="px-4 py-3 border-b border-[#e4e4e7] flex items-center justify-between gap-3 flex-wrap">
         <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a]" style={MONO}>
-          Productos — {seleccionados.size} de {catalogo.length}
+          Productos — {seleccionados.size} de {totalArticulos}
         </p>
         <div className="flex items-center gap-2">
           <button onClick={onAll}  className="text-[11px] text-[#0c5cab] hover:underline">Todos</button>
@@ -222,11 +226,30 @@ export function ProductosClient({
   filasIniciales: ConsolidadoProductoRow[];
   cccCaption?:    string;
 }) {
-  const allArticulos = useMemo(() => catalogo.map((c) => c.articulo), [catalogo]);
+  // Deduplicado: un mismo artículo puede figurar bajo más de un rubro (hoy 497
+  // filas de catálogo para 482 artículos distintos). Sin esto, `seleccionados`
+  // —que es un Set— nunca llega al largo de la lista, así que "están todos
+  // elegidos" no se detectaba nunca: no se usaba el atajo de mandar
+  // `articulos: null` al RPC y el contador mostraba "482 de 497" de arranque.
+  const allArticulos = useMemo(
+    () => [...new Set(catalogo.map((c) => c.articulo))],
+    [catalogo],
+  );
   const [seleccionados, setSeleccionados] = useState<Set<string>>(() => new Set(allArticulos));
   const [filas, setFilas]   = useState<ConsolidadoProductoRow[]>(filasIniciales);
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Al tocar Aplicar con otro mes/equipo, el server re-renderiza y manda
+  // `filasIniciales` nuevas, pero React reusa esta misma instancia: `useState`
+  // solo mira su argumento en el primer montaje, así que sin esto la tabla se
+  // queda con el período anterior y hay que recargar la página a mano.
+  const firmaPeriodo = `${equipo}|${periodos.map((p) => `${p.anio}-${p.mes}`).join(',')}`;
+  const [firmaPrev, setFirmaPrev] = useState(firmaPeriodo);
+  if (firmaPeriodo !== firmaPrev) {
+    setFirmaPrev(firmaPeriodo);
+    setFilas(filasIniciales);
+  }
 
   const refetch = useCallback((sel: Set<string>) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -253,6 +276,15 @@ export function ProductosClient({
     refetch(next);
   }, [refetch]);
 
+  // `filasIniciales` siempre viene con TODOS los productos: el server no conoce
+  // el filtro, que vive solo en el cliente. Si había un subconjunto elegido, al
+  // cambiar de período hay que volver a pedir las filas con ese filtro puesto.
+  // En el primer montaje están todos seleccionados, así que no dispara.
+  useEffect(() => {
+    if (seleccionados.size !== allArticulos.length) refetch(seleccionados);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firmaPeriodo]);
+
   const toggleArticulo = (a: string) => {
     const n = new Set(seleccionados);
     if (n.has(a)) n.delete(a); else n.add(a);
@@ -273,6 +305,7 @@ export function ProductosClient({
     <div className="space-y-4">
       <ProductoSelector
         catalogo={catalogo}
+        totalArticulos={allArticulos.length}
         seleccionados={seleccionados}
         onToggleArticulo={toggleArticulo}
         onToggleRubro={toggleRubro}

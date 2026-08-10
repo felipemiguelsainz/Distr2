@@ -134,7 +134,14 @@ export default async function SupervisorMetasPage({
             Se generan automáticamente al recargar el maestro de PDVs.
           </div>
         ) : (
-          <MetasCccClient mes={mes} anio={anio} rubros={rubros} filas={filas} />
+          /* El `key` fuerza el remonte al cambiar de período o equipo. El
+             componente guarda las metas tipeadas en estado y, sin esto, React
+             reusa la instancia: se seguirían viendo —y se podrían guardar— las
+             metas del período anterior sobre el nuevo. */
+          <MetasCccClient
+            key={`${equipo}|${anio}-${mes}`}
+            mes={mes} anio={anio} rubros={rubros} filas={filas}
+          />
         )}
     </div>
   );

@@ -44,6 +44,13 @@ export function MetasCccClient({
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // NOTA: todo el estado de acá (metas tipeadas, flags de preset, ediciones sin
+  // guardar) pertenece a UN período y equipo. La página lo remonta con un `key`
+  // cuando cambia cualquiera de los dos — ver app/admin/metas-ccc/page.tsx. Sin
+  // ese remonte, `useState` conservaría las metas del período anterior y se
+  // podrían guardar sobre el nuevo. No agregar estado que deba sobrevivir al
+  // cambio de período sin sacarlo antes de este componente.
+
   function derivedRubro(vendedor: string, rubro: string): number {
     const ratio = ratios.get(vendedor)?.[rubro] ?? 0;
     return Math.round((totals[vendedor] ?? 0) * ratio);
