@@ -655,9 +655,17 @@ export function CargarClient() {
     setMaestrosLoading(true); setMaestrosError(''); setMaestrosResult(null);
     try {
       const buffer = await file.arrayBuffer();
-      const { parseMaestrosFile } = await import('@/lib/excel/parser');
-      const vendedores = parseMaestrosFile(buffer);
-      if (vendedores.length === 0) throw new Error('No se encontraron filas de vendedores en el archivo.');
+      const { parseMaestrosFileDetallado } = await import('@/lib/excel/parser');
+      const { vendedores, columnas, hoja } = parseMaestrosFileDetallado(buffer);
+      if (vendedores.length === 0) {
+        // Decir QUÉ se leyó: casi siempre el archivo está bien y lo que falla es
+        // el nombre de una columna, y sin esto no hay forma de darse cuenta.
+        throw new Error(
+          `No se encontraron vendedores. Se leyó la hoja "${hoja}" con estas columnas: ` +
+          `${columnas.length ? columnas.join(' · ') : '(ninguna)'}. ` +
+          `Hace falta una columna de nombre (Nombre, Vendedor o Vendedores).`
+        );
+      }
       const res = await fetch('/api/admin/maestros/upload', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ vendedores }),

@@ -156,39 +156,110 @@ export interface RawVendedorRow {
   activo: boolean;
 }
 
-export function parseMaestrosFile(buffer: ArrayBuffer): RawVendedorRow[] {
+/**
+ * Normaliza un encabezado para compararlo: sin acentos, sin espacios de más
+ * (incluidos los del medio) y en minúsculas. Los archivos que manda la gente
+ * traen "Vendedores", "VENDEDOR " o "Nombre  Vendedor" indistintamente.
+ */
+function normHeader(h: string): string {
+  return h
+    .normalize('NFD').replace(/\p{M}/gu, '')   // saca acentos
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+/** Encabezado normalizado → nombre real de la columna en la hoja. */
+function indexarColumnas(fila: Record<string, unknown>): Map<string, string> {
+  const m = new Map<string, string>();
+  for (const k of Object.keys(fila)) {
+    const n = normHeader(k);
+    if (!m.has(n)) m.set(n, k);
+  }
+  return m;
+}
+
+/** Primer candidato presente y no vacío. Los candidatos van ya normalizados. */
+function valorDe(
+  fila: Record<string, unknown>,
+  columnas: Map<string, string>,
+  candidatos: string[],
+): string {
+  for (const c of candidatos) {
+    const real = columnas.get(c);
+    if (real === undefined) continue;
+    const v = String(fila[real] ?? '').trim();
+    if (v) return v;
+  }
+  return '';
+}
+
+const COL_NOMBRE     = ['nombre', 'vendedor', 'vendedores', 'nombre vendedor', 'nombre del vendedor', 'apellido y nombre'];
+const COL_SUPERVISOR = ['supervisor', 'supervisores'];
+const COL_EQUIPO     = ['equipo', 'equipos'];
+const COL_LOCALIDAD  = ['localidad', 'localidades'];
+const COL_ACTIVO     = ['activo', 'activa', 'activos'];
+
+/** Columnas que el archivo debería traer, para poder explicar un archivo vacío. */
+export interface MaestrosParseResult {
+  vendedores: RawVendedorRow[];
+  /** Encabezados tal cual vienen en la hoja — se muestran si no se parseó nada. */
+  columnas: string[];
+  hoja: string;
+}
+
+export function parseMaestrosFileDetallado(buffer: ArrayBuffer): MaestrosParseResult {
   const workbook = XLSX.read(buffer, { cellDates: false, type: 'array' });
 
-  const sheetVendedores =
-    workbook.Sheets['Maestro vendedores'] ??
-    workbook.Sheets['Vendedores'] ??
-    workbook.Sheets[workbook.SheetNames[0]];
+  // Nombre de hoja exacto primero; si no, la primera que mencione "vendedor"
+  // (cubre "Maestro Vendedores 2026", "vendedores " y variantes); si no, la
+  // primera hoja del archivo.
+  const nombreHoja =
+    workbook.SheetNames.find((n) => normHeader(n) === 'maestro vendedores') ??
+    workbook.SheetNames.find((n) => normHeader(n).includes('vendedor')) ??
+    workbook.SheetNames[0];
 
   const rawVendedores: Record<string, unknown>[] =
-    XLSX.utils.sheet_to_json(sheetVendedores, { defval: '' });
+    XLSX.utils.sheet_to_json(workbook.Sheets[nombreHoja], { defval: '' });
 
-  return rawVendedores
+  const columnas = rawVendedores.length > 0 ? Object.keys(rawVendedores[0]) : [];
+  const idx = rawVendedores.length > 0 ? indexarColumnas(rawVendedores[0]) : new Map<string, string>();
+
+  const vendedores = rawVendedores
     .map((r) => {
-      const nombre = String(r['Nombre'] ?? r['NOMBRE'] ?? r['Vendedor'] ?? '').trim();
+      const nombre = valorDe(r, idx, COL_NOMBRE);
       if (!nombre) return null;
       // Descartar la fila de total con que suele cerrar el Excel
       const nombreUpper = nombre.toUpperCase();
       if (nombreUpper === 'TOTAL' || nombreUpper === 'TOTALES' || nombreUpper.startsWith('TOTAL ')) {
         return null;
       }
-      const activoRaw = r['Activo'] ?? r['ACTIVO'];
-      const activo = activoRaw === undefined
-        ? true
-        : String(activoRaw).toLowerCase() !== 'false' &&
-          String(activoRaw) !== '0' &&
-          String(activoRaw).toLowerCase() !== 'no';
+
+      // Equipo y supervisor se cubren mutuamente. En este maestro son el mismo
+      // valor (el equipo ES el supervisor) y muchos archivos traen una sola de
+      // las dos columnas. Sin este fallback, subir un archivo de dos columnas
+      // vaciaba el campo faltante para TODOS: sin `equipo` los supervisores
+      // dejan de ver a su gente, y sin `supervisor` los vendedores quedan
+      // marcados "sin supervisor" y fuera de las metas.
+      const supervisorCol = valorDe(r, idx, COL_SUPERVISOR);
+      const equipoCol     = valorDe(r, idx, COL_EQUIPO);
+
+      const activoRaw = valorDe(r, idx, COL_ACTIVO).toLowerCase();
+      const activo = activoRaw === '' ? true : !['false', '0', 'no'].includes(activoRaw);
+
       return {
         nombre,
-        supervisor: String(r['Supervisor'] ?? r['SUPERVISOR'] ?? '').trim(),
-        equipo:     String(r['Equipo'] ?? r['EQUIPO'] ?? '').trim(),
-        localidad:  String(r['Localidad'] ?? r['LOCALIDAD'] ?? '').trim(),
+        supervisor: supervisorCol || equipoCol,
+        equipo:     equipoCol || supervisorCol,
+        localidad:  valorDe(r, idx, COL_LOCALIDAD),
         activo,
       };
     })
     .filter((r): r is RawVendedorRow => r !== null);
+
+  return { vendedores, columnas, hoja: nombreHoja };
+}
+
+export function parseMaestrosFile(buffer: ArrayBuffer): RawVendedorRow[] {
+  return parseMaestrosFileDetallado(buffer).vendedores;
 }
