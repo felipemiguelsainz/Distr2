@@ -61,6 +61,14 @@ const ProductoIcon = () => (
   </svg>
 );
 
+// Cuadrícula con un sector marcado — los cuadrantes de Planificación.
+const CuadranteIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor">
+    <path fillRule="evenodd" d="M3 3h6v6H3V3zm0 8h6v6H3v-6zm8 0h6v6h-6v-6z" clipRule="evenodd" opacity="0.45"/>
+    <path fillRule="evenodd" d="M11 3h6v6h-6V3z" clipRule="evenodd"/>
+  </svg>
+);
+
 const SparkIcon = () => (
   <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
     <path d="M10 1.5l1.6 4.1 4.4 1.4-4.4 1.4L10 12.5 8.4 8.4 4 7l4.4-1.4L10 1.5zM4.5 12l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8.8-2z"/>
@@ -73,6 +81,7 @@ function buildNav(rol: Rol, vendedorNombre: string | null, supervisores: Supervi
   if (rol === 'admin') {
     items.push({ href: '/dashboard/total', label: 'Total Empresa', icon: <ChartIcon /> });
     items.push({ href: '/mapa',            label: 'Mapa de PDVs',  icon: <MapPinIcon /> });
+    items.push({ href: '/planificacion',   label: 'Planificación', icon: <CuadranteIcon /> });
 
     if (supervisores.length > 0) {
       items.push({ href: '/dashboard/consolidado',           label: 'Consolidado',  icon: <ConsolidadoIcon /> });
@@ -88,6 +97,7 @@ function buildNav(rol: Rol, vendedorNombre: string | null, supervisores: Supervi
     items.push({ href: `/dashboard/consolidado-productos/${encodeURIComponent(vendedorNombre)}`, label: 'Por producto', icon: <ProductoIcon /> });
     items.push({ href: '/admin/metas-ccc', label: 'Metas del equipo', icon: <TargetIcon /> });
     items.push({ href: '/mapa',            label: 'Mapa de PDVs',    icon: <MapPinIcon /> });
+    items.push({ href: '/planificacion',   label: 'Planificación',   icon: <CuadranteIcon /> });
   }
 
   if (rol === 'vendedor' && vendedorNombre) {
