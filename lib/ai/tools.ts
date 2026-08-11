@@ -10,6 +10,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ToolDef } from './provider';
 import { fetchVendedorKpis, fetchTotalKpis, fetchSupervisorKpis } from '@/lib/calculations/queries/kpis';
+import { traerTodo } from '@/lib/supabase/paginar';
 
 export interface UserContext {
   rol: 'admin' | 'supervisor' | 'vendedor' | string;
@@ -276,26 +277,21 @@ const TOOLS: Tool[] = [
       // .range() grande NO alcanza — el tope se aplica igual. Acumulamos en un
       // Set para contar pdv_id distintos (un PDV puede aparecer bajo 2 carteras
       // si hubo reasignación en el mes).
-      const PAGE = 1000;
-      const pdvSet = new Set<number>();
-      for (let from = 0; ; from += PAGE) {
+      const filas = await traerTodo<{ pdv_id: number }>((desde, hasta) => {
         let q = svc
           .from('resumen_clientes_pdv')
           .select('pdv_id')
           .eq('anio', anio)
           .eq('mes', mes)
           .ilike('rubro', rubro) // case-insensitive
-          .range(from, from + PAGE - 1);
+          .range(desde, hasta);
         if (vendedoresFiltro !== null) {
           q = q.in('vendedor', vendedoresFiltro.length ? vendedoresFiltro : ['__none__']);
         }
-        const { data, error } = await q;
-        if (error) throw new Error(error.message);
-        const rows = (data ?? []) as { pdv_id: number }[];
-        for (const r of rows) pdvSet.add(r.pdv_id);
-        if (rows.length < PAGE) break;
-      }
-      const pdvsUnicos = pdvSet.size;
+        return q;
+      });
+      // Set: un PDV puede aparecer bajo 2 carteras si hubo reasignación en el mes.
+      const pdvsUnicos = new Set(filas.map((r) => r.pdv_id)).size;
 
       const alcance =
         vendedorArg ? vendedoresFiltro![0]

@@ -6,7 +6,33 @@
 // LLM SOLO los redacta. Nunca inventa números.
 // ---------------------------------------------------------------------------
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { unstable_cache } from 'next/cache';
 import { getLLMProvider } from './provider';
+import { createServiceClient } from '@/lib/supabase/server';
+import { traerTodo } from '@/lib/supabase/paginar';
+
+/**
+ * Valor 12m + cadencia de TODOS los PDVs, cacheado.
+ *
+ * Las dos RPC recorren el año entero de `ventas` (933k filas) y `pdvs_valor_12m`
+ * sola tarda ~5 s por el count(DISTINCT mes), que obliga a ordenar. Un índice de
+ * cobertura se probó y solo mejoraba un 6% a cambio de 59 MB, así que no va por
+ * ahí: lo que hay que evitar es recalcularlas en cada visita.
+ *
+ * Son globales —no dependen del usuario ni del alcance; el recorte por cartera
+ * pasa después, en JS— así que una sola copia sirve para todos. Se invalidan con
+ * el tag `kpis`, que ya disparan las cargas de ventas y el recálculo del resumen:
+ * es exactamente cuando estos números cambian.
+ */
+const rpcsGlobalesCacheadas = unstable_cache(
+  async () => {
+    const svc = createServiceClient();
+    const [vd, cd] = await Promise.all([svc.rpc('pdvs_valor_12m'), svc.rpc('pdvs_cadencia')]);
+    return { valor: vd.data, cadencia: cd.data };
+  },
+  ['insights-valor-cadencia'],
+  { revalidate: 3600, tags: ['kpis'] },
+);
 
 export interface InsightAvance {
   rubro: string; avance_pct: number; acumulado: number; meta: number | null; tendencia: number | null;
@@ -57,19 +83,12 @@ export async function buildInsightData(
   const diasDesde = (iso: string) => Math.round((today.getTime() - new Date(iso).getTime()) / 86_400_000);
 
   // Paginado de PDVs del scope (supera el límite de 1000 de PostgREST).
-  const fetchPdvs = async () => {
-    const PAGE = 1000;
-    const acc: { id: number; razon_social: string | null; localidad: string | null }[] = [];
-    for (let from = 0; ; from += PAGE) {
-      let q = svc.from('pdvs').select('id, razon_social, localidad').eq('activo', true).range(from, from + PAGE - 1);
+  const fetchPdvs = () =>
+    traerTodo<{ id: number; razon_social: string | null; localidad: string | null }>((desde, hasta) => {
+      let q = svc.from('pdvs').select('id, razon_social, localidad').eq('activo', true).range(desde, hasta);
       if (carteras !== null) q = q.in('cartera', carteras.length ? carteras : ['__none__']);
-      const { data } = await q;
-      if (!data || data.length === 0) break;
-      acc.push(...data);
-      if (data.length < PAGE) break;
-    }
-    return acc;
-  };
+      return q;
+    });
 
   // Todas las fuentes son independientes → en paralelo (la generación es pesada).
   const [udRes, vdRes, cdRes, csRes, tdRes, pdvs] = await Promise.all([
@@ -322,18 +341,17 @@ export async function computeEnfriandose(
   carteras: string[] | null,
   today: Date
 ): Promise<EnfriandoseConCartera[]> {
-  const PAGE = 1000;
-  const pdvs: { id: number; razon_social: string | null; localidad: string | null; cartera: string | null }[] = [];
-  for (let from = 0; ; from += PAGE) {
-    let q = svc.from('pdvs').select('id, razon_social, localidad, cartera').eq('activo', true).range(from, from + PAGE - 1);
-    if (carteras !== null) q = q.in('cartera', carteras.length ? carteras : ['__none__']);
-    const { data } = await q;
-    if (!data || data.length === 0) break;
-    pdvs.push(...data);
-    if (data.length < PAGE) break;
-  }
+  const pdvs = await traerTodo<{ id: number; razon_social: string | null; localidad: string | null; cartera: string | null }>(
+    (desde, hasta) => {
+      let q = svc.from('pdvs').select('id, razon_social, localidad, cartera').eq('activo', true).range(desde, hasta);
+      if (carteras !== null) q = q.in('cartera', carteras.length ? carteras : ['__none__']);
+      return q;
+    },
+  );
 
-  const [vdRes, cdRes] = await Promise.all([svc.rpc('pdvs_valor_12m'), svc.rpc('pdvs_cadencia')]);
+  const cacheado = await rpcsGlobalesCacheadas();
+  const vdRes = { data: cacheado.valor };
+  const cdRes = { data: cacheado.cadencia };
   const valor = new Map<number, number>();
   const kilos = new Map<number, number>();
   for (const r of (vdRes.data as { pdv_id: number; neto_12m: number; kilos_12m: number; meses: number }[] | null) ?? []) {
