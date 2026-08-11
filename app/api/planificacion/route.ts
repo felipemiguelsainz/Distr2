@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getPlanScope, vendedoresAsignables } from '@/lib/planificacion/scope';
+import { traerTodo } from '@/lib/supabase/paginar';
 import type { Cuadrante, PdvPlan, PlanificacionData } from '@/app/planificacion/types';
 
 // Carga inicial del lienzo: todos los PDVs geolocalizados que el usuario puede
@@ -22,18 +23,19 @@ export async function GET() {
     partido: string | null;
     pdvs: Record<string, unknown> | null;
   };
-  let raw: RawRow[] = [];
-  for (let page = 0; ; page++) {
-    const { data, error } = await svc
-      .from('pdvs_geo')
-      .select('pdv_id, latitud, longitud, partido, pdvs ( razon_social, cartera, dia_visita, localidad, zona, canal_venta, ultima_vta, activo )')
-      .not('latitud', 'is', null)
-      .not('longitud', 'is', null)
-      .range(page * PAGE, (page + 1) * PAGE - 1);
-    if (error) return NextResponse.json({ error: 'No se pudieron cargar los PDVs.' }, { status: 500 });
-    if (!data || data.length === 0) break;
-    raw = raw.concat(data as unknown as RawRow[]);
-    if (data.length < PAGE) break;
+  let raw: RawRow[];
+  try {
+    raw = await traerTodo<RawRow>((desde, hasta) =>
+      svc
+        .from('pdvs_geo')
+        .select('pdv_id, latitud, longitud, partido, pdvs ( razon_social, cartera, dia_visita, localidad, zona, canal_venta, ultima_vta, activo )')
+        .not('latitud', 'is', null)
+        .not('longitud', 'is', null)
+        .range(desde, hasta) as unknown as PromiseLike<{ data: RawRow[] | null; error: { message: string } | null }>,
+      { tam: PAGE },
+    );
+  } catch {
+    return NextResponse.json({ error: 'No se pudieron cargar los PDVs.' }, { status: 500 });
   }
 
   const round5 = (n: number) => Math.round(n * 1e5) / 1e5;

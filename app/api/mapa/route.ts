@@ -3,6 +3,7 @@ import { createClient, createServiceClient } from '@/lib/supabase/server';
 import type { PdvGeo } from '@/app/mapa/types';
 import { esEnfriandose } from '@/lib/ai/insights';
 import { veTodaLaEmpresa } from '@/lib/auth/alcance';
+import { traerTodo } from '@/lib/supabase/paginar';
 
 // Map PDV points for the authenticated user. Heavy payload (~6.6k rows), so it
 // lives in a route handler fetched client-side instead of blocking the page's
@@ -51,7 +52,6 @@ export async function GET() {
 
   // Load all geo points — paginate to bypass PostgREST row limit
   const PAGE = 1000;
-  let page = 0;
   type RawGeoRow = {
     pdv_id: number;
     latitud: number;
@@ -61,20 +61,23 @@ export async function GET() {
     aproximada: boolean | null;
     pdvs: Record<string, unknown> | null;
   };
-  let rawGeo: RawGeoRow[] = [];
-  while (true) {
-    const { data: rawGeoPage } = await svc
-      .from('pdvs_geo')
-      .select(
-        'pdv_id, latitud, longitud, partido, ruteable, aproximada, pdvs ( razon_social, cartera, canal_venta, zona, ultima_vta, activo, dia_visita )'
-      )
-      .not('latitud', 'is', null)
-      .not('longitud', 'is', null)
-      .range(page * PAGE, (page + 1) * PAGE - 1);
-    if (!rawGeoPage || rawGeoPage.length === 0) break;
-    rawGeo = rawGeo.concat(rawGeoPage as unknown as RawGeoRow[]);
-    if (rawGeoPage.length < PAGE) break;
-    page++;
+  // Las páginas van en paralelo: en serie eran 7 round trips encadenados a
+  // Supabase solo para juntar los ~7.000 puntos. Ver lib/supabase/paginar.ts.
+  let rawGeo: RawGeoRow[];
+  try {
+    rawGeo = await traerTodo<RawGeoRow>((desde, hasta) =>
+      svc
+        .from('pdvs_geo')
+        .select(
+          'pdv_id, latitud, longitud, partido, ruteable, aproximada, pdvs ( razon_social, cartera, canal_venta, zona, ultima_vta, activo, dia_visita )'
+        )
+        .not('latitud', 'is', null)
+        .not('longitud', 'is', null)
+        .range(desde, hasta) as unknown as PromiseLike<{ data: RawGeoRow[] | null; error: { message: string } | null }>,
+      { tam: PAGE },
+    );
+  } catch {
+    return NextResponse.json({ error: 'No se pudieron cargar los PDVs.' }, { status: 500 });
   }
 
   // Round coords to ~5 decimals (≈1 m) to trim payload bytes

@@ -154,6 +154,8 @@ export default function PlanificacionClient() {
   const [soloSinPlan, setSoloSinPlan]     = useState(false);
   const [colorearPor, setColorearPor]     = useState<ColorearPor>('dia');
   const [ocultos, setOcultos]             = useState<Set<string>>(new Set());
+  /** Días cuyos cuadrantes se muestran. Vacío = todos. */
+  const [diasVisibles, setDiasVisibles]   = useState<Set<Dia>>(new Set());
 
   /** Localidad → cuántos PDVs tiene. Se muestra al costado de cada opción para
       poder elegir por tamaño sin tener que probarlas una por una. */
@@ -411,8 +413,19 @@ export default function PlanificacionClient() {
   ].join('|');
 
   const cuadrantesVisibles = useMemo(
-    () => cuadrantes.filter((c) => !ocultos.has(c.id) && c.id !== borrador?.editandoId),
-    [cuadrantes, ocultos, borrador]
+    () => cuadrantes.filter((c) =>
+      !ocultos.has(c.id)
+      && c.id !== borrador?.editandoId
+      && (diasVisibles.size === 0 || diasVisibles.has(c.dia))
+    ),
+    [cuadrantes, ocultos, borrador, diasVisibles]
+  );
+
+  /** La lista del panel sigue el mismo filtro que el mapa, para que lo que se
+      ve a un lado y al otro sea lo mismo. */
+  const cuadrantesListados = useMemo(
+    () => cuadrantes.filter((c) => diasVisibles.size === 0 || diasVisibles.has(c.dia)),
+    [cuadrantes, diasVisibles]
   );
 
   const puntosPorId = useMemo(() => new Map(puntos.map((p) => [p.pdv_id, p])), [puntos]);
@@ -544,6 +557,50 @@ export default function PlanificacionClient() {
                     Solo los que todavía no tienen cuadrante
                   </button>
 
+                  {/* Filtro por día de los cuadrantes. Con 28 cuadrantes el mapa
+                      se llena de etiquetas superpuestas y no se lee nada; además
+                      "mostrame el lunes" es como se planifica de verdad. */}
+                  {cuadrantes.length > 0 && (
+                    <div className="flex flex-col gap-1.5 border-t border-[#f4f4f5] pt-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9.5px] font-semibold uppercase tracking-[0.07em] text-[#a1a1aa]" style={MONO}>
+                          Ver cuadrantes de
+                        </span>
+                        {diasVisibles.size > 0 && (
+                          <button
+                            onClick={() => setDiasVisibles(new Set())}
+                            className="text-[11px] text-[#0c5cab] hover:underline"
+                          >
+                            Todos
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {DIAS_HABILES.map((d) => {
+                          const n = cuadrantes.filter((c) => c.dia === d).length;
+                          if (n === 0) return null;
+                          const activo = diasVisibles.has(d);
+                          return (
+                            <button
+                              key={d}
+                              onClick={() => setDiasVisibles((s) => {
+                                const next = new Set(s);
+                                if (next.has(d)) next.delete(d); else next.add(d);
+                                return next;
+                              })}
+                              className={`px-1.5 py-0.5 text-[11px] font-semibold rounded-[5px] border transition-colors ${
+                                activo ? 'text-white border-transparent' : 'bg-white border-[#e4e4e7] text-[#71717a] hover:text-[#09090b]'
+                              }`}
+                              style={activo ? { background: DIA_COLOR[d] } : undefined}
+                            >
+                              {d} <span className="opacity-70">{n}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex items-baseline gap-1.5 border-t border-[#f4f4f5] pt-2">
                     <span className="text-[15px] font-bold text-[#09090b] leading-none" style={MONO}>
                       {puntosVisibles.length.toLocaleString('es-AR')}
@@ -649,10 +706,15 @@ export default function PlanificacionClient() {
                     Todavía no dibujaste ningún cuadrante.
                   </p>
                 )}
+                {!loading && cuadrantes.length > 0 && cuadrantesListados.length === 0 && (
+                  <p className="px-3.5 py-4 text-[12px] text-[#a1a1aa] leading-relaxed">
+                    Ningún cuadrante en {[...diasVisibles].map((d) => DIA_NOMBRE[d]).join(', ')}.
+                  </p>
+                )}
                 {/* Los datos del cuadrante y sus acciones van en renglones
                     separados: en una sola línea el nombre del vendedor y el
                     conteo quedaban cortados a la mitad. */}
-                {cuadrantes.map((c) => (
+                {cuadrantesListados.map((c) => (
                   <div
                     key={c.id}
                     className={`group px-3.5 py-2 border-b border-[#f4f4f5] transition-colors hover:bg-[rgba(0,0,0,0.015)] ${
