@@ -5,7 +5,7 @@ import {
   MapContainer, TileLayer, Polygon, Polyline, CircleMarker, Tooltip, useMap, useMapEvents,
 } from 'react-leaflet';
 import {
-  COLORES_CUADRANTE, DIAS_HABILES, DIA_NOMBRE, dentroDelPoligono,
+  COLORES_CUADRANTE, DIAS_HABILES, DIA_NOMBRE, dentroDelPoligono, diaMencionadoEn,
   type Anillo, type Cuadrante, type Dia, type GuardarResultado, type PdvPlan, type PlanificacionData,
 } from './types';
 import { PuntosLayer, type EstiloPunto } from './PuntosLayer';
@@ -892,6 +892,8 @@ function FormularioCuadrante({
 }) {
   const [verLista, setVerLista] = useState(false);
 
+  const diaSegunNombre = useMemo(() => diaMencionadoEn(borrador.nombre), [borrador.nombre]);
+
   // Los conflictos se agrupan por cuadrante rival: "12 ya son de Zona Norte
   // (Juan)" se lee mucho mejor que doce líneas sueltas.
   const porCuadrante = useMemo(() => {
@@ -982,6 +984,24 @@ function FormularioCuadrante({
           </button>
         ))}
       </div>
+
+      {/* El día arranca siempre en LUN y es facilísimo escribir el nombre y
+          olvidarse del chip. Si el nombre nombra otro día, se avisa y se ofrece
+          corregirlo de una. No bloquea: quizás el nombre está mal, no el día. */}
+      {diaSegunNombre && diaSegunNombre !== borrador.dia && (
+        <div className="flex items-center gap-2 rounded-[8px] border border-[#fde68a] bg-[#fffbeb] px-2.5 py-2">
+          <p className="text-[11px] text-[#92400e] leading-snug flex-1">
+            El nombre dice <strong>{DIA_NOMBRE[diaSegunNombre].toLowerCase()}</strong> pero está en{' '}
+            <strong>{DIA_NOMBRE[borrador.dia].toLowerCase()}</strong>.
+          </p>
+          <button
+            onClick={() => set({ dia: diaSegunNombre })}
+            className="shrink-0 px-2 py-1 text-[11px] font-semibold rounded-[6px] bg-[#b45309] text-white hover:bg-[#92400e] transition-colors"
+          >
+            Pasar a {diaSegunNombre}
+          </button>
+        </div>
+      )}
 
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-[9.5px] font-semibold uppercase tracking-[0.07em] text-[#a1a1aa] w-full" style={MONO}>Color</span>

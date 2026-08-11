@@ -79,6 +79,31 @@ export function dentroDelPoligono(lat: number, lon: number, anillo: Anillo): boo
   return dentro;
 }
 
+// ---------------------------------------------------------------------------
+// Día mencionado en el nombre del cuadrante.
+//
+// El selector de día arranca siempre en LUN y hay que tocarlo en cada cuadrante
+// nuevo. Es facilísimo escribir "zona 5 miercoles" y olvidarse del chip: pasó
+// con 8 de los primeros 24 cuadrantes reales, que quedaron todos en lunes y
+// desbalancearon la semana entera sin que nada lo avisara.
+// ---------------------------------------------------------------------------
+const DIA_EN_NOMBRE: [Dia, RegExp][] = [
+  ['LUN', /\blun(es)?\b/],
+  ['MAR', /\bmar(tes)?\b/],
+  ['MIE', /\bmie(rcoles)?\b/],
+  ['JUE', /\bjue(ves)?\b/],
+  ['VIE', /\bvie(rnes)?\b/],
+  ['SAB', /\bsab(ado)?\b/],
+];
+
+/** Día que menciona el nombre, o null si no nombra ninguno. */
+export function diaMencionadoEn(nombre: string): Dia | null {
+  const n = nombre.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+  const encontrados = DIA_EN_NOMBRE.filter(([, re]) => re.test(n));
+  // Con dos días en el nombre no se puede inferir la intención: no se avisa.
+  return encontrados.length === 1 ? encontrados[0][0] : null;
+}
+
 /** Paleta de los cuadrantes: alto contraste entre sí y contra el mapa base. */
 export const COLORES_CUADRANTE = [
   '#0c5cab', '#e11d48', '#16a34a', '#f59e0b', '#7c3aed',
