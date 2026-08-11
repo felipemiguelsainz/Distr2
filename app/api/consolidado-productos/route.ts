@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { fetchConsolidadoPorProducto } from '@/lib/calculations/productos';
 import { MAX_PERIODOS, Periodo } from '@/lib/periodos';
+import { veTodaLaEmpresa } from '@/lib/auth/alcance';
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,7 +12,7 @@ export async function POST(request: NextRequest) {
 
     const { data: profile } = await authClient
       .from('profiles')
-      .select('rol, vendedor_nombre, equipo')
+      .select('rol, vendedor_nombre, equipo, ve_empresa')
       .eq('id', user.id)
       .single();
     if (!profile) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
@@ -34,13 +35,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Parámetros inválidos.' }, { status: 400 });
     }
 
-    // equipo vacío = Total Empresa: sólo admin.
-    if (!equipo && profile.rol !== 'admin') {
+    const veTodo = veTodaLaEmpresa(profile);
+
+    // equipo vacío = Total Empresa: sólo con alcance de empresa.
+    if (!equipo && !veTodo) {
       return NextResponse.json({ error: 'Prohibido.' }, { status: 403 });
     }
 
-    // Un supervisor solo puede consultar su propio equipo (de profiles.equipo).
-    if (profile.rol === 'supervisor') {
+    // Un supervisor sin alcance de empresa solo consulta su propio equipo.
+    if (profile.rol === 'supervisor' && !veTodo) {
       let myEquipo = profile.equipo ?? '';
       if (!myEquipo && profile.vendedor_nombre) {
         const { data: me } = await authClient

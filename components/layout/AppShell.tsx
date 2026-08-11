@@ -3,6 +3,7 @@ import { Sidebar, SupervisorLink } from './Sidebar';
 import { ShellLayout } from './ShellLayout';
 import { fetchMonthInfo } from '@/lib/calculations/queries';
 import { getCurrentProfile, getAdminEquipos } from '@/lib/supabase/profile';
+import { veTodaLaEmpresa } from '@/lib/auth/alcance';
 import { llmAvailable } from '@/lib/ai/provider';
 import { Asistente } from '@/components/asistente/Asistente';
 
@@ -19,7 +20,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   // Parallel: load equipos (cached) + month info (cached)
   const [equipos, monthInfo] = profile
     ? await Promise.all([
-        profile.rol === 'admin' ? getAdminEquipos() : Promise.resolve<string[]>([]),
+        veTodaLaEmpresa(profile) ? getAdminEquipos() : Promise.resolve<string[]>([]),
         (async () => {
           const today = new Date();
           return fetchMonthInfo(today.getFullYear(), today.getMonth() + 1, today);
@@ -32,6 +33,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   const sidebar = profile ? (
     <Sidebar
       rol={profile.rol}
+      veEmpresa={veTodaLaEmpresa(profile)}
       nombre={profile.nombre}
       vendedorNombre={profile.vendedor_nombre}
       supervisores={supervisores}

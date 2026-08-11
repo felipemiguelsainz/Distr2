@@ -11,6 +11,8 @@ export interface SupervisorLink {
 
 interface SidebarProps {
   rol: Rol;
+  /** Alcance de lectura ampliado a toda la empresa (ver lib/auth/alcance.ts). */
+  veEmpresa?: boolean;
   nombre: string | null;
   vendedorNombre: string | null;
   supervisores?: SupervisorLink[];
@@ -75,7 +77,12 @@ const SparkIcon = () => (
   </svg>
 );
 
-function buildNav(rol: Rol, vendedorNombre: string | null, supervisores: SupervisorLink[]) {
+function buildNav(
+  rol: Rol,
+  vendedorNombre: string | null,
+  supervisores: SupervisorLink[],
+  veEmpresa: boolean,
+) {
   const items: { href: string; label: string; icon: React.ReactNode }[] = [];
 
   if (rol === 'admin') {
@@ -92,6 +99,11 @@ function buildNav(rol: Rol, vendedorNombre: string | null, supervisores: Supervi
   }
 
   if (rol === 'supervisor' && vendedorNombre) {
+    // Con alcance de empresa, "Total Empresa" va primero: es la vista más
+    // amplia y deja "Mi Equipo" como el corte de su propia gente.
+    if (veEmpresa) {
+      items.push({ href: '/dashboard/total', label: 'Total Empresa', icon: <ChartIcon /> });
+    }
     items.push({ href: `/dashboard/supervisor/${encodeURIComponent(vendedorNombre)}`, label: 'Mi Equipo', icon: <ChartIcon /> });
     items.push({ href: `/dashboard/consolidado/${encodeURIComponent(vendedorNombre)}`, label: 'Consolidado',  icon: <ConsolidadoIcon /> });
     items.push({ href: `/dashboard/consolidado-productos/${encodeURIComponent(vendedorNombre)}`, label: 'Por producto', icon: <ProductoIcon /> });
@@ -127,6 +139,7 @@ const ROL_LABEL: Record<Rol, string> = {
 
 export function Sidebar({
   rol,
+  veEmpresa = false,
   nombre,
   vendedorNombre,
   supervisores = [],
@@ -143,7 +156,7 @@ export function Sidebar({
     router.refresh();
   }
 
-  const items = buildNav(rol, vendedorNombre, supervisores);
+  const items = buildNav(rol, vendedorNombre, supervisores, veEmpresa);
 
   return (
     <aside className="flex flex-col w-[220px] h-dvh shrink-0 bg-[#ffffff] border-r border-[#e4e4e7] select-none">

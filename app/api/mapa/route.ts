@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import type { PdvGeo } from '@/app/mapa/types';
 import { esEnfriandose } from '@/lib/ai/insights';
+import { veTodaLaEmpresa } from '@/lib/auth/alcance';
 
 // Map PDV points for the authenticated user. Heavy payload (~6.6k rows), so it
 // lives in a route handler fetched client-side instead of blocking the page's
@@ -13,7 +14,7 @@ export async function GET() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('rol, vendedor_nombre, equipo')
+    .select('rol, vendedor_nombre, equipo, ve_empresa')
     .eq('id', user.id)
     .single();
   if (!profile) return NextResponse.json({ error: 'Sin perfil' }, { status: 403 });
@@ -111,8 +112,11 @@ export async function GET() {
       };
     });
 
-  // Role-based filtering (applied server-side)
-  if (profile.rol === 'vendedor' && profile.vendedor_nombre) {
+  // Role-based filtering (applied server-side).
+  // Con alcance de empresa no se recorta nada: ve el mapa completo.
+  if (veTodaLaEmpresa(profile)) {
+    // sin filtro
+  } else if (profile.rol === 'vendedor' && profile.vendedor_nombre) {
     puntos = puntos.filter((p) => p.cartera === profile.vendedor_nombre);
   } else if (profile.rol === 'supervisor') {
     // El equipo sale de profiles.equipo (el supervisor no siempre es un vendedor).

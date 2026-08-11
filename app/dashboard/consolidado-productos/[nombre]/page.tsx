@@ -3,6 +3,7 @@ import { SinEquipo } from '@/components/ui/SinEquipo';
 import { FilterBar } from '@/components/ui/FilterBar';
 import { KpiSkeleton } from '@/components/ui/Skeleton';
 import { createClient } from '@/lib/supabase/server';
+import { veTodaLaEmpresa } from '@/lib/auth/alcance';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { fetchCatalogoProductos, fetchConsolidadoPorProducto } from '@/lib/calculations/productos';
@@ -35,7 +36,7 @@ export default async function ConsolidadoProductosPage({
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('rol, vendedor_nombre, equipo')
+    .select('rol, vendedor_nombre, equipo, ve_empresa')
     .eq('id', user.id)
     .single();
   if (!profile) redirect('/login');
@@ -44,7 +45,11 @@ export default async function ConsolidadoProductosPage({
     redirect(`/dashboard/vendedor/${encodeURIComponent(profile.vendedor_nombre ?? '')}`);
   }
 
-  if (profile.rol === 'supervisor') {
+  const veTodo = veTodaLaEmpresa(profile);
+
+  // Supervisor comun: encerrado en su equipo. Con alcance de empresa no, porque
+  // justamente puede mirar cualquiera.
+  if (profile.rol === 'supervisor' && !veTodo) {
     let myEquipo = profile.equipo ?? '';
     if (!myEquipo) {
       const { data: meVendedor } = await supabase
@@ -61,11 +66,11 @@ export default async function ConsolidadoProductosPage({
     }
   }
 
-  // Total Empresa es exclusivo de admin
-  if (esTotal && profile.rol !== 'admin') redirect('/');
+  // Total Empresa: solo quien tiene alcance de empresa
+  if (esTotal && !veTodo) redirect('/');
 
   let equipos: string[] = [];
-  if (profile.rol === 'admin') {
+  if (veTodo) {
     const { data: vRows } = await supabase
       .from('vendedores')
       .select('equipo')
@@ -99,10 +104,10 @@ export default async function ConsolidadoProductosPage({
             <FilterBar
               meses={sel.meses}
               anios={sel.anios}
-              equipos={profile.rol === 'admin' ? equipos : undefined}
+              equipos={veTodo ? equipos : undefined}
               equipoActual={equipo}
               equipoBasePath="/dashboard/consolidado-productos"
-              permitirTotalEmpresa={profile.rol === 'admin'}
+              permitirTotalEmpresa={veTodo}
             />
           </Suspense>
         </div>

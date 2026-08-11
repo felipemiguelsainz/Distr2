@@ -47,7 +47,7 @@ export async function GET() {
   }
   const { data: profiles } = await svc
     .from('profiles')
-    .select('id, nombre, rol, vendedor_nombre, equipo, activo, must_change_password');
+    .select('id, nombre, rol, vendedor_nombre, equipo, activo, must_change_password, ve_empresa');
   const byId = new Map((profiles ?? []).map((p) => [p.id, p]));
 
   const usuarios = list.users.map((u) => {
@@ -61,6 +61,7 @@ export async function GET() {
       equipo: p?.equipo ?? null,
       activo: p?.activo ?? true,
       must_change_password: p?.must_change_password ?? false,
+      ve_empresa: p?.ve_empresa ?? false,
     };
   });
 
@@ -131,14 +132,25 @@ export async function PATCH(request: NextRequest) {
   const denied = await guardAdmin();
   if (denied) return denied;
 
-  const { id, activo, rol, target } = await request.json() as {
-    id?: string; activo?: boolean; rol?: Rol; target?: string | null;
+  const { id, activo, rol, target, ve_empresa } = await request.json() as {
+    id?: string; activo?: boolean; rol?: Rol; target?: string | null; ve_empresa?: boolean;
   };
   if (!id) return NextResponse.json({ error: 'Falta el id.' }, { status: 400 });
 
   const authClient = await createClient();
   const { data: { user } } = await authClient.auth.getUser();
   const svc = createServiceClient();
+
+  // Alcance de lectura ampliado a toda la empresa. Es solo de lectura: no
+  // habilita ninguna escritura, esas siguen pidiendo rol = admin.
+  if (typeof ve_empresa === 'boolean') {
+    const { error } = await svc.from('profiles').update({ ve_empresa }).eq('id', id);
+    if (error) {
+      console.error('[usuarios:PATCH ve_empresa]', error);
+      return NextResponse.json({ error: 'No se pudo actualizar el alcance.' }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true });
+  }
 
   // Activar / desactivar
   if (typeof activo === 'boolean') {

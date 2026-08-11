@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { veTodaLaEmpresa } from '@/lib/auth/alcance';
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -55,7 +56,7 @@ export async function proxy(request: NextRequest) {
   // usuario leer su propio perfil.
   const { data: profile } = await supabase
     .from('profiles')
-    .select('rol, activo')
+    .select('rol, activo, ve_empresa')
     .eq('id', userId)
     .single();
 
@@ -90,7 +91,10 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(url);
       }
     }
-    if (pathname.startsWith('/dashboard/total') && rol !== 'admin') {
+    // Total Empresa es de lectura: además del admin, entra quien tenga el
+    // alcance ampliado (profiles.ve_empresa). El resto de /admin sigue siendo
+    // admin-only porque son pantallas que escriben.
+    if (pathname.startsWith('/dashboard/total') && !veTodaLaEmpresa(profile)) {
       const url = request.nextUrl.clone();
       url.pathname = '/';
       return NextResponse.redirect(url);

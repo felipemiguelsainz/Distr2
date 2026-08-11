@@ -8,6 +8,7 @@ import { fetchTotalKpisMulti, fetchTrendData, fetchClientesData, fetchMetasCcc }
 import { SIN_SUPERVISOR } from '@/lib/constants';
 import { Periodo, labelPeriodos, resolverPeriodos } from '@/lib/periodos';
 import { createClient } from '@/lib/supabase/server';
+import { CAMPOS_ALCANCE, veTodaLaEmpresa } from '@/lib/auth/alcance';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { KpiSkeleton } from '@/components/ui/Skeleton';
@@ -45,8 +46,8 @@ export default async function TotalDashboardPage({
   // esta página expone datos de TODA la empresa vía service client (bypass RLS).
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
-  const { data: prof } = await supabase.from('profiles').select('rol').eq('id', user.id).single();
-  if (prof?.rol !== 'admin') redirect('/');
+  const { data: prof } = await supabase.from('profiles').select(CAMPOS_ALCANCE).eq('id', user.id).single();
+  if (!veTodaLaEmpresa(prof)) redirect('/');
 
   const { data: vData } = await supabase
     .from('vendedores')

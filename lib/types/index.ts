@@ -12,6 +12,8 @@ export interface Profile {
   equipo: string | null;
   activo?: boolean;
   must_change_password?: boolean;
+  /** Solo lectura: ve los datos de toda la empresa. No habilita escrituras. */
+  ve_empresa?: boolean;
 }
 
 export interface Vendedor {

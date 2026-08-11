@@ -12,6 +12,8 @@ interface Usuario {
   equipo: string | null;
   activo: boolean;
   must_change_password: boolean;
+  /** Solo lectura: ve los datos de toda la empresa. No habilita escrituras. */
+  ve_empresa: boolean;
 }
 
 interface Props {
@@ -119,6 +121,19 @@ export function UsuariosClient({ supervisores, vendedores, currentUserId }: Prop
     const data = await res.json();
     setBusyId(null);
     if (!res.ok) { setError(data.error ?? 'Error al borrar.'); return; }
+    loadUsuarios();
+  }
+
+  async function toggleVeEmpresa(u: Usuario) {
+    setBusyId(u.id);
+    const res = await fetch('/api/admin/usuarios', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: u.id, ve_empresa: !u.ve_empresa }),
+    });
+    const data = await res.json();
+    setBusyId(null);
+    if (!res.ok) { setError(data.error ?? 'Error al actualizar el alcance.'); return; }
     loadUsuarios();
   }
 
@@ -256,6 +271,9 @@ export function UsuariosClient({ supervisores, vendedores, currentUserId }: Prop
                       {u.must_change_password && (
                         <span className="text-[10px] font-semibold text-[#d97706] bg-[#d97706]/[0.1] px-1.5 py-0.5 rounded-full">Pass temporal</span>
                       )}
+                      {u.ve_empresa && u.rol !== 'admin' && (
+                        <span className="text-[10px] font-semibold text-[#0c5cab] bg-[#0c5cab]/[0.1] px-1.5 py-0.5 rounded-full">Ve toda la empresa</span>
+                      )}
                     </div>
                     <p className="text-[12px] text-[#71717a] mt-0.5">
                       {u.rol ? ROL_LABEL[u.rol] : 'Sin perfil'}
@@ -270,6 +288,19 @@ export function UsuariosClient({ supervisores, vendedores, currentUserId }: Prop
                     >
                       Rol
                     </button>
+                    {u.rol !== null && u.rol !== 'admin' && (
+                      <button
+                        onClick={() => toggleVeEmpresa(u)} disabled={busyId === u.id}
+                        title="Ver los datos de toda la empresa (solo lectura: no habilita cargar, borrar ni editar)"
+                        className={`px-2.5 py-[6px] text-[12px] font-semibold rounded-[8px] transition-colors disabled:opacity-50 ${
+                          u.ve_empresa
+                            ? 'text-[#0c5cab] border border-[#0c5cab]/25 bg-[#0c5cab]/[0.08] hover:bg-[#0c5cab]/[0.14]'
+                            : 'text-[#71717a] border border-[#e4e4e7] hover:bg-[rgba(0,0,0,0.03)]'
+                        }`}
+                      >
+                        {u.ve_empresa ? 'Ve todo' : 'Ve su equipo'}
+                      </button>
+                    )}
                     {u.id !== currentUserId && (
                       <button
                         onClick={() => toggleActivo(u)} disabled={busyId === u.id}

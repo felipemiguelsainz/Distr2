@@ -7,6 +7,7 @@ import { fetchSupervisorKpisMulti, fetchCCCByEquipo, fetchMetasCccByVendedor } f
 import { Periodo, TOTAL_EMPRESA, labelPeriodos, resolverPeriodos } from '@/lib/periodos';
 import { SIN_SUPERVISOR } from '@/lib/constants';
 import { createClient } from '@/lib/supabase/server';
+import { veTodaLaEmpresa } from '@/lib/auth/alcance';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { ConsolidadoClient } from './ConsolidadoClient';
@@ -37,18 +38,21 @@ export default async function ConsolidadoPage({
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('rol, vendedor_nombre, equipo')
+    .select('rol, vendedor_nombre, equipo, ve_empresa')
     .eq('id', user.id)
     .single();
   if (!profile) redirect('/login');
+
+  const veTodo = veTodaLaEmpresa(profile);
 
   // Vendedores: no access
   if (profile.rol === 'vendedor') {
     redirect(`/dashboard/vendedor/${encodeURIComponent(profile.vendedor_nombre ?? '')}`);
   }
 
-  // Supervisors can only see their own equipo (nunca el total de la empresa)
-  if (profile.rol === 'supervisor') {
+  // Supervisor común: encerrado en su propio equipo. Con alcance de empresa
+  // no se lo redirige, porque justamente puede mirar cualquier equipo.
+  if (profile.rol === 'supervisor' && !veTodo) {
     let myEquipo = profile.equipo ?? '';
     if (!myEquipo) {
       const { data: meVendedor } = await supabase
@@ -65,12 +69,12 @@ export default async function ConsolidadoPage({
     }
   }
 
-  // Total Empresa es exclusivo de admin
-  if (esTotal && profile.rol !== 'admin') redirect('/');
+  // Total Empresa: sólo quien tiene alcance de empresa
+  if (esTotal && !veTodo) redirect('/');
 
-  // For admin: load equipo list to populate the supervisor filter
+  // Lista de equipos para el selector de supervisor
   let equipos: string[] = [];
-  if (profile.rol === 'admin') {
+  if (veTodo) {
     const { data: vRows } = await supabase
       .from('vendedores')
       .select('equipo')
@@ -106,10 +110,10 @@ export default async function ConsolidadoPage({
             <FilterBar
               meses={sel.meses}
               anios={sel.anios}
-              equipos={profile.rol === 'admin' ? equipos : undefined}
+              equipos={veTodo ? equipos : undefined}
               equipoActual={equipo}
               equipoBasePath="/dashboard/consolidado"
-              permitirTotalEmpresa={profile.rol === 'admin'}
+              permitirTotalEmpresa={veTodo}
             />
           </Suspense>
         </div>

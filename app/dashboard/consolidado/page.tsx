@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { veTodaLaEmpresa } from '@/lib/auth/alcance';
 import { AppShell } from '@/components/layout/AppShell';
 import { SinEquipo } from '@/components/ui/SinEquipo';
 import { TOTAL_EMPRESA } from '@/lib/periodos';
@@ -11,7 +12,7 @@ export default async function ConsolidadoIndexPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('rol, vendedor_nombre, equipo')
+    .select('rol, vendedor_nombre, equipo, ve_empresa')
     .eq('id', user.id)
     .single();
   if (!profile) redirect('/login');
@@ -20,7 +21,9 @@ export default async function ConsolidadoIndexPage() {
     redirect(`/dashboard/vendedor/${encodeURIComponent(profile.vendedor_nombre ?? '')}`);
   }
 
-  if (profile.rol === 'supervisor') {
+  // Con alcance de empresa se cae al Total Empresa de abajo, igual que un
+  // admin: no tiene sentido encerrarlo en su equipo si puede ver todos.
+  if (profile.rol === 'supervisor' && !veTodaLaEmpresa(profile)) {
     let eq = profile.equipo ?? '';
     if (!eq) {
       const { data: me } = await supabase
@@ -36,6 +39,6 @@ export default async function ConsolidadoIndexPage() {
     redirect(`/dashboard/consolidado/${encodeURIComponent(eq)}`);
   }
 
-  // admin: arranca en Total Empresa (todos los equipos); desde el filtro baja a uno
+  // admin o alcance de empresa: arranca en Total Empresa (todos los equipos); desde el filtro baja a uno
   redirect(`/dashboard/consolidado/${TOTAL_EMPRESA}`);
 }
