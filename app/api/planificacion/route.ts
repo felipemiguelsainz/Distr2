@@ -119,8 +119,10 @@ export async function GET() {
   };
 
   return NextResponse.json(payload, {
-    // Los cuadrantes se editan en vivo; solo se cachea lo justo para que
-    // volver a la sección no vuelva a bajar los ~7k puntos.
-    headers: { 'Cache-Control': 'private, max-age=60' },
+    // Sin caché a propósito. Con max-age el navegador servía el payload viejo
+    // al volver a entrar y el cuadrante recién guardado no aparecía, como si
+    // no se hubiera guardado. Los ~7k puntos tardan, pero mostrar una
+    // planificación desactualizada es peor que esperar.
+    headers: { 'Cache-Control': 'no-store' },
   });
 }

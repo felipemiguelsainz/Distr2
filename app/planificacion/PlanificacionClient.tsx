@@ -27,6 +27,9 @@ type ColorearPor = 'dia' | 'plan';
 interface Borrador {
   /** id del cuadrante que se está editando, o null si es nuevo. */
   editandoId: string | null;
+  /** Localidad con la que se guardó. Se conserva al editar en vez de pisarla
+      con el filtro que esté puesto en ese momento. */
+  localidad: string | null;
   nombre: string;
   dia: Dia;
   vendedor: string;
@@ -180,30 +183,45 @@ export default function PlanificacionClient() {
 
   const planificados = cuadrantePorPdv.size;
 
-  const puntosVisibles = useMemo(() => {
-    let out = puntos;
-    if (localidad) out = out.filter((p) => p.localidad === localidad);
-    if (soloSinPlan) out = out.filter((p) => !cuadrantePorPdv.has(p.pdv_id));
-    return out;
-  }, [puntos, localidad, soloSinPlan, cuadrantePorPdv]);
-
   // --- Dibujo -------------------------------------------------------------
   const [modo, setModo]           = useState<Modo>('ver');
   const [borrador, setBorrador]   = useState<Borrador | null>(null);
+
+  /** id del cuadrante en edicion; null si es nuevo o no hay borrador. */
+  const editandoId = borrador?.editandoId ?? null;
+
+  const puntosVisibles = useMemo(() => {
+    let out = puntos;
+    if (localidad) out = out.filter((p) => p.localidad === localidad);
+    if (soloSinPlan) {
+      // Los PDVs del cuadrante que se esta editando cuentan como "sin plan":
+      // si no, al redibujar su contorno quedaban fuera de la vista y el
+      // poligono no capturaba ninguno de los suyos.
+      out = out.filter((p) => {
+        const suyos = cuadrantePorPdv.get(p.pdv_id);
+        if (!suyos || suyos.length === 0) return true;
+        return editandoId != null && suyos.every((c) => c.id === editandoId);
+      });
+    }
+    return out;
+  }, [puntos, localidad, soloSinPlan, cuadrantePorPdv, editandoId]);
   const [guardando, setGuardando] = useState(false);
   const [aviso, setAviso]         = useState<string | null>(null);
   const [tab, setTab]             = useState<'cuadrantes' | 'resumen'>('cuadrantes');
   const [pdvSel, setPdvSel]       = useState<PdvPlan | null>(null);
   const [panelAbierto, setPanelAbierto] = useState(false); // solo mobile
 
-  const nuevoColor = useCallback(
-    () => COLORES_CUADRANTE[cuadrantes.length % COLORES_CUADRANTE.length],
-    [cuadrantes.length]
-  );
+  // Primer color que no este en uso. Rotar por cantidad repetia colores apenas
+  // se borraba un cuadrante del medio.
+  const nuevoColor = useCallback(() => {
+    const usados = new Set(cuadrantes.map((c) => c.color));
+    return COLORES_CUADRANTE.find((c) => !usados.has(c)) ?? COLORES_CUADRANTE[cuadrantes.length % COLORES_CUADRANTE.length];
+  }, [cuadrantes]);
 
   const empezarNuevo = useCallback(() => {
     setBorrador({
       editandoId: null,
+      localidad: localidad || null,
       nombre: '',
       dia: 'LUN',
       vendedor: '',
@@ -214,8 +232,9 @@ export default function PlanificacionClient() {
     setModo('dibujando');
     setAviso(null);
     setPdvSel(null);
+    setTab('cuadrantes');
     setPanelAbierto(true);
-  }, [nuevoColor]);
+  }, [nuevoColor, localidad]);
 
   const agregarVertice = useCallback((v: [number, number]) => {
     setBorrador((b) => (b ? { ...b, vertices: [...b.vertices, v] } : b));
@@ -244,6 +263,7 @@ export default function PlanificacionClient() {
   const editar = useCallback((c: Cuadrante) => {
     setBorrador({
       editandoId: c.id,
+      localidad: c.localidad,
       nombre: c.nombre,
       dia: c.dia,
       vendedor: c.vendedor_nombre,
@@ -253,6 +273,10 @@ export default function PlanificacionClient() {
     });
     setModo('formulario');
     setAviso(null);
+    // Sin esto, clickear un cuadrante en el mapa estando en la solapa Resumen
+    // entraba en modo edicion sin mostrar el formulario: parecia que no pasaba
+    // nada y ademas desaparecia el boton de dibujar.
+    setTab('cuadrantes');
     setPanelAbierto(true);
   }, []);
 
@@ -298,7 +322,7 @@ export default function PlanificacionClient() {
         vendedor_nombre: borrador.vendedor,
         color: borrador.color,
         poligono: borrador.vertices,
-        localidad: localidad || null,
+        localidad: borrador.localidad,
         pdv_ids: borrador.pdvIds,
         resolver,
       };
@@ -337,7 +361,7 @@ export default function PlanificacionClient() {
     } finally {
       setGuardando(false);
     }
-  }, [borrador, localidad]);
+  }, [borrador]);
 
   const borrar = useCallback(async (c: Cuadrante) => {
     if (!confirm(`¿Borrar el cuadrante "${c.nombre}"? Sus ${c.pdv_ids.length} PDVs quedan sin asignar.`)) return;
@@ -735,18 +759,33 @@ export default function PlanificacionClient() {
           />
 
           {/* Cuadrantes guardados */}
+          {/* El polígono NO es clickeable ni hovereable: vive en un pane por
+              debajo de los puntos y el canvas de los puntos, que cubre todo el
+              mapa, se queda con los eventos. Por eso lleva una etiqueta
+              permanente —que va al tooltipPane, arriba de todo— y ES ella la
+              que identifica el cuadrante y lo abre para editar. Además es un
+              blanco preciso: el relleno del polígono compite con los PDVs. */}
           <PaneCuadrantes>
             {cuadrantesVisibles.map((c) => (
               <Polygon
                 key={c.id}
                 positions={c.poligono}
                 pane={PANE_CUADRANTES}
+                interactive={false}
                 pathOptions={{ color: c.color, weight: 2, fillColor: c.color, fillOpacity: 0.1 }}
-                eventHandlers={{ click: () => modo === 'ver' && editar(c) }}
               >
-                <Tooltip sticky>
-                  <span style={{ fontWeight: 700 }}>{c.nombre}</span><br />
-                  {DIA_NOMBRE[c.dia]} · {c.vendedor_nombre} · {c.pdv_ids.length} PDVs
+                <Tooltip
+                  permanent
+                  direction="center"
+                  interactive
+                  className="etiqueta-cuadrante"
+                  eventHandlers={{ click: () => { if (modo === 'ver') editar(c); } }}
+                >
+                  <span style={{ fontWeight: 700, color: c.color }}>{c.nombre}</span>
+                  <br />
+                  <span style={{ color: '#52525b' }}>
+                    {DIA_NOMBRE[c.dia]} · {c.vendedor_nombre} · {c.pdv_ids.length} PDVs
+                  </span>
                 </Tooltip>
               </Polygon>
             ))}

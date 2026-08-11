@@ -175,13 +175,23 @@ export async function aplicarAsignaciones(
   if (resolver === 'robar') {
     robados = [...enConflicto];
     // Sacarlos de su cuadrante anterior antes de insertar: si no, el UNIQUE
-    // (pdv_id, dia) rebota el insert entero.
+    // (pdv_id, dia) rebota el insert entero. Se agrupan por cuadrante rival:
+    // uno por uno eran cientos de round trips al robar un cuadrante grande.
+    const porRival = new Map<string, number[]>();
     for (const c of conflictos) {
-      await scope.svc
-        .from('plan_asignaciones')
-        .delete()
-        .eq('cuadrante_id', c.cuadrante_id)
-        .eq('pdv_id', c.pdv_id);
+      const arr = porRival.get(c.cuadrante_id);
+      if (arr) arr.push(c.pdv_id);
+      else porRival.set(c.cuadrante_id, [c.pdv_id]);
+    }
+    for (const [rivalId, ids] of porRival) {
+      for (let i = 0; i < ids.length; i += LOTE) {
+        const { error } = await scope.svc
+          .from('plan_asignaciones')
+          .delete()
+          .eq('cuadrante_id', rivalId)
+          .in('pdv_id', ids.slice(i, i + LOTE));
+        if (error) throw new Error(error.message);
+      }
     }
   } else {
     omitidos = [...enConflicto];

@@ -13,14 +13,14 @@ type Params = { params: Promise<{ id: string }> };
 async function cargarCuadrante(scope: PlanScope, id: string) {
   const { data } = await scope.svc
     .from('plan_cuadrantes')
-    .select('id, vendedor_nombre')
+    .select('id, vendedor_nombre, dia')
     .eq('id', id)
     .maybeSingle();
   if (!data) return null;
   if (scope.vendedoresPermitidos && !scope.vendedoresPermitidos.has(data.vendedor_nombre as string)) {
     return null;
   }
-  return data as { id: string; vendedor_nombre: string };
+  return data as { id: string; vendedor_nombre: string; dia: string };
 }
 
 export async function PATCH(req: Request, { params }: Params) {
@@ -40,11 +40,16 @@ export async function PATCH(req: Request, { params }: Params) {
 
   const pdvIds = await filtrarPdvsPermitidos(scope, input.pdv_ids);
 
-  // Vaciar el cuadrante ANTES de tocar su día. plan_asignaciones.dia se
-  // sincroniza por FK ON UPDATE CASCADE, y si el PDV ya tuviera ocupado el día
+  // Vaciar el cuadrante ANTES de tocar su día: plan_asignaciones.dia se
+  // sincroniza por FK ON UPDATE CASCADE y, si el PDV ya tuviera ocupado el día
   // nuevo en otro cuadrante, el cascade chocaría con UNIQUE (pdv_id, dia).
-  // Sin filas, no hay nada que cascadear.
-  await scope.svc.from('plan_asignaciones').delete().eq('cuadrante_id', id);
+  //
+  // Pero solo cuando el día REALMENTE cambia. Antes se borraba siempre, así que
+  // un simple cambio de nombre o color dejaba el cuadrante sin PDVs si el
+  // UPDATE que venía después fallaba. Renombrar no puede costar los datos.
+  if (actual.dia !== input.dia) {
+    await scope.svc.from('plan_asignaciones').delete().eq('cuadrante_id', id);
+  }
 
   const { data: guardado, error } = await scope.svc
     .from('plan_cuadrantes')
