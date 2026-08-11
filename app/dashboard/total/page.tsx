@@ -64,12 +64,12 @@ export default async function TotalDashboardPage({
       .filter((e): e is string => !!e && e !== SIN_SUPERVISOR),
   )].sort((a, b) => a.localeCompare(b));
 
-  // Subtítulo dinámico
-  const alcance = vendedor
-    ? vendedor
-    : supervisor
-      ? `Supervisor: ${supervisor}`
-      : 'Todos los rubros y equipos';
+  // Encabezado: el título grande dice QUÉ se está mirando, no el nombre de la
+  // sección. Con un supervisor filtrado, un "Total Empresa" enorme arriba de los
+  // números de un solo equipo se lee mal —sobre todo en una captura de pantalla—.
+  // La sección se identifica con el rótulo chico, igual que en Consolidado.
+  const titulo = vendedor || supervisor || 'Todos los equipos';
+  const alcance = vendedor ? 'Vendedor' : supervisor ? 'Equipo' : 'Todos los rubros y equipos';
   const subtitulo = `${alcance} · ${sel.label}`;
 
   return (
@@ -77,7 +77,11 @@ export default async function TotalDashboardPage({
       <div className="space-y-7">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div>
-            <h1 className="text-[22px] font-bold tracking-[-0.02em] text-[#09090b]">Total Empresa</h1>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#71717a]"
+               style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              Total Empresa
+            </p>
+            <h1 className="text-[22px] font-bold tracking-[-0.02em] text-[#09090b] mt-0.5">{titulo}</h1>
             <p className="text-[13px] text-[#71717a] mt-0.5">{subtitulo}</p>
           </div>
           <Suspense>
