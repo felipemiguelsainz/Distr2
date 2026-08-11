@@ -327,6 +327,12 @@ export default function MapaClient() {
     pdvs:       puntos.map(p => String(p.pdv_id)).sort((a, b) => Number(a) - Number(b)),
   }), [puntos]);
 
+  // El campo `ruteable` viene del Excel de geo y hoy llega vacío en los 6.983
+  // PDVs, asi que "Solo ruteables" dejaba el mapa en cero y parecia roto. El
+  // control aparece solo si el dato existe: si algun dia el archivo trae la
+  // columna Ruteable, vuelve solo.
+  const hayRuteables = useMemo(() => puntos.some((p) => p.ruteable === true), [puntos]);
+
   // pdv_id → "#id — razón social" label for the PDV multi-select
   const pdvLabel = useMemo(() => {
     const m = new Map<string, string>();
@@ -754,7 +760,8 @@ export default function MapaClient() {
             />
           )}
 
-          {/* Ruteable toggle */}
+          {/* Ruteable toggle — solo si el maestro de geo trae el dato */}
+          {hayRuteables && (
           <div className="flex rounded-[8px] border border-[#e4e4e7] overflow-hidden">
             {(['todos', 'solo'] as RuteableFilter[]).map(v => (
               <button
@@ -770,6 +777,7 @@ export default function MapaClient() {
               </button>
             ))}
           </div>
+          )}
 
           {/* Cliente activo toggle */}
           <button
@@ -1052,7 +1060,7 @@ export default function MapaClient() {
                             ['Canal',      p.canal_venta ?? '—'],
                             ['Partido',    p.partido   ?? '—'],
                             ['Día visita', fmtDia(p.dia_visita ?? null)],
-                            ['Ruteable',   p.ruteable === true ? 'Sí' : p.ruteable === false ? 'No' : '—'],
+                            ...(p.ruteable == null ? [] : [['Ruteable', p.ruteable ? 'Sí' : 'No']]),
                             ['Última vta', fmtDate(p.ultima_vta)],
                           ].map(([k, v]) => (
                             <tr key={k}>
@@ -1244,6 +1252,7 @@ export default function MapaClient() {
                     )}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
+                    {hayRuteables && (
                     <div className="flex rounded-[8px] border border-[#e4e4e7] overflow-hidden">
                       {(['todos', 'solo'] as RuteableFilter[]).map(v => (
                         <button
@@ -1257,6 +1266,7 @@ export default function MapaClient() {
                         </button>
                       ))}
                     </div>
+                    )}
                     <button
                       onClick={() => setClienteActivo(v => !v)}
                       className={`flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium rounded-[8px] border transition-all whitespace-nowrap ${
@@ -1430,22 +1440,18 @@ export default function MapaClient() {
         </div>
         {/* ── fin del bloque del mapa ── */}
 
-        {/* ── Listado (desktop): mitad de abajo, con scroll propio ── */}
-        {listaOpen && (
-          <div className="hidden lg:flex flex-1 min-h-0">
-            <PdvsTable
-              pdvs={filtered}
-              total={puntos.length}
-              estado={pdvEstado}
-              onFocus={focusPdv}
-              onClose={() => setListaOpen(false)}
-            />
-          </div>
-        )}
+        {/* ── Listado ──
+            Un solo render, con el contenedor cambiando por breakpoint: en mobile
+            se superpone al mapa a pantalla completa; en desktop es la mitad de
+            abajo, con scroll propio.
 
-        {/* ── Listado (mobile): pantalla completa sobre el mapa ── */}
+            Antes eran DOS <PdvsTable> (una `hidden lg:flex` y otra `lg:hidden`),
+            las dos montadas a la vez: dos buscadores y dos botones de exportar en
+            el DOM —el lector de pantalla y el tabulador pasaban por los dos—, el
+            doble de filas renderizadas, y cada copia con su propio estado de
+            búsqueda y orden. */}
         {listaOpen && (
-          <div className="lg:hidden absolute inset-0 z-[1200] bg-white">
+          <div className="absolute inset-0 z-[1200] bg-white lg:static lg:z-auto lg:flex lg:flex-1 lg:min-h-0">
             <PdvsTable
               pdvs={filtered}
               total={puntos.length}
