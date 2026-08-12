@@ -369,12 +369,14 @@ export function RadarMetaChart({ data, title }: RadarMetaChartProps) {
                   </span>
                 </div>
                 <div className="h-1.5 rounded-full overflow-hidden" style={{ background: '#f4f4f5' }}>
+                  {/* scaleX y no width: ver la nota en ClientesTable.tsx.
+                      barWidth ya viene acotado a 0-100 por el Math.min de arriba. */}
                   <div
-                    className="h-full rounded-full"
+                    className="h-full w-full rounded-full origin-left"
                     style={{
-                      width: `${barWidth}%`,
                       background: color,
-                      transition: 'width 0.7s cubic-bezier(0.4,0,0.2,1)',
+                      transform: `scaleX(${barWidth / 100})`,
+                      transition: 'transform 0.7s cubic-bezier(0.4,0,0.2,1)',
                     }}
                   />
                 </div>

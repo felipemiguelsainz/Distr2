@@ -3,7 +3,8 @@
 import { useMemo, useState } from 'react';
 import { DIAS_HABILES, DIA_NOMBRE, type Cuadrante, type PdvPlan } from './types';
 
-const MONO = { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' } as const;
+// Ver la nota en PlanificacionClient.tsx: la fuente de cifras es JetBrains Mono.
+const MONO = { fontFamily: "'JetBrains Mono', ui-monospace, monospace" } as const;
 
 interface FilaVendedor {
   vendedor: string;

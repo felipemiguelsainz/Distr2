@@ -54,6 +54,14 @@ function pdvEstado(p: PdvGeo): EstadoPdv {
   return { label: p.ultima_vta ? '+3 meses' : 'Nunca compró', color };
 }
 
+// Leaflet le impone su propia font-family a todo lo que vive dentro de
+// .leaflet-container (Helvetica Neue/Arial), así que los popups y los marcadores
+// tienen que declarar la fuente explícitamente para no quedar fuera del sistema.
+// Antes pedían 'Plus Jakarta Sans', que el proyecto nunca cargó: caían al
+// sans-serif genérico. Ver DESIGN.md → Typography.
+const FUENTE_POPUP = "'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif";
+const FUENTE_CIFRA = "'JetBrains Mono', ui-monospace, monospace";
+
 function makeIcon(color: string, aproximada?: boolean) {
   // Ubicación aproximada (centro del barrio): borde punteado + semitransparente,
   // para que se vea distinto sin pisar el color de recencia.
@@ -77,9 +85,9 @@ function makeNumberedIcon(n: number, color: string, aproximada?: boolean) {
     html: `<div style="
       width:26px;height:26px;border-radius:50%;background:${color};
       border:2.5px ${aproximada ? 'dashed' : 'solid'} #fff;box-shadow:0 1px 6px rgba(0,0,0,0.55);
-      color:#fff;font-size:12px;font-weight:700;line-height:1;
+      color:#fff;font-size:12px;font-weight:500;line-height:1;
       display:flex;align-items:center;justify-content:center;
-      font-family:'Plus Jakarta Sans',sans-serif;
+      font-family:${FUENTE_CIFRA};
     ">${n}</div>`,
     className: '',
     iconSize: [26, 26],
@@ -245,7 +253,7 @@ function MultiSelect({
                   value={query}
                   onChange={e => setQuery(e.target.value)}
                   placeholder="Buscar PDV…"
-                  className="w-full px-2 py-2 text-[13px] lg:py-1.5 lg:text-[12px] rounded-[6px] border border-[#e4e4e7] bg-[rgba(0,0,0,0.02)] text-[#09090b] placeholder:text-[#a1a1aa] focus:outline-none focus:border-[rgba(12,92,171,0.4)]"
+                  className="w-full px-2 py-2 text-[13px] lg:py-1.5 lg:text-[12px] rounded-[6px] border border-[#e4e4e7] bg-[rgba(0,0,0,0.02)] text-[#09090b] placeholder:text-[#71717a] focus:outline-none focus:border-[rgba(12,92,171,0.4)]"
                 />
               </div>
             )}
@@ -1048,7 +1056,7 @@ export default function MapaClient() {
                   icon={p.aproximada ? makeIcon(pdvColor(p), true) : (iconCache.get(pdvColor(p)) ?? makeIcon(COLOR_INACTIVO))}
                 >
                   <Popup minWidth={220} maxWidth={280}>
-                    <div style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', lineHeight: 1.5 }}>
+                    <div style={{ fontFamily: FUENTE_POPUP, lineHeight: 1.5 }}>
                       <p style={{ fontWeight: 700, fontSize: 13, marginBottom: 4, color: '#09090b' }}>
                         #{p.pdv_id} — {p.razon_social ?? '—'}
                       </p>
@@ -1099,7 +1107,7 @@ export default function MapaClient() {
                 {ruta.sugerencias.map(s => (
                   <Marker key={`sug-${s.pdv_id}`} position={[s.lat, s.lon]} icon={suggestionIcon}>
                     <Popup minWidth={200}>
-                      <div style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', lineHeight: 1.5 }}>
+                      <div style={{ fontFamily: FUENTE_POPUP, lineHeight: 1.5 }}>
                         <p style={{ fontWeight: 700, fontSize: 12, marginBottom: 2, color: '#dc2626' }}>
                           Cliente apagado cercano · a {s.dist_m} m
                         </p>
@@ -1122,7 +1130,7 @@ export default function MapaClient() {
                     zIndexOffset={1000}
                   >
                     <Popup minWidth={220}>
-                      <div style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', lineHeight: 1.5 }}>
+                      <div style={{ fontFamily: FUENTE_POPUP, lineHeight: 1.5 }}>
                         <p style={{ fontWeight: 700, fontSize: 13, marginBottom: 4, color: '#09090b' }}>
                           {i + 1}. #{s.pdv_id} — {s.razon_social ?? '—'}
                         </p>
@@ -1325,7 +1333,9 @@ export default function MapaClient() {
                         {ruta.stops.filter(s => s.agregado).map(s => (
                           <span key={s.pdv_id} className="inline-flex items-center gap-1.5 text-[11px] bg-[rgba(12,92,171,0.08)] border border-[rgba(12,92,171,0.25)] text-[#09090b] pl-2 pr-1 py-0.5 rounded-full">
                             #{s.pdv_id} — {(s.razon_social ?? 's/n').slice(0, 20)}
-                            <button onClick={() => quitarPdv(s.pdv_id)} aria-label="Quitar de la ruta" className="w-5 h-5 flex items-center justify-center rounded-full text-[#71717a] active:bg-[rgba(220,38,38,0.1)]">×</button>
+                            {/* 24x24 es el mínimo de WCAG 2.5.8 (AA). Los 44px de la HIG no
+                                entran en un chip sin convertir esto en una lista. */}
+                            <button onClick={() => quitarPdv(s.pdv_id)} aria-label="Quitar de la ruta" className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-[#71717a] active:bg-[rgba(220,38,38,0.1)]">×</button>
                           </span>
                         ))}
                       </div>

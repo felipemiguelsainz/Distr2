@@ -12,7 +12,10 @@ import { PuntosLayer, type EstiloPunto } from './PuntosLayer';
 import { ResumenPanel } from './ResumenPanel';
 import { Dropdown, Segmentado } from './Dropdown';
 
-const MONO = { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' } as const;
+// JetBrains Mono es la fuente de cifras del sistema y ya se carga en globals.css.
+// La stack de mono del sistema (SFMono/Menlo/Consolas) renderizaba estos números
+// distinto del resto de la app. Ver DESIGN.md → La Regla del Número Monoespaciado.
+const MONO = { fontFamily: "'JetBrains Mono', ui-monospace, monospace" } as const;
 
 /** Color por día del maestro — para leer de un vistazo cómo está hoy la semana. */
 const DIA_COLOR: Record<string, string> = {

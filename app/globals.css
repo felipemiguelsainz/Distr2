@@ -65,6 +65,19 @@ body {
   50%       { opacity: 0.3; }
 }
 
+/* Movimiento reducido. No se apaga todo con el clásico `* { animation: 0.01ms }`:
+   eso también mata el feedback de estado (hover de tarjeta, foco) y rompe el
+   paneo de Leaflet, que es movimiento iniciado por el usuario y queda exento.
+   Lo único que se saca es el desplazamiento de 24px de la entrada de pantalla,
+   que es el que dispara el malestar vestibular. El fade queda: el cambio de
+   estado se tiene que seguir viendo. `pulse-dot` es sólo opacidad, no se toca. */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes rise {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+}
+
 /* Native select/option light styling */
 select { color-scheme: light; }
 select option {

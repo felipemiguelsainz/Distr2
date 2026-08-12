@@ -130,11 +130,14 @@ export function ClientesTable({
                     {/* Mini progress bar */}
                     {!isTotal && (
                       <div className="mt-1 h-[3px] rounded-full overflow-hidden" style={{ background: '#f4f4f5' }}>
+                        {/* scaleX y no width: animar width dispara layout en cada
+                            frame, scaleX corre en el compositor. pctBar ya clampea
+                            a 0-100, así que el factor nunca se sale de 0-1. */}
                         <div
-                          className="h-full rounded-full bg-[#0c5cab]"
+                          className="h-full w-full rounded-full bg-[#0c5cab] origin-left"
                           style={{
-                            width: `${barPct}%`,
-                            transition: 'width 0.6s cubic-bezier(0.4,0,0.2,1)',
+                            transform: `scaleX(${barPct / 100})`,
+                            transition: 'transform 0.6s cubic-bezier(0.4,0,0.2,1)',
                           }}
                         />
                       </div>

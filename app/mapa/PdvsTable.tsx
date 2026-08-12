@@ -168,7 +168,7 @@ export function PdvsTable({
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           placeholder="Buscar en el listado…"
-          className="flex-1 min-w-[140px] max-w-[260px] px-2.5 py-1.5 text-[12.5px] bg-[rgba(0,0,0,0.02)] border border-[#e4e4e7] rounded-[8px] text-[#09090b] caret-[#0c5cab] focus:outline-none focus:border-[rgba(12,92,171,0.4)] transition-all placeholder:text-[#9f9fa9]"
+          className="flex-1 min-w-[140px] max-w-[260px] px-2.5 py-1.5 text-[12.5px] bg-[rgba(0,0,0,0.02)] border border-[#e4e4e7] rounded-[8px] text-[#09090b] caret-[#0c5cab] focus:outline-none focus:border-[rgba(12,92,171,0.4)] transition-all placeholder:text-[#71717a]"
         />
 
         <div className="flex items-center gap-2 ml-auto">
