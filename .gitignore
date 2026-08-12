@@ -46,3 +46,10 @@ scripts/*-backup-*.json
 
 # Datos de clientes reales (PII: razón social, CUIT, domicilios, ventas) — nunca versionar
 /data/
+
+# Grafo de conocimiento generado por el plugin graphify
+/graphify-out/
+
+# Cache por sesión del detector de impeccable (UUIDs y rutas absolutas).
+# DESIGN.md, .impeccable/design.json y .impeccable/config.json SÍ se versionan.
+.impeccable/hook.cache.json

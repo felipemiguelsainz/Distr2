@@ -1,0 +1,20 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-color",
+        "value": "rgba(0, 0, 0, 0.12)",
+        "createdAt": "2026-08-12T15:40:48.954Z",
+        "reason": "sombra etiqueta-mapa, documentada en .impeccable/design.json extensions.shadows; el detector no lee el sidecar"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(0, 0, 0, 0.18)",
+        "createdAt": "2026-08-12T15:40:49.020Z",
+        "reason": "sombra etiqueta-mapa-hover, documentada en .impeccable/design.json extensions.shadows"
+      }
+    ]
+  }
+}
