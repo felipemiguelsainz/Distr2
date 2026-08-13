@@ -85,7 +85,7 @@ export function PanelClient({ meses }: { meses: MesConfig[] }) {
                   <p className={`text-[14px] font-medium ${isCurrent ? 'text-[#0c5cab]' : 'text-[#09090b]'}`}>
                     {MESES_NOMBRES[mes]} {anio}
                     {isCurrent && (
-                      <span className="ml-2 text-[10px] font-semibold text-white px-1.5 py-0.5 rounded-full" style={{background: 'linear-gradient(135deg, #0c5cab, #0c5cab)'}}>
+                      <span className="ml-2 text-[10px] font-semibold text-white px-1.5 py-0.5 rounded-full" style={{ background: '#0c5cab' }}>
                         actual
                       </span>
                     )}
@@ -100,14 +100,14 @@ export function PanelClient({ meses }: { meses: MesConfig[] }) {
                     value={values[key] ?? ''}
                     placeholder="–"
                     onChange={e => setValues(prev => ({ ...prev, [key]: e.target.value }))}
-                    className="w-16 px-2.5 py-[7px] text-[13px] text-center font-semibold bg-[rgba(0,0,0,0.02)] border border-[#e4e4e7] rounded-[8px] text-[#09090b] caret-[#0c5cab] focus:outline-none focus:border-[rgba(12,92,171,0.4)] transition-all placeholder:text-[#9f9fa9]"
+                    className="w-16 px-2.5 py-[7px] text-[13px] text-center font-semibold bg-[rgba(0,0,0,0.02)] border border-[#e4e4e7] rounded-[8px] text-[#09090b] caret-[#0c5cab] focus:outline-none focus:border-[rgba(12,92,171,0.4)] transition-all placeholder:text-[#71717a]"
                   />
                   <span className="text-[12px] text-[#71717a] w-8">días</span>
                   <button
                     onClick={() => handleSave(anio, mes)}
                     disabled={isSaving}
                     className="px-3.5 py-[7px] text-[12px] font-bold text-white rounded-[9px] hover:-translate-y-px hover:brightness-110 disabled:opacity-50 transition-all shadow-[0_4px_16px_rgba(12,92,171,0.3)] min-w-[64px] text-center"
-                    style={{background: 'linear-gradient(135deg, #0c5cab, #0c5cab)'}}
+                    style={{ background: '#0c5cab' }}
                   >
                     {isSaving ? '...' : isSaved ? '✓' : 'Guardar'}
                   </button>

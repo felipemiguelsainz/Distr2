@@ -159,7 +159,10 @@ export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores:
                       <td className="px-4 py-2.5 text-center">
                         <span
                           title={zr > 0 ? `Si no compra antes de ${zr} días, pasa a inactivo` : 'Ya superó su umbral de inactividad'}
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${s.bg} ${s.text} ${s.pulse ? 'animate-pulse' : ''}`}
+                          // El latido es sólo énfasis: el estado ya se lee por
+                          // el color y por la etiqueta, así que con movimiento
+                          // reducido se apaga sin perder información.
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${s.bg} ${s.text} ${s.pulse ? 'animate-pulse motion-reduce:animate-none' : ''}`}
                         >
                           {s.label}
                         </span>

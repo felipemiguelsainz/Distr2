@@ -227,16 +227,19 @@ export function AvanceBarChart({ data, title }: AvanceBarChartProps) {
               {/* Bar track */}
               <div className="relative h-5 rounded-full overflow-hidden" style={{ background: '#f4f4f5' }}>
                 {/* Tendencia ghost bar */}
+                {/* scaleX y no width: ver la nota en ClientesTable.tsx. El
+                    borderRight del ghost se escala con la barra, pero es un
+                    divisor de 1px al 25% de alfa: a esa escala no se nota. */}
                 {tend > d.acumulado && (
                   <div
-                    className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
-                    style={{ width: `${tendPct / 140 * 100}%`, background: ghost, borderRight: `1px solid ${bar}40` }}
+                    className="absolute inset-y-0 left-0 w-full origin-left rounded-full transition-transform duration-500"
+                    style={{ transform: `scaleX(${tendPct / 140})`, background: ghost, borderRight: `1px solid ${bar}40` }}
                   />
                 )}
                 {/* Acumulado solid bar */}
                 <div
-                  className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
-                  style={{ width: `${acumPct / 140 * 100}%`, background: bar }}
+                  className="absolute inset-y-0 left-0 w-full origin-left rounded-full transition-transform duration-500"
+                  style={{ transform: `scaleX(${acumPct / 140})`, background: bar }}
                 />
                 {/* Meta line at 100% = 71.4% of track */}
                 <div

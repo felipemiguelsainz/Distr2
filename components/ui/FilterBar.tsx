@@ -422,7 +422,7 @@ export function FilterBar({
           onClick={aplicar}
           disabled={pending || sinCambios || mesesSel.length === 0 || aniosSel.length === 0}
           className={`${BTN} border-transparent text-white shadow-md shadow-blue-500/20 disabled:opacity-45 disabled:shadow-none disabled:cursor-default`}
-          style={{ background: 'linear-gradient(135deg, #0c5cab, #0c5cab)' }}
+          style={{ background: '#0c5cab' }}
         >
           {pending ? 'Aplicando…' : 'Aplicar'}
           {!sinCambios && !pending && <span className="w-1.5 h-1.5 rounded-full bg-white/90" />}

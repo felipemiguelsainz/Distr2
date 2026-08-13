@@ -29,7 +29,7 @@ const ROL_LABEL: Record<Rol, string> = {
 };
 
 const inputClass =
-  'w-full px-3 py-[9px] text-[13px] bg-[rgba(0,0,0,0.02)] border border-[#e4e4e7] rounded-[9px] text-[#09090b] caret-[#0c5cab] focus:outline-none focus:border-[rgba(12,92,171,0.4)] transition-all placeholder:text-[#9f9fa9]';
+  'w-full px-3 py-[9px] text-[13px] bg-[rgba(0,0,0,0.02)] border border-[#e4e4e7] rounded-[9px] text-[#09090b] caret-[#0c5cab] focus:outline-none focus:border-[rgba(12,92,171,0.4)] transition-all placeholder:text-[#71717a]';
 const labelClass =
   'block text-[11px] font-semibold text-[#71717a] mb-1.5 uppercase tracking-[0.04em]';
 

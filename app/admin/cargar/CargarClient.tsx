@@ -223,7 +223,7 @@ function VentasPreviewModal({
             onClick={onConfirm}
             disabled={missing.length > 0}
             className="px-4 py-[9px] text-[13px] font-bold text-white rounded-[9px] hover:-translate-y-px hover:brightness-110 transition-all shadow-[0_4px_16px_rgba(12,92,171,0.3)] disabled:opacity-40"
-            style={{background: 'linear-gradient(135deg, #0c5cab, #0c5cab)'}}
+            style={{ background: '#0c5cab' }}
           >
             Importar {preview.totalRows.toLocaleString()} filas
           </button>
@@ -420,7 +420,7 @@ function ReasignacionModal({
           <button
             onClick={onConfirm}
             className="px-4 py-[9px] text-[13px] font-bold text-white rounded-[9px] hover:-translate-y-px hover:brightness-110 transition-all shadow-[0_4px_16px_rgba(12,92,171,0.3)]"
-            style={{background: 'linear-gradient(135deg, #0c5cab, #0c5cab)'}}
+            style={{ background: '#0c5cab' }}
           >
             Confirmar y guardar
           </button>
@@ -453,7 +453,7 @@ function HuerfanosModal({
           <button
             onClick={onConfirm}
             className="px-4 py-[9px] text-[13px] font-bold text-white rounded-[9px] hover:-translate-y-px hover:brightness-110 transition-all shadow-[0_4px_16px_rgba(12,92,171,0.3)]"
-            style={{ background: 'linear-gradient(135deg, #0c5cab, #0c5cab)' }}
+            style={{ background: '#0c5cab' }}
           >
             Cargar igual
           </button>

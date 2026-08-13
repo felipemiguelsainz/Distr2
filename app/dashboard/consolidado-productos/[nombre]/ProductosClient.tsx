@@ -146,7 +146,7 @@ function ProductoSelector({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar producto…"
-          className="w-full px-3 py-2 text-[13px] bg-[rgba(0,0,0,0.02)] border border-[#e4e4e7] rounded-[8px] text-[#09090b] caret-[#0c5cab] focus:outline-none focus:border-[rgba(12,92,171,0.4)] transition-all placeholder:text-[#9f9fa9] mb-2"
+          className="w-full px-3 py-2 text-[13px] bg-[rgba(0,0,0,0.02)] border border-[#e4e4e7] rounded-[8px] text-[#09090b] caret-[#0c5cab] focus:outline-none focus:border-[rgba(12,92,171,0.4)] transition-all placeholder:text-[#71717a] mb-2"
         />
         <div className="max-h-[280px] overflow-y-auto space-y-1">
           {porRubro.map(([rubro, articulos]) => {

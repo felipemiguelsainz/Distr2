@@ -95,7 +95,7 @@ export default function LoginPage() {
             type="submit"
             disabled={loading}
             className="w-full mt-2 py-[10px] px-4 text-white text-[14px] font-bold rounded-[9px] disabled:opacity-50 hover:-translate-y-px hover:brightness-110 active:translate-y-0 transition-all shadow-[0_4px_16px_rgba(12,92,171,0.3)]"
-            style={{background: 'linear-gradient(135deg, #0c5cab, #0c5cab)'}}
+            style={{ background: '#0c5cab' }}
           >
             {loading ? 'Ingresando...' : 'Ingresar'}
           </button>

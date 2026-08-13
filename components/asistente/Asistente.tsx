@@ -106,7 +106,7 @@ export function Asistente() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
               placeholder="Escribí tu pregunta…"
-              className="flex-1 px-3 py-2 text-[12.5px] rounded-[10px] border border-[#e4e4e7] bg-[rgba(0,0,0,0.02)] text-[#09090b] placeholder:text-[#a1a1aa] focus:outline-none focus:border-[#0c5cab]"
+              className="flex-1 px-3 py-2 text-[12.5px] rounded-[10px] border border-[#e4e4e7] bg-[rgba(0,0,0,0.02)] text-[#09090b] placeholder:text-[#71717a] focus:outline-none focus:border-[#0c5cab]"
             />
             <button
               onClick={send}

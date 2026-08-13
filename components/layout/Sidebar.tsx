@@ -195,7 +195,7 @@ export function Sidebar({
                   ? 'text-white shadow-md shadow-blue-500/20'
                   : 'text-[#71717a] hover:bg-[rgba(12,92,171,0.08)] hover:text-[#09090b]'
               }`}
-              style={active ? {background: 'linear-gradient(135deg, #0c5cab, #0c5cab)'} : {}}
+              style={active ? { background: '#0c5cab' } : {}}
             >
               <span className={`shrink-0 ${active ? 'text-white' : 'text-[#71717a]'}`}>
                 {item.icon}
@@ -219,6 +219,7 @@ export function Sidebar({
           <button
             onClick={handleSignOut}
             title="Cerrar sesión"
+            aria-label="Cerrar sesión"
             className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 text-[#71717a] hover:text-[#dc2626] transition-all shrink-0"
           >
             <SignOutIcon />

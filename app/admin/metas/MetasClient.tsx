@@ -109,7 +109,7 @@ export function MetasClient({ defaultAnio, defaultMes, vendedores = [] }: { defa
                 inputMode="numeric"
                 value={objetivos[rubro] ?? ''}
                 onChange={e => setObjetivos(prev => ({ ...prev, [rubro]: e.target.value }))}
-                className={`${inputCls} placeholder:text-[#9f9fa9]`}
+                className={`${inputCls} placeholder:text-[#71717a]`}
                 placeholder="0"
               />
             </div>
@@ -179,7 +179,7 @@ export function MetasClient({ defaultAnio, defaultMes, vendedores = [] }: { defa
             onClick={handleCalcular}
             disabled={loading}
             className="px-4 py-[9px] text-[13px] font-bold text-white rounded-[9px] hover:-translate-y-px hover:brightness-110 disabled:opacity-50 transition-all shadow-[0_4px_16px_rgba(12,92,171,0.3)]"
-            style={{background: 'linear-gradient(135deg, #0c5cab, #0c5cab)'}}
+            style={{ background: '#0c5cab' }}
           >
             {loading ? 'Calculando...' : 'Calcular preview'}
           </button>
