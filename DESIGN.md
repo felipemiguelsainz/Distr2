@@ -254,9 +254,12 @@ con `gap` de 12–20px. El padding interno canónico de tarjeta es 20px (`p-5`);
 16px cuando la tarjeta contiene una tabla que ya trae su propio padding de celda.
 
 **La Regla del Ancho Mínimo.** Una tabla densa no se adapta encogiendo columnas: se
-adapta desplazándose. Todo contenedor de tabla lleva `overflow-x-auto` y la tabla
-un `min-width` explícito. `table-fixed w-full` colapsa las columnas de cifras a un
-ancho ilegible y está prohibido en tablas de datos.
+adapta desplazándose. Todo contenedor de tabla lleva `overflow-x-auto` y la tabla un
+`min-width` explícito. El que manda es el `min-width`: sin él, `table-fixed w-full`
+reparte el ancho disponible en partes iguales y colapsa las columnas de cifras a un
+ancho ilegible. Con él, `table-fixed` es deseable —fija las columnas y evita que el
+navegador las reacomode al llegar más datos—, y así lo usan hoy las seis tablas del
+dashboard. Lo prohibido es `table-fixed w-full` **sin** `min-width`, no `table-fixed`.
 
 ## Elevation & Depth
 
@@ -357,6 +360,6 @@ tarjeta: si hacen falta dos, son dos tarjetas.
 - **Don't** teñir sombras de color, salvo la de la navegación activa que ya existe.
 - **Don't** usar verde, rojo o ámbar en cromo de interfaz: son lecturas de dato.
 - **Don't** introducir un tema oscuro ni un conmutador; el sistema es de tema claro fijo y los hex están escritos literales en los componentes.
-- **Don't** usar `table-fixed w-full` en tablas de datos: colapsa las columnas de cifras.
+- **Don't** dejar una tabla de datos con `table-fixed w-full` y sin `min-width`: ahí sí colapsan las columnas de cifras. Con `min-width`, `table-fixed` es lo correcto.
 - **Don't** meter aire decorativo entre secciones para "que respire". La densidad es el requisito, no un defecto.
 - **Don't** poner dos cifras grandes en una misma tarjeta KPI.
