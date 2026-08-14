@@ -190,8 +190,14 @@ function DataTable({ data, label, isKg }: { data: KpiRubro[]; label: string; isK
   // de encimar los números. En mobile se ocultan columnas (mobileHidden) → min-width
   // menor para que las prioritarias entren sin scroll; en ≥sm entran todas.
   const visibleMobile = cols.filter((c) => !c.mobileHidden).length;
+  // Los 62px por columna alcanzan para kilos ("13.109") pero no para pesos:
+  // formatCurrency llega a "$ 1.220.913.332", quince caracteres que en mono de
+  // 12px son ~108px más el padding. Con el ancho de kilos las celdas de la
+  // tabla de facturación se encimaban y los números quedaban ilegibles, que es
+  // exactamente lo que este min-width existe para evitar.
+  const anchoColMobile = isKg ? 62 : 124;
   const mwDesktop = 150 + cols.length * 58;
-  const mwMobile  = 110 + visibleMobile * 62;
+  const mwMobile  = 110 + visibleMobile * anchoColMobile;
   const cssVars = { ['--mw-m' as string]: `${mwMobile}px`, ['--mw-d' as string]: `${mwDesktop}px` } as React.CSSProperties;
 
   return (
