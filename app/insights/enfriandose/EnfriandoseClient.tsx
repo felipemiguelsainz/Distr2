@@ -129,7 +129,60 @@ export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores:
       ) : clientes.length === 0 ? (
         <p className="text-sm text-gray-400 py-6">No hay clientes enfriándose en este alcance.</p>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <>
+        {/* ── Mobile: tarjetas ────────────────────────────────────────────
+            La tabla tiene 9 columnas y 680px de ancho mínimo: en un teléfono
+            de 390px sólo entra la primera, así que el usuario veía una lista
+            de nombres sin un solo dato. Acá no se apilan las 9 columnas —eso
+            daría 9 renglones por cliente y 751 clientes— sino que se eligen
+            las cuatro que responden la pregunta de la pantalla: quién es,
+            hace cuánto que no compra, cuán grave es, y cuánto está en juego. */}
+        <ul className="sm:hidden flex flex-col gap-2">
+          {clientes.map((c) => {
+            const zr = 90 - c.dias_sin;
+            const s = zonaRojaStyle(zr);
+            return (
+              <li key={c.pdv_id} className="bg-white rounded-xl shadow-sm border border-gray-100 px-3.5 py-3">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-[13px] font-semibold text-gray-900 leading-snug min-w-0">
+                    #{c.pdv_id} — {c.razon_social ?? 's/n'}
+                  </p>
+                  <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${s.bg} ${s.text} ${s.pulse ? 'animate-pulse motion-reduce:animate-none' : ''}`}>
+                    {s.label}
+                  </span>
+                </div>
+
+                <p className="text-[12px] text-gray-500 mt-0.5 truncate">
+                  {c.localidad ?? '—'}{mostrarVendedor && c.cartera ? ` · ${c.cartera}` : ''}
+                </p>
+
+                <div className="flex items-baseline gap-1.5 mt-2">
+                  <span className={`text-[17px] font-bold tabular-nums leading-none ${s.text}`}>{c.dias_sin}</span>
+                  <span className="text-[12px] text-gray-500">días sin comprar</span>
+                  <span className="text-[11px] text-gray-400 ml-auto tabular-nums">compra cada {c.cadencia_dias} d</span>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-gray-100">
+                  <p className="text-[12px] text-gray-700 tabular-nums">
+                    <span className="font-semibold text-gray-900">{fmtPesos(c.valor_mensual)}</span>
+                    <span className="text-gray-400"> · </span>
+                    {fmtKg(c.kg_mensual ?? 0)}
+                    <span className="text-gray-400 text-[11px]"> /mes</span>
+                  </p>
+                  <a
+                    href={`/mapa?pdvs=${c.pdv_id}${c.cartera ? `&vendedor=${encodeURIComponent(c.cartera)}` : ''}`}
+                    className="shrink-0 inline-flex items-center gap-1 min-h-[32px] px-2.5 text-[12px] font-semibold rounded-lg text-blue-600 bg-blue-50 active:bg-blue-100"
+                  >
+                    <MapPin className="w-3.5 h-3.5" /> Mapa
+                  </a>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+
+        {/* ── Desktop: la tabla completa ── */}
+        <div className="hidden sm:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-[680px] [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap">
               <thead>
@@ -195,6 +248,7 @@ export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores:
             </table>
           </div>
         </div>
+        </>
       )}
     </div>
   );
