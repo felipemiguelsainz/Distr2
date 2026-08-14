@@ -1,7 +1,18 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { DIAS_HABILES, DIA_NOMBRE, type Cuadrante, type PdvPlan } from './types';
+import {
+  COLOR_AUTOSERVICIO, COLOR_OTRO_CANAL, COLOR_TRADICIONAL,
+  DIAS_HABILES, DIA_NOMBRE, contarPorCanal, tipoPDV,
+  type Cuadrante, type PdvPlan, type TipoPdv,
+} from './types';
+
+/** Nombres para el Excel: 'otro' a secas no dice nada en una planilla. */
+const TIPO_LABEL: Record<TipoPdv, string> = {
+  tradicional: 'Tradicional',
+  autoservicio: 'Autoservicio',
+  otro: 'Sin clasificar',
+};
 
 // Ver la nota en PlanificacionClient.tsx: la fuente de cifras es JetBrains Mono.
 const MONO = { fontFamily: "'JetBrains Mono', ui-monospace, monospace" } as const;
@@ -26,13 +37,37 @@ interface FilaVendedor {
 export function ResumenPanel({
   cuadrantes,
   puntos,
+  onExportarCuadrante,
+  onExportarVendedor,
+  exportandoPdf,
+  progresoPdf,
 }: {
   cuadrantes: Cuadrante[];
   puntos: PdvPlan[];
+  /** Genera el PDF de una zona. Lo maneja PlanificacionClient, que tiene el mapa. */
+  onExportarCuadrante?: (c: Cuadrante) => void;
+  /** Todas las zonas de un vendedor en un PDF multipágina. */
+  onExportarVendedor?: (vendedor: string) => void;
+  /** Etiqueta de lo que se está generando ahora, para deshabilitar los botones. */
+  exportandoPdf?: string | null;
+  /** Avance del PDF en curso: sin esto, 25 segundos parecen un cuelgue. */
+  progresoPdf?: { hecho: number; total: number } | null;
 }) {
   const [exportando, setExportando] = useState(false);
 
-  const { filas, totalPlanificados, sinPlanificar } = useMemo(() => {
+  const porId = useMemo(() => new Map(puntos.map((p) => [p.pdv_id, p])), [puntos]);
+
+  /** Una fila por cuadrante con su mezcla de canales. */
+  const porCuadrante = useMemo(
+    () =>
+      cuadrantes.map((c) => {
+        const pdvs = c.pdv_ids.map((id) => porId.get(id)).filter((p): p is PdvPlan => !!p);
+        return { cuadrante: c, canales: contarPorCanal(pdvs) };
+      }),
+    [cuadrantes, porId],
+  );
+
+  const { filas, totalPlanificados, sinPlanificar, pdvsPorVendedor } = useMemo(() => {
     const porVendedor = new Map<string, FilaVendedor>();
     const pdvsPorVendedor = new Map<string, Set<number>>();
     const planificados = new Set<number>();
@@ -59,6 +94,7 @@ export function ResumenPanel({
       filas: [...porVendedor.values()].sort((a, b) => a.vendedor.localeCompare(b.vendedor, 'es')),
       totalPlanificados: planificados.size,
       sinPlanificar: puntos.filter((p) => !planificados.has(p.pdv_id)).length,
+      pdvsPorVendedor,
     };
   }, [cuadrantes, puntos]);
 
@@ -66,7 +102,6 @@ export function ResumenPanel({
     setExportando(true);
     try {
       const XLSX = await import('xlsx');
-      const porId = new Map(puntos.map((p) => [p.pdv_id, p]));
 
       // Hoja 1 — una fila por PDV y cuadrante. Un PDV con dos visitas aparece
       // dos veces, que es lo que hay que salir a hacer en la semana.
@@ -84,32 +119,73 @@ export function ResumenPanel({
             'Vendedor actual':      p?.cartera ?? '',
             'Día actual':           p?.dia_visita ?? '',
             'Cambia de vendedor':   p?.cartera === c.vendedor_nombre ? 'No' : 'Sí',
+            // El canal crudo del maestro y su clasificación: quien revise el
+            // Excel tiene que poder auditar por qué un PDV cayó en un tipo.
+            'Canal':                p?.canal_venta ?? '',
+            'Tipo':                 p ? TIPO_LABEL[tipoPDV(p.canal_venta)] : '',
             'Última venta':         p?.ultima_vta ? p.ultima_vta.slice(0, 10) : '',
           };
         })
       );
 
-      // Hoja 2 — carga semanal por vendedor, para ver si quedó pareja.
-      const resumen = filas.map((f) => ({
-        'Vendedor':   f.vendedor,
-        'Cuadrantes': f.cuadrantes,
-        'PDVs':       f.pdvs,
-        'Visitas':    f.visitas,
-        ...Object.fromEntries(DIAS_HABILES.map((d) => [DIA_NOMBRE[d], f.porDia[d] ?? 0])),
+      // Hoja 2 — carga semanal por vendedor, para ver si quedó pareja. El
+      // desglose por canal va sobre PDVs distintos, no sobre visitas: la
+      // pregunta es qué mezcla de clientes atiende cada uno.
+      const resumen = filas.map((f) => {
+        const suyos = [...pdvsPorVendedor.get(f.vendedor) ?? []]
+          .map((id) => porId.get(id))
+          .filter((p): p is PdvPlan => !!p);
+        const canales = contarPorCanal(suyos);
+        return {
+          'Vendedor':      f.vendedor,
+          'Cuadrantes':    f.cuadrantes,
+          'PDVs':          f.pdvs,
+          'Visitas':       f.visitas,
+          'Tradicionales': canales.tradicional,
+          'Autoservicios': canales.autoservicio,
+          'Sin clasificar': canales.otro,
+          ...Object.fromEntries(DIAS_HABILES.map((d) => [DIA_NOMBRE[d], f.porDia[d] ?? 0])),
+        };
+      });
+
+      // Hoja 3 — una fila por zona: es la vista que Fernando mira para decidir
+      // si una zona quedó muy cargada de autoservicios.
+      const zonas = porCuadrante.map(({ cuadrante: c, canales }) => ({
+        'Cuadrante':      c.nombre,
+        'Vendedor':       c.vendedor_nombre,
+        'Día':            DIA_NOMBRE[c.dia] ?? c.dia,
+        'PDVs':           c.pdv_ids.length,
+        'Tradicionales':  canales.tradicional,
+        'Autoservicios':  canales.autoservicio,
+        'Sin clasificar': canales.otro,
+        'Localidad':      c.localidad ?? '',
       }));
 
       const wb = XLSX.utils.book_new();
 
       const wsDetalle = XLSX.utils.json_to_sheet(detalle);
+      // Un ancho por columna, en el mismo orden que las claves de `detalle`.
       wsDetalle['!cols'] = [
         { wch: 8 }, { wch: 38 }, { wch: 22 }, { wch: 18 }, { wch: 22 },
-        { wch: 22 }, { wch: 16 }, { wch: 22 }, { wch: 12 }, { wch: 18 }, { wch: 13 },
+        { wch: 22 }, { wch: 16 }, { wch: 22 }, { wch: 12 }, { wch: 18 },
+        { wch: 16 }, { wch: 14 }, { wch: 13 },
       ];
       XLSX.utils.book_append_sheet(wb, wsDetalle, 'Asignación');
 
       const wsResumen = XLSX.utils.json_to_sheet(resumen);
-      wsResumen['!cols'] = [{ wch: 24 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, ...DIAS_HABILES.map(() => ({ wch: 11 }))];
+      wsResumen['!cols'] = [
+        { wch: 24 }, { wch: 12 }, { wch: 10 }, { wch: 10 },
+        { wch: 14 }, { wch: 14 }, { wch: 14 },
+        ...DIAS_HABILES.map(() => ({ wch: 11 })),
+      ];
       XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen');
+
+      const wsZonas = XLSX.utils.json_to_sheet(zonas);
+      wsZonas['!cols'] = [
+        { wch: 24 }, { wch: 22 }, { wch: 12 }, { wch: 8 },
+        { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 22 },
+      ];
+      XLSX.utils.book_append_sheet(wb, wsZonas, 'Zonas');
 
       XLSX.writeFile(wb, `planificacion-${new Date().toISOString().slice(0, 10)}.xlsx`);
     } finally {
@@ -172,13 +248,78 @@ export function ResumenPanel({
         </table>
       </div>
 
-      <button
-        onClick={exportar}
-        disabled={exportando}
-        className="w-full px-3 py-2 text-[12.5px] font-semibold rounded-[8px] bg-[#0c5cab] text-white hover:bg-[#0a4d90] disabled:opacity-50 transition-colors"
-      >
-        {exportando ? 'Generando…' : 'Exportar a Excel'}
-      </button>
+      {/* ── Zona por zona: la mezcla de canales y el PDF para el vendedor ── */}
+      <div className="flex flex-col gap-1.5">
+        <p className="text-[9.5px] font-semibold uppercase tracking-[0.07em] text-[#71717a]" style={MONO}>
+          Zonas
+        </p>
+        {porCuadrante.map(({ cuadrante: c, canales }) => {
+          const ocupado = exportandoPdf === c.id;
+          return (
+            <div key={c.id} className="rounded-[10px] border border-[#e4e4e7] bg-white px-2.5 py-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-1.5 text-[12px] font-semibold text-[#09090b] truncate">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: c.color }} />
+                    {c.nombre}
+                  </p>
+                  <p className="text-[11px] text-[#71717a] truncate">
+                    {c.vendedor_nombre} · {DIA_NOMBRE[c.dia] ?? c.dia} · {c.pdv_ids.length} PDV
+                  </p>
+                </div>
+                {onExportarCuadrante && (
+                  <button
+                    onClick={() => onExportarCuadrante(c)}
+                    disabled={!!exportandoPdf}
+                    className="shrink-0 px-2 py-1 text-[11px] font-semibold rounded-[6px] text-[#0c5cab] bg-[rgba(12,92,171,0.08)] border border-[rgba(12,92,171,0.2)] hover:bg-[rgba(12,92,171,0.14)] disabled:opacity-40 transition-colors"
+                  >
+                    {ocupado ? 'Generando…' : 'PDF'}
+                  </button>
+                )}
+              </div>
+              {/* Desglose por canal. Los ceros no se muestran: en una zona de
+                  puro kiosco, un "0 autoservicios" es ruido. */}
+              <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-1.5">
+                {([
+                  ['tradicional',  canales.tradicional,  COLOR_TRADICIONAL,  'tradicionales'],
+                  ['autoservicio', canales.autoservicio, COLOR_AUTOSERVICIO, 'autoservicios'],
+                  ['otro',         canales.otro,         COLOR_OTRO_CANAL,   'sin clasificar'],
+                ] as const).filter(([, n]) => n > 0).map(([k, n, color, label]) => (
+                  <span key={k} className="flex items-center gap-1 text-[11px] text-[#52525b]">
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
+                    <span className="font-semibold text-[#09090b]" style={MONO}>{n}</span>
+                    {label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <button
+          onClick={exportar}
+          disabled={exportando}
+          className="w-full px-3 py-2 text-[12.5px] font-semibold rounded-[8px] bg-[#0c5cab] text-white hover:bg-[#0a4d90] disabled:opacity-50 transition-colors"
+        >
+          {exportando ? 'Generando…' : 'Exportar a Excel'}
+        </button>
+
+        {/* Un PDF por vendedor: es la unidad que se imprime y se reparte. */}
+        {onExportarVendedor && filas.map((f) => (
+          <button
+            key={f.vendedor}
+            onClick={() => onExportarVendedor(f.vendedor)}
+            disabled={!!exportandoPdf}
+            className="w-full px-3 py-1.5 text-[11.5px] font-medium rounded-[8px] text-[#0c5cab] bg-[rgba(12,92,171,0.06)] border border-[rgba(12,92,171,0.18)] hover:bg-[rgba(12,92,171,0.12)] disabled:opacity-40 transition-colors text-left"
+          >
+            {exportandoPdf === `v:${f.vendedor}`
+              ? `Generando zona ${(progresoPdf?.hecho ?? 0) + 1} de ${progresoPdf?.total ?? f.cuadrantes}…`
+              : `PDF · todas las zonas de ${f.vendedor} (${f.cuadrantes})`}
+          </button>
+        ))}
+      </div>
       <p className="text-[11px] text-[#a1a1aa] leading-relaxed">
         El Excel trae el vendedor y el día planificados junto al actual del maestro, para poder comparar antes de bajar los cambios al sistema.
       </p>

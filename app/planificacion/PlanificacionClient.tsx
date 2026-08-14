@@ -1,11 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   MapContainer, TileLayer, Polygon, Polyline, CircleMarker, Tooltip, useMap, useMapEvents,
 } from 'react-leaflet';
+import type { Map as LeafletMap } from 'leaflet';
 import {
-  COLORES_CUADRANTE, DIAS_HABILES, DIA_NOMBRE, dentroDelPoligono, diaMencionadoEn,
+  COLORES_CUADRANTE, DIAS_HABILES, DIA_NOMBRE, LEYENDA_CANAL, colorPorCanal, contarPorCanal,
+  dentroDelPoligono, diaMencionadoEn,
   type Anillo, type Cuadrante, type Dia, type GuardarResultado, type PdvPlan, type PlanificacionData,
 } from './types';
 import { PuntosLayer, type EstiloPunto } from './PuntosLayer';
@@ -24,8 +26,17 @@ const DIA_COLOR: Record<string, string> = {
 };
 const COLOR_SIN_DATO = '#a1a1aa';
 
+/** jsPDF pide los colores como tres enteros 0-255, no como hex. */
+function hexARgb(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
 type Modo = 'ver' | 'dibujando' | 'formulario';
-type ColorearPor = 'dia' | 'plan';
+// 'canal' entra acá y no como toggle aparte porque es otro criterio de color, y
+// los criterios son excluyentes: un PDV no puede pintarse por día y por canal a
+// la vez. Un toggle separado obligaría a decidir cuál gana.
+type ColorearPor = 'dia' | 'plan' | 'canal';
 
 interface Borrador {
   /** id del cuadrante que se está editando, o null si es nuevo. */
@@ -402,10 +413,194 @@ export default function PlanificacionClient() {
       return { color: cs[0].color, radio: 4.5, opacidad: 0.95 };
     }
 
+    // Canal de venta. Acá el color no sale del cuadrante: la pregunta es qué
+    // mezcla de tradicional/autoservicio tiene cada zona, así que todos los
+    // puntos pesan igual y el cuadrante se lee sólo por su polígono.
+    if (colorearPor === 'canal') {
+      return { color: colorPorCanal(p.canal_venta), radio: 4.5, opacidad: 0.9 };
+    }
+
     // Día del maestro. Con varios días marcados manda el primero.
     const dia = p.dia_visita?.split(',')[0];
     return { color: (dia && DIA_COLOR[dia]) || COLOR_SIN_DATO, radio: 4, opacidad: 0.85 };
   }, [borrador, pdvsDelBorrador, pdvsEnConflicto, colorearPor, cuadrantePorPdv]);
+
+  const puntosPorId = useMemo(() => new Map(puntos.map((p) => [p.pdv_id, p])), [puntos]);
+
+  // --- Exportar zonas a PDF -----------------------------------------------
+  // Se maneja acá y no en ResumenPanel porque el mapa vive acá: para capturar
+  // una zona hay que encuadrarla primero, y eso es la instancia de Leaflet.
+  const mapRef = useRef<LeafletMap | null>(null);
+  const mapaDomRef = useRef<HTMLDivElement>(null);
+  const [exportandoPdf, setExportandoPdf] = useState<string | null>(null);
+  // Cada zona cuesta ~2,5s (encuadre + espera de tiles + captura), así que un
+  // vendedor con 10 zonas son ~25 segundos mirando un botón. Sin el contador
+  // parece colgado.
+  const [progresoPdf, setProgresoPdf] = useState<{ hecho: number; total: number } | null>(null);
+
+  /**
+   * Encuadra una zona, espera los tiles y devuelve su captura.
+   * Devuelve null si la captura falla: el PDF sale igual con la lista.
+   */
+  const capturarZona = useCallback(async (
+    c: Cuadrante,
+    html2canvas: typeof import('html2canvas').default,
+  ): Promise<{ data: string; ratio: number } | null> => {
+    const mapa = mapRef.current;
+    if (!mapa || !mapaDomRef.current || c.poligono.length === 0) return null;
+    // El anillo ya es [lat, lng][], que es un LatLngBoundsExpression válido.
+    mapa.fitBounds(c.poligono, { padding: [40, 40] });
+    await new Promise((r) => setTimeout(r, 2000)); // que carguen los tiles
+    try {
+      const canvas = await html2canvas(mapaDomRef.current, {
+        useCORS: true, allowTaint: true, scale: 2, logging: false, backgroundColor: '#ffffff',
+      });
+      // JPEG y no PNG: un mapa es una imagen fotográfica y en PNG cada hoja
+      // pesaba ~10 MB, así que un vendedor con 10 zonas daba un PDF de 100 MB
+      // imposible de mandar por mail. A 0.82 la diferencia no se ve impresa.
+      return { data: canvas.toDataURL('image/jpeg', 0.82), ratio: canvas.height / canvas.width };
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const exportarZonas = useCallback(async (zonas: Cuadrante[], archivo: string, clave: string) => {
+    if (zonas.length === 0) return;
+    setExportandoPdf(clave);
+    setProgresoPdf({ hecho: 0, total: zonas.length });
+    // Estado del mapa antes de empezar, para devolverlo donde estaba.
+    const vistaPrevia = mapRef.current
+      ? { centro: mapRef.current.getCenter(), zoom: mapRef.current.getZoom() }
+      : null;
+    try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ]);
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const PAGE_W = 210, MARGIN = 15, CONTENT_W = PAGE_W - MARGIN * 2;
+      const AZUL: [number, number, number] = [12, 92, 171];
+      const GRIS: [number, number, number] = [113, 113, 122];
+      const BORDE: [number, number, number] = [228, 228, 231];
+
+      for (let i = 0; i < zonas.length; i++) {
+        const c = zonas[i];
+        setProgresoPdf({ hecho: i, total: zonas.length });
+        if (i > 0) pdf.addPage();
+        const img = await capturarZona(c, html2canvas);
+        const pdvs = c.pdv_ids.map((id) => puntosPorId.get(id)).filter((p): p is PdvPlan => !!p);
+        const canales = contarPorCanal(pdvs);
+
+        // ── Header ──
+        pdf.setFillColor(...AZUL);
+        pdf.rect(0, 0, PAGE_W, 26, 'F');
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(16);
+        pdf.text(
+          pdf.splitTextToSize(`ZONA — ${c.nombre.toUpperCase()}`, CONTENT_W)[0],
+          MARGIN, 13,
+        );
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(10.5);
+        pdf.text(
+          `${c.vendedor_nombre}  ·  ${DIA_NOMBRE[c.dia] ?? c.dia}  ·  ${pdvs.length} PDV`,
+          MARGIN, 20,
+        );
+
+        // ── Mapa ──
+        let y = 32;
+        if (img) {
+          const imgH = Math.min(105, img.ratio * CONTENT_W);
+          pdf.addImage(img.data, 'JPEG', MARGIN, y, CONTENT_W, imgH);
+          pdf.setDrawColor(...BORDE);
+          pdf.rect(MARGIN, y, CONTENT_W, imgH);
+          y += imgH + 7;
+        } else {
+          pdf.setFillColor(244, 244, 245);
+          pdf.setDrawColor(...BORDE);
+          pdf.rect(MARGIN, y, CONTENT_W, 30, 'FD');
+          pdf.setTextColor(...GRIS);
+          pdf.setFontSize(10);
+          pdf.text('Captura de mapa no disponible', PAGE_W / 2, y + 17, { align: 'center' });
+          y += 37;
+        }
+
+        // ── Mezcla de canales ──
+        pdf.setFontSize(9.5);
+        pdf.setFont('helvetica', 'normal');
+        const mezcla = [
+          canales.tradicional  ? `${canales.tradicional} tradicionales` : '',
+          canales.autoservicio ? `${canales.autoservicio} autoservicios` : '',
+          canales.otro         ? `${canales.otro} sin clasificar` : '',
+        ].filter(Boolean).join('   ·   ');
+        if (mezcla) {
+          pdf.setTextColor(...GRIS);
+          pdf.text(mezcla, MARGIN, y);
+          y += 7;
+        }
+
+        // ── Lista de clientes ──
+        pdf.setDrawColor(...BORDE);
+        pdf.line(MARGIN, y - 2, PAGE_W - MARGIN, y - 2);
+        pdf.setTextColor(9, 9, 11);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(11);
+        pdf.text(`CLIENTES DE ESTA ZONA (${pdvs.length})`, MARGIN, y + 5);
+        y += 12;
+
+        for (const p of pdvs) {
+          if (y > 278) { pdf.addPage(); y = 20; }
+          // Punto del color de su canal: el vendedor ve en la lista lo mismo
+          // que ve en el mapa de arriba.
+          const [r, g, b] = hexARgb(colorPorCanal(p.canal_venta));
+          pdf.setFillColor(r, g, b);
+          pdf.circle(MARGIN + 1.6, y - 1.1, 1.4, 'F');
+          pdf.setTextColor(9, 9, 11);
+          pdf.setFont('helvetica', 'normal');
+          pdf.setFontSize(9.5);
+          const linea = `${p.razon_social ?? `PDV #${p.pdv_id}`}${p.localidad ? ` — ${p.localidad}` : ''}`;
+          pdf.text(pdf.splitTextToSize(linea, CONTENT_W - 8)[0], MARGIN + 5, y);
+          y += 6;
+        }
+      }
+
+      // ── Pie en todas las hojas ──
+      const total = pdf.getNumberOfPages();
+      for (let p = 1; p <= total; p++) {
+        pdf.setPage(p);
+        pdf.setDrawColor(...BORDE);
+        pdf.line(MARGIN, 288, PAGE_W - MARGIN, 288);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8);
+        pdf.setTextColor(...GRIS);
+        pdf.text('distr2 · Candysur', MARGIN, 293);
+        pdf.text(`Página ${p} / ${total}`, PAGE_W - MARGIN, 293, { align: 'right' });
+      }
+
+      pdf.save(`${archivo}.pdf`.replace(/\s+/g, '_'));
+    } catch (e) {
+      console.error('[exportarZonas]', e);
+      setAviso('No se pudo generar el PDF. Probá de nuevo.');
+    } finally {
+      // Devolver el mapa a donde estaba: el usuario no pidió moverse.
+      if (vistaPrevia) mapRef.current?.setView(vistaPrevia.centro, vistaPrevia.zoom);
+      setExportandoPdf(null);
+      setProgresoPdf(null);
+    }
+  }, [capturarZona, puntosPorId]);
+
+  const exportarCuadrante = useCallback((c: Cuadrante) => {
+    void exportarZonas([c], `zona_${c.nombre}_${c.vendedor_nombre}`, c.id);
+  }, [exportarZonas]);
+
+  const exportarVendedor = useCallback((vendedor: string) => {
+    const zonas = cuadrantes
+      .filter((c) => c.vendedor_nombre === vendedor)
+      .sort((a, b) => DIAS_HABILES.indexOf(a.dia) - DIAS_HABILES.indexOf(b.dia)
+        || a.nombre.localeCompare(b.nombre, 'es'));
+    void exportarZonas(zonas, `zonas_${vendedor}`, `v:${vendedor}`);
+  }, [cuadrantes, exportarZonas]);
 
   const estiloSig = [
     colorearPor,
@@ -430,8 +625,6 @@ export default function PlanificacionClient() {
     () => cuadrantes.filter((c) => diasVisibles.size === 0 || diasVisibles.has(c.dia)),
     [cuadrantes, diasVisibles]
   );
-
-  const puntosPorId = useMemo(() => new Map(puntos.map((p) => [p.pdv_id, p])), [puntos]);
 
   // En mobile el panel es una hoja inferior colapsable. Dibujando o llenando el
   // formulario se fuerza abierta: si no, la hoja tapa los controles justo cuando
@@ -492,7 +685,14 @@ export default function PlanificacionClient() {
 
         <div className={`flex-1 min-h-0 overflow-y-auto ${expandido ? '' : 'hidden lg:block'}`}>
           {tab === 'resumen' ? (
-            <ResumenPanel cuadrantes={cuadrantes} puntos={puntos} />
+            <ResumenPanel
+              cuadrantes={cuadrantes}
+              puntos={puntos}
+              onExportarCuadrante={exportarCuadrante}
+              onExportarVendedor={exportarVendedor}
+              exportandoPdf={exportandoPdf}
+              progresoPdf={progresoPdf}
+            />
           ) : (
             <div className="flex flex-col">
               {/* ── Filtros ── */}
@@ -519,25 +719,34 @@ export default function PlanificacionClient() {
                     <Segmentado
                       valor={colorearPor}
                       onChange={setColorearPor}
-                      opciones={[{ valor: 'dia', label: 'Día actual' }, { valor: 'plan', label: 'Plan' }]}
+                      opciones={[
+                        { valor: 'dia', label: 'Día actual' },
+                        { valor: 'plan', label: 'Plan' },
+                        { valor: 'canal', label: 'Canal' },
+                      ]}
                     />
                   </div>
 
                   {/* Leyenda al lado de los filtros, no flotando sobre el mapa:
                       en mobile la caja flotante tapaba media pantalla. */}
                   <div className="flex flex-wrap gap-x-2.5 gap-y-1">
-                    {colorearPor === 'dia'
-                      ? DIAS_HABILES.map((d) => (
-                          <span key={d} className="flex items-center gap-1">
-                            <span className="w-2 h-2 rounded-full" style={{ background: DIA_COLOR[d] }} />
-                            <span className="text-[10.5px] text-[#71717a]">{DIA_NOMBRE[d]}</span>
-                          </span>
-                        ))
-                      : (
-                        <span className="text-[10.5px] text-[#71717a] leading-relaxed">
-                          Cada PDV toma el color de su cuadrante; los grises todavía no tienen.
-                        </span>
-                      )}
+                    {colorearPor === 'dia' && DIAS_HABILES.map((d) => (
+                      <span key={d} className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full" style={{ background: DIA_COLOR[d] }} />
+                        <span className="text-[10.5px] text-[#71717a]">{DIA_NOMBRE[d]}</span>
+                      </span>
+                    ))}
+                    {colorearPor === 'plan' && (
+                      <span className="text-[10.5px] text-[#71717a] leading-relaxed">
+                        Cada PDV toma el color de su cuadrante; los grises todavía no tienen.
+                      </span>
+                    )}
+                    {colorearPor === 'canal' && LEYENDA_CANAL.map((l) => (
+                      <span key={l.tipo} className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full" style={{ background: l.color }} />
+                        <span className="text-[10.5px] text-[#71717a]">{l.label}</span>
+                      </span>
+                    ))}
                   </div>
 
                   <button
@@ -788,7 +997,7 @@ export default function PlanificacionClient() {
       </aside>
 
       {/* ═══ Mapa ═══ */}
-      <div className="relative flex-1 min-h-0 order-1 lg:order-2">
+      <div ref={mapaDomRef} className="relative flex-1 min-h-0 order-1 lg:order-2">
         {loading && (
           <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-[#fafafa]/70 backdrop-blur-sm">
             <div className="flex items-center gap-2.5 text-[13px] text-[#71717a]">
@@ -803,10 +1012,15 @@ export default function PlanificacionClient() {
           zoom={11}
           style={{ height: '100%', width: '100%', background: '#fafafa' }}
           preferCanvas
+          ref={mapRef}
         >
+          {/* crossOrigin es requisito del export a PDF: sin él los tiles de OSM
+              "taintean" el canvas y html2canvas no puede leerlo. OSM manda
+              Access-Control-Allow-Origin: *, así que no cuesta nada. */}
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            crossOrigin="anonymous"
           />
 
           {/* Encuadra al terminar de cargar y cada vez que se cambia de
@@ -1021,7 +1235,7 @@ function FormularioCuadrante({
         value={borrador.nombre}
         onChange={(e) => set({ nombre: e.target.value })}
         placeholder="Nombre del cuadrante (ej: Solano — Lunes)"
-        className="w-full px-2.5 py-2 text-[12.5px] rounded-[8px] border border-[#e4e4e7] bg-white text-[#09090b] placeholder:text-[#a1a1aa] focus:outline-none focus:border-[rgba(12,92,171,0.4)]"
+        className="w-full px-2.5 py-2 text-[12.5px] rounded-[8px] border border-[#e4e4e7] bg-white text-[#09090b] placeholder:text-[#71717a] focus:outline-none focus:border-[rgba(12,92,171,0.4)]"
       />
 
       <Dropdown

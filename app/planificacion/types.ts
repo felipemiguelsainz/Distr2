@@ -104,6 +104,56 @@ export function diaMencionadoEn(nombre: string): Dia | null {
   return encontrados.length === 1 ? encontrados[0][0] : null;
 }
 
+// ---------------------------------------------------------------------------
+// Tipo de PDV según el canal de venta.
+//
+// `pdvs.canal_venta` es texto libre del maestro. Los valores reales hoy (7.109
+// PDVs) son: KIOSCO 2.674 · TRADICIONALES 1.597 · AUTOSERVICIO 1.176 ·
+// OTROS 1.037 · MAXI KIOSCO 520 · REVENTA 1 · '' 2, más 102 en NULL.
+//
+// El match es por substring y en minúsculas para que aguante variantes de
+// tipeo del maestro ("Maxi Kiosco", "AUTOSERVICIOS"). Cualquier valor nuevo
+// que aparezca cae en 'otro' y se ve gris en el mapa: es un fallback visible,
+// que es el modo correcto de fallar acá — un canal sin clasificar se nota.
+// ---------------------------------------------------------------------------
+export type TipoPdv = 'tradicional' | 'autoservicio' | 'otro';
+
+export function tipoPDV(canalVenta: string | null): TipoPdv {
+  if (!canalVenta) return 'otro'; // cubre null y '' (2 filas en la base)
+  const c = canalVenta.toLowerCase();
+  // Autoservicio primero: es el más específico y no comparte substring con los
+  // de abajo. 'super'/'hiper' no matchean nada hoy, quedan por si el maestro
+  // suma esos canales más adelante.
+  if (c.includes('autoservicio') || c.includes('super') || c.includes('hiper')) return 'autoservicio';
+  // 'tradicional' cubre TRADICIONALES; 'kiosco' cubre KIOSCO y MAXI KIOSCO.
+  if (c.includes('kiosco') || c.includes('tradicional') || c.includes('ventana')) return 'tradicional';
+  return 'otro'; // OTROS, REVENTA y lo que venga
+}
+
+export const COLOR_TRADICIONAL  = '#22c55e';
+export const COLOR_AUTOSERVICIO = '#ef4444';
+export const COLOR_OTRO_CANAL   = '#94a3b8';
+
+export function colorPorCanal(canalVenta: string | null): string {
+  const t = tipoPDV(canalVenta);
+  if (t === 'tradicional')  return COLOR_TRADICIONAL;
+  if (t === 'autoservicio') return COLOR_AUTOSERVICIO;
+  return COLOR_OTRO_CANAL;
+}
+
+export const LEYENDA_CANAL: { tipo: TipoPdv; color: string; label: string }[] = [
+  { tipo: 'tradicional',  color: COLOR_TRADICIONAL,  label: 'Tradicional / Kiosco' },
+  { tipo: 'autoservicio', color: COLOR_AUTOSERVICIO, label: 'Autoservicio' },
+  { tipo: 'otro',         color: COLOR_OTRO_CANAL,   label: 'Sin clasificar' },
+];
+
+/** Cuenta cuántos PDVs de cada tipo hay en una lista. */
+export function contarPorCanal(pdvs: PdvPlan[]): Record<TipoPdv, number> {
+  const out: Record<TipoPdv, number> = { tradicional: 0, autoservicio: 0, otro: 0 };
+  for (const p of pdvs) out[tipoPDV(p.canal_venta)] += 1;
+  return out;
+}
+
 /** Paleta de los cuadrantes: alto contraste entre sí y contra el mapa base. */
 export const COLORES_CUADRANTE = [
   '#0c5cab', '#e11d48', '#16a34a', '#f59e0b', '#7c3aed',
