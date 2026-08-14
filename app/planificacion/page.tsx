@@ -22,8 +22,9 @@ export default async function PlanificacionPage() {
   return (
     <AppShell>
       {/* Mismo truco que /mapa: margen negativo para escapar el padding del
-          AppShell y llenar el viewport (dvh por el chrome del browser mobile). */}
-      <div className="-mx-4 -my-6 lg:-mx-6 lg:-my-8 h-[calc(100dvh-3.5rem)] lg:h-[100dvh]">
+          AppShell y llenar el viewport (dvh por el chrome del browser mobile).
+          El -mb-20 cancela el colchón que el shell reserva para el chat. */}
+      <div className="-mx-4 -mt-6 -mb-20 lg:-mx-6 lg:-mt-8 h-[calc(100dvh-3.5rem)] lg:h-[100dvh]">
         <PlanificacionClientWrapper />
       </div>
     </AppShell>

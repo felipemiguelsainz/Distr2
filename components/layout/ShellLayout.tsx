@@ -62,7 +62,13 @@ export function ShellLayout({ sidebar, children, floating }: ShellLayoutProps) {
           </div>
         </div>
 
-        <div className="max-w-[1280px] mx-auto px-4 lg:px-6 py-6 lg:py-8 animate-rise">
+        {/* pb-20 reserva los 72px de la esquina inferior derecha donde vive el
+            botón flotante del asistente (fixed, bottom-5 + 52px de alto). Sin
+            esto, al llegar al final de cualquier tabla las últimas filas y los
+            botones alineados a la derecha quedan tapados por el chat.
+            Las pantallas de alto completo (mapa, planificación) lo cancelan
+            con -mb-20, igual que ya cancelaban el resto del padding. */}
+        <div className="max-w-[1280px] mx-auto px-4 lg:px-6 pt-6 lg:pt-8 pb-20 animate-rise">
           {children}
         </div>
       </main>
