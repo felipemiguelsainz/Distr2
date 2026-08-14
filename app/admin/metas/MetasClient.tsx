@@ -141,7 +141,7 @@ export function MetasClient({ defaultAnio, defaultMes, vendedores = [] }: { defa
           </p>
           {excluidosOpen && (
             vendedores.length === 0
-              ? <p className="mt-3 text-[12px] text-[#a1a1aa]">No hay vendedores activos.</p>
+              ? <p className="mt-3 text-[12px] text-[#71717a]">No hay vendedores activos.</p>
               : (
                 <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5 max-h-64 overflow-y-auto pr-1">
                   {vendedores.map(v => (

@@ -264,7 +264,7 @@ function MultiSelect({
             </div>
             <div className="overflow-y-auto overscroll-contain">
               {visible.length === 0 ? (
-                <p className="px-3 py-2 text-[12px] text-[#a1a1aa]">Sin resultados</p>
+                <p className="px-3 py-2 text-[12px] text-[#71717a]">Sin resultados</p>
               ) : (
                 visible.map(opt => (
                   <label key={opt} className="flex items-center gap-2.5 px-4 lg:px-3 py-2.5 lg:py-1.5 cursor-pointer hover:bg-[rgba(12,92,171,0.08)] transition-colors">
@@ -279,7 +279,7 @@ function MultiSelect({
                 ))
               )}
               {searchable && query.trim() === '' && options.length > visible.length && (
-                <p className="px-4 lg:px-3 py-1.5 text-[11px] text-[#a1a1aa]">Escribí para buscar entre {options.length.toLocaleString('es-AR')} PDVs…</p>
+                <p className="px-4 lg:px-3 py-1.5 text-[11px] text-[#71717a]">Escribí para buscar entre {options.length.toLocaleString('es-AR')} PDVs…</p>
               )}
             </div>
           </div>

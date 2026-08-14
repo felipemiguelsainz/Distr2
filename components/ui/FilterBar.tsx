@@ -408,7 +408,7 @@ export function FilterBar({
                 type="button"
                 onClick={() => { setDesde(''); setHasta(''); }}
                 title="Limpiar rango" aria-label="Limpiar rango"
-                className="p-1 text-[#a1a1aa] hover:text-[#dc2626] transition-colors"
+                className="p-1 text-[#71717a] hover:text-[#dc2626] transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>

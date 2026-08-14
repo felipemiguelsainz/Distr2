@@ -64,7 +64,7 @@ export function Dropdown({
       >
         <span className="truncate flex-1">{texto}</span>
         {actual?.detalle && (
-          <span className="text-[11px] text-[#a1a1aa] shrink-0">{actual.detalle}</span>
+          <span className="text-[11px] text-[#71717a] shrink-0">{actual.detalle}</span>
         )}
         <svg width="10" height="10" viewBox="0 0 10 10" className="shrink-0 opacity-50">
           <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
@@ -96,7 +96,7 @@ export function Dropdown({
               </button>
             )}
             {visibles.length === 0 ? (
-              <p className="px-3 py-2 text-[12px] text-[#a1a1aa]">Sin resultados</p>
+              <p className="px-3 py-2 text-[12px] text-[#71717a]">Sin resultados</p>
             ) : (
               visibles.map((o) => (
                 <button
@@ -107,7 +107,7 @@ export function Dropdown({
                   }`}
                 >
                   <span className="truncate flex-1">{o.label}</span>
-                  {o.detalle && <span className="text-[11px] text-[#a1a1aa] shrink-0">{o.detalle}</span>}
+                  {o.detalle && <span className="text-[11px] text-[#71717a] shrink-0">{o.detalle}</span>}
                 </button>
               ))
             )}

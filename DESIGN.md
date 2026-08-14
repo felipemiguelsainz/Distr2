@@ -211,8 +211,16 @@ Reemplazos que pasan 4.5:1 en el peor fondo, si se decide corregirlo:
 que ya es un token del sistema; `#dc2626 → #b91c1c` si se quiere cubrir
 también el caso de la celda hundida.
 
+La paleta de cuadrantes (`COLORES_CUADRANTE` y los colores por día de
+Planificación) tiene el mismo problema cuando se usa como color de texto y no
+como relleno: `#f59e0b` da 1.99:1, `#65a30d` 3.09, `#ea580c` 3.56, `#0891b2`
+3.68, `#e11d48` 4.00. Como relleno de polígono o de chip están bien; el
+problema es el nombre de la zona escrito en su propio color.
+
 No está corregido: cambiar la paleta semántica altera el aspecto de todos los
 dashboards a la vez y es una decisión de identidad, no un arreglo mecánico.
+Medido con un canvas de 1px que compone sobre blanco — leer el color sin
+componer da ratios falsos con los fondos translúcidos de Tailwind v4.
 
 ### Named Rules
 
@@ -225,6 +233,13 @@ que ser algo en lo que el usuario puede hacer clic.
 número, no adornos de interfaz. Un botón nunca es verde por ser positivo; una
 tarjeta nunca es roja por ser importante. El color semántico se aplica al valor
 y a su ícono de tendencia, nada más.
+
+**La Regla del Gris Inerte.** `#a1a1aa` da 2.56:1 sobre blanco: reprueba WCAG AA
+y por eso está reservado a lo que *no* hay que leer — placeholders, estados
+deshabilitados, el pulgar del scrollbar. Cualquier texto que el usuario tenga
+que poder leer usa Gris Rótulo `#71717a` (4.83:1), aunque sea secundario: rótulos
+micro, estados vacíos, unidades, contadores, íconos de acciones. Test: si al
+taparlo se pierde información, no puede ser Gris Inerte.
 
 ## Typography
 

@@ -213,7 +213,7 @@ export function ResumenPanel({
           ['Sin plan', sinPlanificar],
         ].map(([label, valor]) => (
           <div key={label as string} className="rounded-[10px] border border-[#e4e4e7] bg-white px-2.5 py-2">
-            <p className="text-[9.5px] font-semibold uppercase tracking-[0.06em] text-[#a1a1aa]" style={MONO}>{label}</p>
+            <p className="text-[9.5px] font-semibold uppercase tracking-[0.06em] text-[#71717a]" style={MONO}>{label}</p>
             <p className="text-[16px] font-bold text-[#09090b] leading-tight mt-0.5">
               {(valor as number).toLocaleString('es-AR')}
             </p>
@@ -320,7 +320,7 @@ export function ResumenPanel({
           </button>
         ))}
       </div>
-      <p className="text-[11px] text-[#a1a1aa] leading-relaxed">
+      <p className="text-[11px] text-[#71717a] leading-relaxed">
         El Excel trae el vendedor y el día planificados junto al actual del maestro, para poder comparar antes de bajar los cambios al sistema.
       </p>
     </div>

@@ -699,7 +699,7 @@ export default function PlanificacionClient() {
               {modo === 'ver' && (
                 <div className="flex flex-col gap-2.5 px-3.5 py-3 border-b border-[#e4e4e7]">
                   <div className="flex flex-col gap-1">
-                    <span className="text-[9.5px] font-semibold uppercase tracking-[0.07em] text-[#a1a1aa]" style={MONO}>Localidad</span>
+                    <span className="text-[9.5px] font-semibold uppercase tracking-[0.07em] text-[#71717a]" style={MONO}>Localidad</span>
                     <Dropdown
                       valor={localidad}
                       onChange={setLocalidad}
@@ -715,7 +715,7 @@ export default function PlanificacionClient() {
                   </div>
 
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[9.5px] font-semibold uppercase tracking-[0.07em] text-[#a1a1aa]" style={MONO}>Colorear</span>
+                    <span className="text-[9.5px] font-semibold uppercase tracking-[0.07em] text-[#71717a]" style={MONO}>Colorear</span>
                     <Segmentado
                       valor={colorearPor}
                       onChange={setColorearPor}
@@ -775,7 +775,7 @@ export default function PlanificacionClient() {
                   {cuadrantes.length > 0 && (
                     <div className="flex flex-col gap-1.5 border-t border-[#f4f4f5] pt-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-[9.5px] font-semibold uppercase tracking-[0.07em] text-[#a1a1aa]" style={MONO}>
+                        <span className="text-[9.5px] font-semibold uppercase tracking-[0.07em] text-[#71717a]" style={MONO}>
                           Ver cuadrantes de
                         </span>
                         {diasVisibles.size > 0 && (
@@ -911,15 +911,15 @@ export default function PlanificacionClient() {
               {/* ── Lista de cuadrantes ── */}
               <div className="flex flex-col">
                 {loading && (
-                  <p className="px-3 py-4 text-[12px] text-[#a1a1aa]">Cargando PDVs…</p>
+                  <p className="px-3 py-4 text-[12px] text-[#71717a]">Cargando PDVs…</p>
                 )}
                 {!loading && cuadrantes.length === 0 && modo === 'ver' && (
-                  <p className="px-3 py-4 text-[12px] text-[#a1a1aa] leading-relaxed">
+                  <p className="px-3 py-4 text-[12px] text-[#71717a] leading-relaxed">
                     Todavía no dibujaste ningún cuadrante.
                   </p>
                 )}
                 {!loading && cuadrantes.length > 0 && cuadrantesListados.length === 0 && (
-                  <p className="px-3.5 py-4 text-[12px] text-[#a1a1aa] leading-relaxed">
+                  <p className="px-3.5 py-4 text-[12px] text-[#71717a] leading-relaxed">
                     Ningún cuadrante en {[...diasVisibles].map((d) => DIA_NOMBRE[d]).join(', ')}.
                   </p>
                 )}
@@ -965,7 +965,7 @@ export default function PlanificacionClient() {
                       </button>
                       <button
                         onClick={() => borrar(c)}
-                        className="text-[11px] text-[#a1a1aa] hover:text-[#dc2626] ml-auto"
+                        className="text-[11px] text-[#71717a] hover:text-[#dc2626] ml-auto"
                       >
                         Borrar
                       </button>
@@ -1130,7 +1130,7 @@ export default function PlanificacionClient() {
               </div>
               <button
                 onClick={() => setPdvSel(null)}
-                className="ml-auto shrink-0 text-[#a1a1aa] hover:text-[#09090b] text-[14px] leading-none"
+                className="ml-auto shrink-0 text-[#71717a] hover:text-[#09090b] text-[14px] leading-none"
               >
                 ×
               </button>
@@ -1221,9 +1221,9 @@ function FormularioCuadrante({
               const p = puntosPorId.get(id);
               return (
                 <p key={id} className="text-[11px] text-[#52525b] truncate leading-relaxed">
-                  <span style={MONO} className="text-[#a1a1aa]">#{id}</span>{' '}
+                  <span style={MONO} className="text-[#71717a]">#{id}</span>{' '}
                   {p?.razon_social ?? 's/n'}
-                  {p?.cartera ? <span className="text-[#a1a1aa]"> · hoy {p.cartera}</span> : null}
+                  {p?.cartera ? <span className="text-[#71717a]"> · hoy {p.cartera}</span> : null}
                 </p>
               );
             })}
@@ -1247,7 +1247,7 @@ function FormularioCuadrante({
       />
 
       <div className="flex items-center gap-1.5">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#a1a1aa]" style={MONO}>Día</span>
+        <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#71717a]" style={MONO}>Día</span>
         {DIAS_HABILES.map((d) => (
           <button
             key={d}
@@ -1283,7 +1283,7 @@ function FormularioCuadrante({
       )}
 
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-[9.5px] font-semibold uppercase tracking-[0.07em] text-[#a1a1aa] w-full" style={MONO}>Color</span>
+        <span className="text-[9.5px] font-semibold uppercase tracking-[0.07em] text-[#71717a] w-full" style={MONO}>Color</span>
         {COLORES_CUADRANTE.map((c) => (
           <button
             key={c}

@@ -159,7 +159,7 @@ export function MetasCccClient({
                       />
                     </td>
                     {rubros.map((rb) => (
-                      <td key={rb} className="px-3 py-2 text-right tabular-nums text-[#9f9fa9]" style={MONO}>
+                      <td key={rb} className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>
                         {derivedRubro(f.vendedor, rb)}
                       </td>
                     ))}
