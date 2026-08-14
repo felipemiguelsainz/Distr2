@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-12T00:00:00.000Z",
+  "generatedAt": "2026-08-14T18:37:11.427Z",
   "title": "Design System: Candysur — Dashboard de Ventas",
   "extensions": {
     "colorMeta": {
@@ -8,92 +8,302 @@
         "role": "primary",
         "displayName": "Azul Señal",
         "canonical": "#0c5cab",
-        "tonalRamp": ["#041e39", "#062c52", "#083d70", "#0a4f95", "#0c5cab", "#3a80c3", "#7cabd8", "#c5dcef"]
+        "tonalRamp": [
+          "#041e39",
+          "#062c52",
+          "#083d70",
+          "#0a4f95",
+          "#0c5cab",
+          "#3a80c3",
+          "#7cabd8",
+          "#c5dcef"
+        ]
       },
       "azul-senal-profundo": {
         "role": "primary",
         "displayName": "Azul Señal Profundo",
         "canonical": "#0a4f95",
-        "tonalRamp": ["#031829", "#052440", "#07355c", "#094278", "#0a4f95", "#3577b3", "#79a5d1", "#c3d9ec"]
+        "tonalRamp": [
+          "#031829",
+          "#052440",
+          "#07355c",
+          "#094278",
+          "#0a4f95",
+          "#3577b3",
+          "#79a5d1",
+          "#c3d9ec"
+        ]
       },
       "papel": {
         "role": "neutral",
         "displayName": "Papel",
         "canonical": "#fafafa",
-        "tonalRamp": ["#18181b", "#27272a", "#52525b", "#71717a", "#a1a1aa", "#d4d4d8", "#f4f4f5", "#fafafa"]
+        "tonalRamp": [
+          "#18181b",
+          "#27272a",
+          "#52525b",
+          "#71717a",
+          "#a1a1aa",
+          "#d4d4d8",
+          "#f4f4f5",
+          "#fafafa"
+        ]
       },
       "tarjeta": {
         "role": "neutral",
         "displayName": "Tarjeta",
         "canonical": "#ffffff",
-        "tonalRamp": ["#09090b", "#27272a", "#52525b", "#71717a", "#a1a1aa", "#e4e4e7", "#fafafa", "#ffffff"]
+        "tonalRamp": [
+          "#09090b",
+          "#27272a",
+          "#52525b",
+          "#71717a",
+          "#a1a1aa",
+          "#e4e4e7",
+          "#fafafa",
+          "#ffffff"
+        ]
       },
       "tinta": {
         "role": "neutral",
         "displayName": "Tinta",
         "canonical": "#09090b",
-        "tonalRamp": ["#09090b", "#18181b", "#27272a", "#3f3f46", "#52525b", "#71717a", "#a1a1aa", "#d4d4d8"]
+        "tonalRamp": [
+          "#09090b",
+          "#18181b",
+          "#27272a",
+          "#3f3f46",
+          "#52525b",
+          "#71717a",
+          "#a1a1aa",
+          "#d4d4d8"
+        ]
       },
       "gris-rotulo": {
         "role": "neutral",
         "displayName": "Gris Rótulo",
         "canonical": "#71717a",
-        "tonalRamp": ["#18181b", "#27272a", "#3f3f46", "#52525b", "#71717a", "#a1a1aa", "#d4d4d8", "#f4f4f5"]
+        "tonalRamp": [
+          "#18181b",
+          "#27272a",
+          "#3f3f46",
+          "#52525b",
+          "#71717a",
+          "#a1a1aa",
+          "#d4d4d8",
+          "#f4f4f5"
+        ]
       },
       "borde": {
         "role": "neutral",
         "displayName": "Borde",
         "canonical": "#e4e4e7",
-        "tonalRamp": ["#3f3f46", "#52525b", "#71717a", "#a1a1aa", "#c4c4c8", "#d4d4d8", "#e4e4e7", "#f4f4f5"]
+        "tonalRamp": [
+          "#3f3f46",
+          "#52525b",
+          "#71717a",
+          "#a1a1aa",
+          "#c4c4c8",
+          "#d4d4d8",
+          "#e4e4e7",
+          "#f4f4f5"
+        ]
       },
       "verde-cumple": {
         "role": "tertiary",
         "displayName": "Verde Cumple",
         "canonical": "#16a34a",
-        "tonalRamp": ["#052e16", "#08421f", "#0d5e2c", "#11803b", "#16a34a", "#4bbd76", "#8ad6a8", "#cdeedb"]
+        "tonalRamp": [
+          "#052e16",
+          "#08421f",
+          "#0d5e2c",
+          "#11803b",
+          "#16a34a",
+          "#4bbd76",
+          "#8ad6a8",
+          "#cdeedb"
+        ]
       },
       "rojo-cae": {
         "role": "tertiary",
         "displayName": "Rojo Cae",
         "canonical": "#dc2626",
-        "tonalRamp": ["#3f0a0a", "#5c0f0f", "#7f1616", "#a81d1d", "#dc2626", "#e75f5f", "#f09797", "#f9d0d0"]
+        "tonalRamp": [
+          "#3f0a0a",
+          "#5c0f0f",
+          "#7f1616",
+          "#a81d1d",
+          "#dc2626",
+          "#e75f5f",
+          "#f09797",
+          "#f9d0d0"
+        ]
       },
       "ambar-alerta": {
         "role": "tertiary",
         "displayName": "Ámbar Alerta",
         "canonical": "#d97706",
-        "tonalRamp": ["#3d2103", "#5c3105", "#7f4405", "#b45309", "#d97706", "#e59a45", "#eeba86", "#f7ddc4"]
+        "tonalRamp": [
+          "#3d2103",
+          "#5c3105",
+          "#7f4405",
+          "#b45309",
+          "#d97706",
+          "#e59a45",
+          "#eeba86",
+          "#f7ddc4"
+        ]
+      },
+      "verde-cumple-texto": {
+        "role": "tertiary",
+        "displayName": "Verde Cumple Texto",
+        "canonical": "#15803d",
+        "tonalRamp": [
+          "#052e16",
+          "#08421f",
+          "#0d5e2c",
+          "#11803b",
+          "#15803d",
+          "#4bbd76",
+          "#8ad6a8",
+          "#cdeedb"
+        ]
+      },
+      "ambar-alerta-texto": {
+        "role": "tertiary",
+        "displayName": "Ámbar Alerta Texto",
+        "canonical": "#b45309",
+        "tonalRamp": [
+          "#3d2103",
+          "#5c3105",
+          "#7f4405",
+          "#92400e",
+          "#b45309",
+          "#e59a45",
+          "#eeba86",
+          "#f7ddc4"
+        ]
+      },
+      "rojo-cae-texto": {
+        "role": "tertiary",
+        "displayName": "Rojo Cae Texto",
+        "canonical": "#b91c1c",
+        "tonalRamp": [
+          "#3f0a0a",
+          "#5c0f0f",
+          "#7f1616",
+          "#a81d1d",
+          "#b91c1c",
+          "#e75f5f",
+          "#f09797",
+          "#f9d0d0"
+        ]
       }
     },
     "typographyMeta": {
-      "display": { "displayName": "Display", "purpose": "La cifra protagonista de una tarjeta KPI. Una sola por tarjeta." },
-      "headline": { "displayName": "Headline", "purpose": "Título de pantalla." },
-      "title": { "displayName": "Title", "purpose": "Título de tarjeta o sección." },
-      "body": { "displayName": "Body", "purpose": "Base del <body>. Casi no aparece: la interfaz vive uno o dos escalones abajo." },
-      "label": { "displayName": "Label", "purpose": "Texto de interfaz por defecto: botones, selects, celdas de acción." },
-      "dense-lg": { "displayName": "Dense LG", "purpose": "Texto de apoyo cuando la pantalla tiene aire: perfil, ayudas de administración." },
-      "dense": { "displayName": "Dense", "purpose": "El escalón más usado del sistema. Filas de tabla y metadatos." },
-      "dense-sm": { "displayName": "Dense SM", "purpose": "Segunda línea de una fila, unidades, textos de contexto." },
-      "micro": { "displayName": "Micro", "purpose": "Encabezados de columna y rótulos de unidad. Mayúsculas espaciadas." },
-      "micro-sm": { "displayName": "Micro SM", "purpose": "El piso absoluto. Sólo encabezados de tablas muy anchas." }
+      "display": {
+        "displayName": "Display",
+        "purpose": "La cifra protagonista de una tarjeta KPI. Una sola por tarjeta."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Título de pantalla."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Título de tarjeta o sección."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Base del <body>. Casi no aparece: la interfaz vive uno o dos escalones abajo."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Texto de interfaz por defecto: botones, selects, celdas de acción."
+      },
+      "dense-lg": {
+        "displayName": "Dense LG",
+        "purpose": "Texto de apoyo cuando la pantalla tiene aire: perfil, ayudas de administración."
+      },
+      "dense": {
+        "displayName": "Dense",
+        "purpose": "El escalón más usado del sistema. Filas de tabla y metadatos."
+      },
+      "dense-sm": {
+        "displayName": "Dense SM",
+        "purpose": "Segunda línea de una fila, unidades, textos de contexto."
+      },
+      "micro": {
+        "displayName": "Micro",
+        "purpose": "Encabezados de columna y rótulos de unidad. Mayúsculas espaciadas."
+      },
+      "micro-sm": {
+        "displayName": "Micro SM",
+        "purpose": "El piso absoluto. Sólo encabezados de tablas muy anchas."
+      }
     },
     "shadows": [
-      { "name": "reposo-tarjeta", "value": "0 20px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.05)", "purpose": "Halo difuso que despega la tarjeta del papel sin dibujar contorno." },
-      { "name": "nav-activa", "value": "0 4px 6px -1px rgba(59,130,246,0.2)", "purpose": "Sombra teñida bajo el ítem activo de la sidebar. Único caso con color." },
-      { "name": "etiqueta-mapa", "value": "0 2px 10px rgba(0,0,0,0.12)", "purpose": "Etiquetas de cuadrante flotando sobre el canvas de Leaflet." },
-      { "name": "etiqueta-mapa-hover", "value": "0 4px 16px rgba(0,0,0,0.18)", "purpose": "Hover de la etiqueta de cuadrante, junto a translateY(-1px)." },
-      { "name": "modal", "value": "0 8px 32px rgba(0,0,0,0.5)", "purpose": "Capa superior. Sombra deliberadamente pesada." }
+      {
+        "name": "reposo-tarjeta",
+        "value": "0 20px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.05)",
+        "purpose": "Halo difuso que despega la tarjeta del papel sin dibujar contorno."
+      },
+      {
+        "name": "nav-activa",
+        "value": "0 4px 6px -1px rgba(59,130,246,0.2)",
+        "purpose": "Sombra teñida bajo el ítem activo de la sidebar. Único caso con color."
+      },
+      {
+        "name": "etiqueta-mapa",
+        "value": "0 2px 10px rgba(0,0,0,0.12)",
+        "purpose": "Etiquetas de cuadrante flotando sobre el canvas de Leaflet."
+      },
+      {
+        "name": "etiqueta-mapa-hover",
+        "value": "0 4px 16px rgba(0,0,0,0.18)",
+        "purpose": "Hover de la etiqueta de cuadrante, junto a translateY(-1px)."
+      },
+      {
+        "name": "modal",
+        "value": "0 8px 32px rgba(0,0,0,0.5)",
+        "purpose": "Capa superior. Sombra deliberadamente pesada."
+      }
     ],
     "motion": [
-      { "name": "rise", "value": "0.65s cubic-bezier(0.22, 1, 0.36, 1) backwards", "purpose": "Entrada de pantalla. `backwards` y no `both`: con `both` queda un transform identidad pegado que crea containing-block y rompe el centrado de los modales fixed." },
-      { "name": "hover-tarjeta", "value": "200ms", "purpose": "Lift de dos píxeles más borde un paso más oscuro." },
-      { "name": "hover-nav", "value": "150ms", "purpose": "Cambio de fondo y texto en ítems de navegación." },
-      { "name": "pulse-dot", "value": "opacity 1 → 0.3 → 1", "purpose": "Punto de estado en carga o actividad en vivo." }
+      {
+        "name": "rise",
+        "value": "0.65s cubic-bezier(0.22, 1, 0.36, 1) backwards",
+        "purpose": "Entrada de pantalla. `backwards` y no `both`: con `both` queda un transform identidad pegado que crea containing-block y rompe el centrado de los modales fixed."
+      },
+      {
+        "name": "hover-tarjeta",
+        "value": "200ms",
+        "purpose": "Lift de dos píxeles más borde un paso más oscuro."
+      },
+      {
+        "name": "hover-nav",
+        "value": "150ms",
+        "purpose": "Cambio de fondo y texto en ítems de navegación."
+      },
+      {
+        "name": "pulse-dot",
+        "value": "opacity 1 → 0.3 → 1",
+        "purpose": "Punto de estado en carga o actividad en vivo."
+      }
     ],
     "breakpoints": [
-      { "name": "sm", "value": "640px" },
-      { "name": "md", "value": "768px" },
-      { "name": "lg", "value": "1024px" }
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      }
     ]
   },
   "components": [
@@ -158,15 +368,56 @@
       "Interfaz íntegramente en español rioplatense."
     ],
     "rules": [
-      { "name": "La Regla del Azul Táctil", "body": "Si algo es #0c5cab, se puede tocar. El azul nunca titula, nunca bordea una tarjeta de contenido, nunca decora un ícono y nunca pinta un fondo grande. Test: tapá el azul de una pantalla; todo lo que desaparezca tiene que ser algo en lo que el usuario puede hacer clic.", "section": "colors" },
-      { "name": "La Regla del Semáforo Sólo Sobre Datos", "body": "Verde, rojo y ámbar son lecturas de un número, no adornos de interfaz. Un botón nunca es verde por ser positivo; una tarjeta nunca es roja por ser importante. El color semántico se aplica al valor y a su ícono de tendencia, nada más.", "section": "colors" },
-      { "name": "La Regla del Número Monoespaciado", "body": "Todo dígito que el usuario pueda querer comparar contra otro va en JetBrains Mono con tabular-nums. Sin excepción: kilos, porcentajes, conteos de PDV, días trabajados, fechas. Un número en IBM Plex dentro de una columna es un bug de diseño.", "section": "typography" },
-      { "name": "La Regla del Rótulo en Mayúsculas", "body": "Por debajo de 11px sólo sobrevive el texto en mayúsculas con letter-spacing: 0.1em. Si un rótulo necesita ir a 9px, va en mayúsculas espaciadas o no va.", "section": "typography" },
-      { "name": "La Regla de los Enteros", "body": "El ramp sólo toma valores enteros: 22, 17, 15, 14, 13, 12, 11, 10 y 9px. Los medios-píxel que hay hoy en el código (8, 9.5, 10.5, 11.5, 12.5, 13.5px — unas 45 apariciones) son deriva, no escalones: nacieron de ajustar un caso puntual a ojo. Al tocar un componente, llevalos al entero más cercano.", "section": "typography" },
-      { "name": "La Regla del Ancho Mínimo", "body": "Una tabla densa no se adapta encogiendo columnas: se adapta desplazándose. Todo contenedor de tabla lleva overflow-x-auto y la tabla un min-width explícito. El que manda es el min-width: sin él, table-fixed w-full reparte el ancho disponible en partes iguales y colapsa las columnas de cifras a un ancho ilegible. Con él, table-fixed es deseable —fija las columnas y evita que el navegador las reacomode al llegar más datos—, y así lo usan hoy las seis tablas del dashboard. Lo prohibido es table-fixed w-full sin min-width, no table-fixed.", "section": "layout" },
-      { "name": "La Regla de la Sombra que Separa", "body": "La sombra existe para despegar una superficie de la de atrás, nunca para darle importancia. Si dos elementos están en el mismo plano, tienen la misma sombra, sin importar cuál es más relevante.", "section": "elevation" },
-      { "name": "La Regla del Lift de Dos Píxeles", "body": "El hover de una tarjeta interactiva es siempre el mismo gesto: translateY(-2px) más el borde de #e4e4e7 a #d4d4d8, en 200ms. No cambia el fondo, no crece la sombra, no aparece color.", "section": "elevation" },
-      { "name": "La Regla de la Escala de Cuatro", "body": "El radio sólo puede tomar cuatro valores: 6, 8, 10 y 16px. Los valores intermedios que hoy existen en el código (3, 4, 5, 7, 9, 12px) son deriva histórica, no vocabulario: al tocar un componente, redondealo al escalón más cercano de la escala.", "section": "shapes" }
+      {
+        "name": "La Regla del Azul Táctil",
+        "body": "Si algo es #0c5cab, se puede tocar. El azul nunca titula, nunca bordea una tarjeta de contenido, nunca decora un ícono y nunca pinta un fondo grande. Test: tapá el azul de una pantalla; todo lo que desaparezca tiene que ser algo en lo que el usuario puede hacer clic.",
+        "section": "colors"
+      },
+      {
+        "name": "La Regla del Semáforo Sólo Sobre Datos",
+        "body": "Verde, rojo y ámbar son lecturas de un número, no adornos de interfaz. Un botón nunca es verde por ser positivo; una tarjeta nunca es roja por ser importante. El color semántico se aplica al valor y a su ícono de tendencia, nada más.",
+        "section": "colors"
+      },
+      {
+        "name": "La Regla del Número Monoespaciado",
+        "body": "Todo dígito que el usuario pueda querer comparar contra otro va en JetBrains Mono con tabular-nums. Sin excepción: kilos, porcentajes, conteos de PDV, días trabajados, fechas. Un número en IBM Plex dentro de una columna es un bug de diseño.",
+        "section": "typography"
+      },
+      {
+        "name": "La Regla del Rótulo en Mayúsculas",
+        "body": "Por debajo de 11px sólo sobrevive el texto en mayúsculas con letter-spacing: 0.1em. Si un rótulo necesita ir a 9px, va en mayúsculas espaciadas o no va.",
+        "section": "typography"
+      },
+      {
+        "name": "La Regla de los Enteros",
+        "body": "El ramp sólo toma valores enteros: 22, 17, 15, 14, 13, 12, 11, 10 y 9px. Los medios-píxel que hay hoy en el código (8, 9.5, 10.5, 11.5, 12.5, 13.5px — unas 45 apariciones) son deriva, no escalones: nacieron de ajustar un caso puntual a ojo. Al tocar un componente, llevalos al entero más cercano.",
+        "section": "typography"
+      },
+      {
+        "name": "La Regla del Ancho Mínimo",
+        "body": "Una tabla densa no se adapta encogiendo columnas: se adapta desplazándose. Todo contenedor de tabla lleva overflow-x-auto y la tabla un min-width explícito. El que manda es el min-width: sin él, table-fixed w-full reparte el ancho disponible en partes iguales y colapsa las columnas de cifras a un ancho ilegible. Con él, table-fixed es deseable —fija las columnas y evita que el navegador las reacomode al llegar más datos—, y así lo usan hoy las seis tablas del dashboard. Lo prohibido es table-fixed w-full sin min-width, no table-fixed.",
+        "section": "layout"
+      },
+      {
+        "name": "La Regla de la Sombra que Separa",
+        "body": "La sombra existe para despegar una superficie de la de atrás, nunca para darle importancia. Si dos elementos están en el mismo plano, tienen la misma sombra, sin importar cuál es más relevante.",
+        "section": "elevation"
+      },
+      {
+        "name": "La Regla del Lift de Dos Píxeles",
+        "body": "El hover de una tarjeta interactiva es siempre el mismo gesto: translateY(-2px) más el borde de #e4e4e7 a #d4d4d8, en 200ms. No cambia el fondo, no crece la sombra, no aparece color.",
+        "section": "elevation"
+      },
+      {
+        "name": "La Regla de la Escala de Cuatro",
+        "body": "El radio sólo puede tomar cuatro valores: 6, 8, 10 y 16px. Los valores intermedios que hoy existen en el código (3, 4, 5, 7, 9, 12px) son deriva histórica, no vocabulario: al tocar un componente, redondealo al escalón más cercano de la escala.",
+        "section": "shapes"
+      },
+      {
+        "name": "La Regla de las Dos Variantes",
+        "body": "Cada semantico tiene dos variantes con roles fijos: el tono pleno pinta (relleno, marcador, trazo, tinte) y la variante profunda escribe. El tono pleno da entre 3.0 y 4.4:1 sobre los fondos del sistema y reprueba WCAG AA como texto; la profunda pasa 4.5:1 en el peor fondo. Si una funcion devuelve un color que se usa como relleno y como texto, se parte en dos.",
+        "section": "colors"
+      }
     ],
     "dos": [
       "Do poner todo dígito comparable en JetBrains Mono con tabular-nums.",

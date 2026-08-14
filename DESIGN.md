@@ -185,11 +185,29 @@ marca la acción, y tres colores semánticos que sólo aparecen sobre datos.
 - **Borde** (`#e4e4e7`) y **Borde Activo** (`#d4d4d8`): un solo escalón de contraste separa el borde en reposo del borde en hover.
 
 ### Tertiary — semánticos de dato
-- **Verde Cumple** (`#16a34a`): variación positiva, meta alcanzada, PDV visitado.
-- **Rojo Cae** (`#dc2626`): variación negativa, error de validación, acción destructiva, cerrar sesión en hover.
-- **Ámbar Alerta** (`#d97706`), profundo `#b45309`: advertencia y datos incompletos (cuadrante que nombra otro día, vendedor sin equipo).
 
-#### Contraste medido (deuda abierta)
+Cada semántico tiene **dos variantes con roles fijos**: el tono pleno pinta, la
+variante profunda escribe. No son dos versiones del mismo color a elección —
+son dos roles, y mezclarlos es el error que la regla de abajo previene.
+
+| Semántico | Relleno, marcador, trazo, tinte | Texto |
+|---|---|---|
+| **Verde Cumple** | `#16a34a` | **`#15803d`** |
+| **Ámbar Alerta** | `#d97706` | **`#b45309`** |
+| **Rojo Cae** | `#dc2626` | **`#b91c1c`** |
+
+- **Verde Cumple**: variación positiva, meta alcanzada, PDV visitado.
+- **Rojo Cae**: variación negativa, error de validación, acción destructiva, cerrar sesión en hover.
+- **Ámbar Alerta**: advertencia y datos incompletos (cuadrante que nombra otro día, vendedor sin equipo).
+
+**La Regla de las Dos Variantes.** El tono pleno da entre 3.0 y 4.4:1 sobre los
+fondos del sistema: sirve para una superficie o un marcador, y reprueba WCAG AA
+como texto. La variante profunda pasa 4.5:1 en el peor fondo. Si una función
+devuelve un color que se usa como relleno *y* como texto, se parte en dos —ver
+`radarColor` / `radarTextColor` en `TrendChart`, y `avanceColor`, que devuelve
+la variante profunda para el texto y el tono pleno para el fondo tintado.
+
+#### Contraste medido
 
 Medido en navegador sobre los tres fondos del sistema. El mínimo de WCAG AA
 para texto normal es 4.5:1; para texto ≥24px, o ≥18.7px en negrita, es 3:1.
@@ -201,15 +219,16 @@ para texto normal es 4.5:1; para texto ≥24px, o ≥18.7px en negrita, es 3:1.
 | Rojo Cae `#dc2626` | 4.83 ✓ | 4.63 ✓ | 4.39 ✗ |
 | Gris Rótulo `#71717a` | 4.83 ✓ | 4.63 ✓ | 4.40 ✗ |
 
-**Verde y ámbar reprueban en los tres fondos**, y es justo donde más duele:
-se aplican a las variaciones porcentuales de 10–12px, que son el dato central
-del producto. Rojo y gris pasan salvo sobre la superficie hundida, que es el
-fondo de los encabezados de tabla.
+Esa tabla es la razón de ser de las dos variantes: los tonos plenos se
+aplicaban a las variaciones porcentuales de 10–12px, que son el dato central
+del producto. **Ya está corregido** — el texto usa las variantes profundas
+(`#15803d` 4.56, `#b45309` 4.57, `#b91c1c` 5.94 en el peor fondo) y los
+rellenos conservan el tono pleno, así que el aspecto no cambió.
 
-Reemplazos que pasan 4.5:1 en el peor fondo, si se decide corregirlo:
-`#16a34a → #15803d` (4.56) o `#166534` (6.49); `#d97706 → #b45309` (4.57),
-que ya es un token del sistema; `#dc2626 → #b91c1c` si se quiere cubrir
-también el caso de la celda hundida.
+Queda abierto un solo caso: **Gris Rótulo `#71717a` a 4.40:1 sobre la
+superficie hundida**, que es el fondo de los encabezados de tabla. Falla por
+0.10. Se resuelve pasando esos encabezados a `#52525b` o dándoles fondo
+blanco; ninguna de las dos es urgente.
 
 La paleta de cuadrantes (`COLORES_CUADRANTE` y los colores por día de
 Planificación) tiene el mismo problema cuando se usa como color de texto y no
