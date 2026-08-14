@@ -220,7 +220,10 @@ export function Sidebar({
             onClick={handleSignOut}
             title="Cerrar sesión"
             aria-label="Cerrar sesión"
-            className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 text-[#71717a] hover:text-[#dc2626] transition-all shrink-0"
+            // El ícono mide 13px y el botón no tenía padding: 13x13 de área
+            // táctil, contra los 24x24 que pide WCAG 2.5.8. Cerrar sesión es
+            // además de las que no querés errarle ni acertarle sin querer.
+            className="w-6 h-6 -mr-1 flex items-center justify-center opacity-100 lg:opacity-0 lg:group-hover:opacity-100 text-[#71717a] hover:text-[#dc2626] transition-all shrink-0"
           >
             <SignOutIcon />
           </button>
