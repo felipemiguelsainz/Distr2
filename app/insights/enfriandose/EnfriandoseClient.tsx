@@ -127,7 +127,7 @@ export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores:
           <RefreshCw className="w-4 h-4 animate-spin" /> Calculando…
         </div>
       ) : clientes.length === 0 ? (
-        <p className="text-sm text-gray-400 py-6">No hay clientes enfriándose en este alcance.</p>
+        <p className="text-sm text-[#71717a] py-6">No hay clientes enfriándose en este alcance.</p>
       ) : (
         <>
         {/* ── Mobile: tarjetas ────────────────────────────────────────────
@@ -159,15 +159,15 @@ export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores:
                 <div className="flex items-baseline gap-1.5 mt-2">
                   <span className={`text-[17px] font-bold tabular-nums leading-none ${s.text}`}>{c.dias_sin}</span>
                   <span className="text-[12px] text-gray-500">días sin comprar</span>
-                  <span className="text-[11px] text-gray-400 ml-auto tabular-nums">compra cada {c.cadencia_dias} d</span>
+                  <span className="text-[11px] text-[#71717a] ml-auto tabular-nums">compra cada {c.cadencia_dias} d</span>
                 </div>
 
                 <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-gray-100">
                   <p className="text-[12px] text-gray-700 tabular-nums">
                     <span className="font-semibold text-gray-900">{fmtPesos(c.valor_mensual)}</span>
-                    <span className="text-gray-400"> · </span>
+                    <span className="text-[#a1a1aa]"> · </span>
                     {fmtKg(c.kg_mensual ?? 0)}
-                    <span className="text-gray-400 text-[11px]"> /mes</span>
+                    <span className="text-[#71717a] text-[11px]"> /mes</span>
                   </p>
                   <a
                     href={`/mapa?pdvs=${c.pdv_id}${c.cartera ? `&vendedor=${encodeURIComponent(c.cartera)}` : ''}`}

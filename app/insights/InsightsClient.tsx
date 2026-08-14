@@ -181,7 +181,8 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
                   <Icon className={`w-4 h-4 ${c.ic}`} />
                 </div>
                 <p className={`text-3xl sm:text-4xl font-bold tabular-nums mt-1 ${c.num}`}>{c.val}</p>
-                {c.sub && <p className="text-[11px] text-red-500 font-medium mt-0.5">{c.sub}</p>}
+                {/* Rojo Cae del sistema (4.83:1) y no red-500 (3.81:1, reprueba AA). */}
+                {c.sub && <p className="text-[11px] text-[#dc2626] font-medium mt-0.5">{c.sub}</p>}
               </div>
             );
           })}
@@ -206,7 +207,7 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
       {/* Tendencia vs año pasado (por rubro, a igual día del mes) */}
       {d && (d.tendencia ?? []).some((a) => a.pct != null) && (
         <div className="mb-6 bg-white rounded-2xl border border-[#e4e4e7] shadow-xl shadow-black/5 px-5 py-3.5">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Tendencia vs año pasado <span className="normal-case font-normal text-gray-400">(a igual día del mes)</span></p>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Tendencia vs año pasado <span className="normal-case font-normal text-[#71717a]">(a igual día del mes)</span></p>
           <div className="flex flex-wrap gap-2">
             {(d.tendencia ?? []).filter((a) => a.pct != null).map((a) => {
               const up = (a.pct as number) >= 0;
@@ -236,7 +237,7 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
         <div className="flex flex-col items-center gap-2 text-center py-12 px-4">
           <Clock className="w-7 h-7 text-gray-300" />
           <p className="text-sm font-medium text-gray-600">El análisis de este alcance todavía no está disponible.</p>
-          <p className="text-xs text-gray-400 max-w-sm">Se genera automáticamente cada mañana. Si recién cargaste datos, va a aparecer en la próxima corrida.</p>
+          <p className="text-xs text-[#71717a] max-w-sm">Se genera automáticamente cada mañana. Si recién cargaste datos, va a aparecer en la próxima corrida.</p>
         </div>
       )}
 
@@ -244,7 +245,7 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
       {payload && (
         <div className="space-y-3">
           {payload.cards.length === 0 ? (
-            <p className="text-sm text-gray-400">No hay acciones sugeridas para este período.</p>
+            <p className="text-sm text-[#71717a]">No hay acciones sugeridas para este período.</p>
           ) : (() => {
             const clientes = new Map<number, ClienteRef>(
               [
@@ -278,7 +279,7 @@ function ActionCard({ card, when, vendedor, clientes }: { card: InsightCard; whe
             <Icon className="w-4 h-4" style={{ color: cfg.color }} />
           </span>
           <span className="text-xs font-semibold tracking-wide" style={{ color: cfg.color }}>{card.tipo}</span>
-          {when && <span className="text-xs text-gray-400">• {when}</span>}
+          {when && <span className="text-xs text-[#71717a]">• {when}</span>}
         </div>
 
         <p className={`text-base font-semibold text-gray-900 ${done ? 'line-through' : ''}`}>{card.accion}</p>
@@ -323,7 +324,7 @@ function ActionCard({ card, when, vendedor, clientes }: { card: InsightCard; whe
                 <ol className="space-y-1">
                   {card.pasos.map((p, j) => (
                     <li key={j} className="text-sm text-gray-700 flex gap-2">
-                      <span className="font-semibold text-gray-400">{j + 1}.</span>
+                      <span className="font-semibold text-[#71717a]">{j + 1}.</span>
                       <span>{p}</span>
                     </li>
                   ))}
@@ -344,7 +345,7 @@ function ActionCard({ card, when, vendedor, clientes }: { card: InsightCard; whe
                       </span>
                       {c.valor_mensual > 0 && (
                         <span className="shrink-0 text-xs font-semibold text-gray-700" title="Facturaba por mes">
-                          {fmtPesos(c.valor_mensual)}<span className="text-gray-400 font-normal">/mes</span>
+                          {fmtPesos(c.valor_mensual)}<span className="text-[#71717a] font-normal">/mes</span>
                         </span>
                       )}
                     </div>

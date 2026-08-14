@@ -189,6 +189,31 @@ marca la acción, y tres colores semánticos que sólo aparecen sobre datos.
 - **Rojo Cae** (`#dc2626`): variación negativa, error de validación, acción destructiva, cerrar sesión en hover.
 - **Ámbar Alerta** (`#d97706`), profundo `#b45309`: advertencia y datos incompletos (cuadrante que nombra otro día, vendedor sin equipo).
 
+#### Contraste medido (deuda abierta)
+
+Medido en navegador sobre los tres fondos del sistema. El mínimo de WCAG AA
+para texto normal es 4.5:1; para texto ≥24px, o ≥18.7px en negrita, es 3:1.
+
+| Token | sobre `#ffffff` | sobre `#fafafa` | sobre `#f4f4f5` |
+|---|---|---|---|
+| Verde Cumple `#16a34a` | 3.30 ✗ | 3.16 ✗ | 3.00 ✗ |
+| Ámbar Alerta `#d97706` | 3.19 ✗ | 3.05 ✗ | 2.90 ✗ |
+| Rojo Cae `#dc2626` | 4.83 ✓ | 4.63 ✓ | 4.39 ✗ |
+| Gris Rótulo `#71717a` | 4.83 ✓ | 4.63 ✓ | 4.40 ✗ |
+
+**Verde y ámbar reprueban en los tres fondos**, y es justo donde más duele:
+se aplican a las variaciones porcentuales de 10–12px, que son el dato central
+del producto. Rojo y gris pasan salvo sobre la superficie hundida, que es el
+fondo de los encabezados de tabla.
+
+Reemplazos que pasan 4.5:1 en el peor fondo, si se decide corregirlo:
+`#16a34a → #15803d` (4.56) o `#166534` (6.49); `#d97706 → #b45309` (4.57),
+que ya es un token del sistema; `#dc2626 → #b91c1c` si se quiere cubrir
+también el caso de la celda hundida.
+
+No está corregido: cambiar la paleta semántica altera el aspecto de todos los
+dashboards a la vez y es una decisión de identidad, no un arreglo mecánico.
+
 ### Named Rules
 
 **La Regla del Azul Táctil.** Si algo es `#0c5cab`, se puede tocar. El azul nunca
