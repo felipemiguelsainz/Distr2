@@ -108,10 +108,24 @@ export default async function SupervisorMetasPage({
           </Suspense>
         </div>
 
-        {/* Qué es y para qué sirve */}
-        <div className="rounded-2xl border border-[rgba(12,92,171,0.2)] bg-[rgba(12,92,171,0.04)] px-5 py-4 text-[13px] text-[#27272a]">
-          <p className="font-semibold text-[#0c5cab] mb-1.5">¿Qué son las Metas CCC?</p>
-          <p className="mb-2">
+        {/* Qué es y para qué sirve.
+
+            Va en un <details> nativo y colapsado: son 15 líneas de prosa que en
+            un teléfono ocupaban la pantalla entera y dejaban la tabla —que es la
+            herramienta— abajo del pliegue. Es material de referencia que se lee
+            una vez, no cada vez que entrás a cargar metas. Nativo y no un
+            componente propio: trae el toggle, el foco y el rol ARIA gratis. */}
+        <details className="group rounded-2xl border border-[rgba(12,92,171,0.2)] bg-[rgba(12,92,171,0.04)] px-5 py-4 text-[13px] text-[#27272a]">
+          <summary className="flex items-center gap-2 cursor-pointer list-none font-semibold text-[#0c5cab] [&::-webkit-details-marker]:hidden">
+            <svg
+              className="w-3.5 h-3.5 shrink-0 transition-transform duration-200 group-open:rotate-90"
+              viewBox="0 0 12 12" fill="none" aria-hidden="true"
+            >
+              <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            ¿Qué son las Metas CCC?
+          </summary>
+          <p className="mb-2 mt-2.5">
             <strong>CCC = Clientes que Compraron.</strong> La meta CCC es la <strong>cantidad de clientes (PDVs)</strong> que
             querés que le compren a cada vendedor en el mes: una <strong>meta total</strong> (cuántos de sus clientes deberían
             comprar algo) y, derivada de ella, una meta <strong>por rubro</strong> (cuántos deberían comprar chocolates,
@@ -122,7 +136,7 @@ export default async function SupervisorMetasPage({
             <li>Editás sólo la <strong>meta total</strong>; las de rubro se recalculan por cascadeo (badge <span className="text-[#0c5cab] font-semibold">editada</span> cuando la tocaste).</li>
             <li>El <strong>avance</strong> (clientes que efectivamente compraron vs la meta) se ve en el dashboard, en la tabla de clientes.</li>
           </ul>
-        </div>
+        </details>
 
         {filas.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[#e4e4e7] py-14 text-center text-[14px] text-[#71717a]">
