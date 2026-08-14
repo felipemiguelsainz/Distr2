@@ -15,7 +15,7 @@ export function CccCard({ data }: { data: CccData }) {
           <p className="text-[12px] text-[#71717a] mt-1">Mes actual</p>
         </div>
         <div className="pb-0.5">
-          <p className={`text-[15px] font-semibold ${isPositive ? 'text-[#16a34a]' : 'text-[#dc2626]'}`}>
+          <p className={`text-[15px] font-semibold ${isPositive ? 'text-[#15803d]' : 'text-[#dc2626]'}`}>
             {isPositive ? '+' : ''}{data.variacion.toFixed(1)}%
           </p>
           <p className="text-[11px] text-[#71717a]">vs mes anterior ({data.mes_anterior})</p>

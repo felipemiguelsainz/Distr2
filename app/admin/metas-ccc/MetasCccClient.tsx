@@ -98,7 +98,7 @@ export function MetasCccClient({
         </p>
         <div className="flex items-center gap-3 ml-auto">
           {error && <span className="text-[12px] text-[#dc2626]">{error}</span>}
-          {msg && <span className="text-[12px] text-[#16a34a] font-medium">{msg}</span>}
+          {msg && <span className="text-[12px] text-[#15803d] font-medium">{msg}</span>}
           <button
             onClick={guardar}
             disabled={saving || dirty.size === 0}

@@ -57,7 +57,7 @@ export function PasswordChangeForm({
         <p className="text-[13px] text-[#dc2626] bg-[#dc2626]/[0.08] border border-[#dc2626]/20 px-3 py-2 rounded-[8px]">{error}</p>
       )}
       {ok && (
-        <p className="text-[13px] text-[#16a34a] bg-[#16a34a]/[0.08] border border-[#16a34a]/20 px-3 py-2 rounded-[8px]">Contraseña actualizada.</p>
+        <p className="text-[13px] text-[#15803d] bg-[#16a34a]/[0.08] border border-[#16a34a]/20 px-3 py-2 rounded-[8px]">Contraseña actualizada.</p>
       )}
 
       {requireCurrent && (

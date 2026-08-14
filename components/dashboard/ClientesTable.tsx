@@ -4,7 +4,7 @@ import { avanceColor, formatPctPlain } from '@/lib/calculations/dashboard';
 const MONO = { fontFamily: "'JetBrains Mono', monospace" };
 
 function signedColor(pct: number) {
-  if (pct >= 5)  return 'text-[#16a34a]';
+  if (pct >= 5)  return 'text-[#15803d]';
   if (pct >= -5) return 'text-[#71717a]';
   return 'text-[#dc2626]';
 }
@@ -197,9 +197,9 @@ export function ClientesTable({
                     <span
                       className={`tabular-nums font-semibold ${
                         row.penetracion_pct >= 70
-                          ? 'text-[#16a34a]'
+                          ? 'text-[#15803d]'
                           : row.penetracion_pct >= 40
-                            ? 'text-[#d97706]'
+                            ? 'text-[#b45309]'
                             : 'text-[#dc2626]'
                       }`}
                       style={MONO}

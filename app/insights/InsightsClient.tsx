@@ -32,11 +32,15 @@ function fmtPesos(n: number): string {
 }
 
 // Config visual por tipo de card (paleta del proyecto).
+// `color` se aplica como color de TEXTO en la etiqueta del tipo, así que usa
+// las variantes profundas: #16a34a y #d97706 dan 3.30:1 y 3.19:1 sobre estos
+// fondos y reprueban WCAG AA. Los `bg` y los `border` conservan el tono
+// original, que es de donde sale el aspecto de la tarjeta.
 const TIPO_CFG: Record<CardTipo, { icon: typeof RefreshCw; color: string; bg: string; border: string }> = {
-  'RECUPERACIÓN': { icon: RefreshCw,     color: '#d97706', bg: 'bg-amber-50',   border: 'border-l-amber-500' },
-  'CRECIMIENTO':  { icon: TrendingUp,    color: '#16a34a', bg: 'bg-green-50',   border: 'border-l-green-500' },
+  'RECUPERACIÓN': { icon: RefreshCw,     color: '#b45309', bg: 'bg-amber-50',   border: 'border-l-amber-500' },
+  'CRECIMIENTO':  { icon: TrendingUp,    color: '#15803d', bg: 'bg-green-50',   border: 'border-l-green-500' },
   'COBERTURA':    { icon: MapPin,        color: '#0c5cab', bg: 'bg-blue-50',    border: 'border-l-blue-500' },
-  'ALERTA':       { icon: AlertTriangle, color: '#dc2626', bg: 'bg-red-50',     border: 'border-l-red-500' },
+  'ALERTA':       { icon: AlertTriangle, color: '#b91c1c', bg: 'bg-red-50',     border: 'border-l-red-500' },
 };
 
 function hace(iso: string | null): string {

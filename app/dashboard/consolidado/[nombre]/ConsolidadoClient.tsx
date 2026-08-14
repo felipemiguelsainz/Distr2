@@ -237,7 +237,7 @@ function CccVendedorTable({ data, metaByVendedor }: { data: CccRow[]; metaByVend
   const totAnt  = sorted.reduce((s, r) => s + r.mes_anterior, 0);
   const totMeta = sorted.reduce((s, r) => s + (metaByVendedor[r.vendedor] ?? 0), 0);
   const totVar  = totAnt > 0 ? ((totAct - totAnt) / totAnt) * 100 : 0;
-  const totColor = totVar > 0 ? 'text-[#16a34a]' : totVar < 0 ? 'text-[#dc2626]' : 'text-[#71717a]';
+  const totColor = totVar > 0 ? 'text-[#15803d]' : totVar < 0 ? 'text-[#dc2626]' : 'text-[#71717a]';
   const totCumpl = totMeta > 0 ? (totAct / totMeta) * 100 : null;
 
   return (
@@ -255,7 +255,7 @@ function CccVendedorTable({ data, metaByVendedor }: { data: CccRow[]; metaByVend
         </thead>
         <tbody className="divide-y divide-[#e4e4e7]">
           {sorted.map((r) => {
-            const color = r.variacion_pct > 0 ? 'text-[#16a34a]' : r.variacion_pct < 0 ? 'text-[#dc2626]' : 'text-[#71717a]';
+            const color = r.variacion_pct > 0 ? 'text-[#15803d]' : r.variacion_pct < 0 ? 'text-[#dc2626]' : 'text-[#71717a]';
             const meta  = metaByVendedor[r.vendedor] ?? 0;
             const cumpl = meta > 0 ? (r.mes_actual / meta) * 100 : null;
             return (

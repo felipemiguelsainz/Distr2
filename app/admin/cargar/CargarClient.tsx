@@ -137,7 +137,7 @@ function VentasPreviewModal({
                   <td className="px-3 py-2 font-medium text-[#27272a]">{m.label}</td>
                   <td className="px-3 py-2">
                     {m.excelCol
-                      ? <span className="text-[#16a34a] font-medium">{m.excelCol}</span>
+                      ? <span className="text-[#15803d] font-medium">{m.excelCol}</span>
                       : <span className="text-[#dc2626]">No encontrado</span>}
                   </td>
                   <td className="px-3 py-2 text-[#71717a]">{m.value || '—'}</td>
@@ -297,12 +297,12 @@ function ResultBanner({ result, type }: { result: unknown; type: 'ventas' | 'pdv
     const r = result as VentasUploadResult;
     return (
       <div className={`${baseCard} bg-[#16a34a]/[0.06] border-[#16a34a]/20`}>
-        <p className="font-semibold text-[#16a34a] mb-1">Carga completada</p>
+        <p className="font-semibold text-[#15803d] mb-1">Carga completada</p>
         <p className="text-[#27272a]">Insertados: <strong>{r.inserted}</strong> | Duplicados omitidos: <strong>{r.skipped}</strong></p>
         <p className="text-[#71717a] mt-0.5">Fechas afectadas: {r.fechas_afectadas.join(', ')}</p>
         {r.resumen_warning && (
           <div className="mt-2 p-2.5 rounded-xl bg-[#d97706]/[0.08] border border-[#d97706]/20">
-            <p className="text-[#d97706] font-semibold">Advertencia</p>
+            <p className="text-[#b45309] font-semibold">Advertencia</p>
             <p className="text-[#27272a] mt-0.5">{r.resumen_warning}</p>
           </div>
         )}
@@ -319,7 +319,7 @@ function ResultBanner({ result, type }: { result: unknown; type: 'ventas' | 'pdv
     const r = result as PdvsUploadResult;
     return (
       <div className={`${baseCard} bg-[#16a34a]/[0.06] border-[#16a34a]/20`}>
-        <p className="font-semibold text-[#16a34a] mb-1">Clientes actualizados</p>
+        <p className="font-semibold text-[#15803d] mb-1">Clientes actualizados</p>
         <p className="text-[#27272a]">
           Total: {r.total} | Nuevos: {r.inserted} | Actualizados: {r.updated}
           {r.deactivated > 0 && <> | <span className="text-[#dc2626]">Dados de baja: {r.deactivated}</span></>}
@@ -327,7 +327,7 @@ function ResultBanner({ result, type }: { result: unknown; type: 'ventas' | 'pdv
         </p>
         {r.reasignaciones.length > 0 && (
           <div className="mt-2">
-            <p className="font-semibold text-[#d97706]">{r.reasignaciones.length} reasignación/es de cartera:</p>
+            <p className="font-semibold text-[#b45309]">{r.reasignaciones.length} reasignación/es de cartera:</p>
             <ul className="mt-1 space-y-0.5">
               {r.reasignaciones.map((ra, i) => (
                 <li key={i} className="text-[#71717a]">
@@ -344,7 +344,7 @@ function ResultBanner({ result, type }: { result: unknown; type: 'ventas' | 'pdv
     const r = result as MaestrosUploadResult;
     return (
       <div className={`${baseCard} bg-[#16a34a]/[0.06] border-[#16a34a]/20`}>
-        <p className="font-semibold text-[#16a34a] mb-1">Maestro actualizado</p>
+        <p className="font-semibold text-[#15803d] mb-1">Maestro actualizado</p>
         <p className="text-[#27272a]">Vendedores cargados: <strong>{r.vendedores_upserted}</strong></p>
       </div>
     );
@@ -353,10 +353,10 @@ function ResultBanner({ result, type }: { result: unknown; type: 'ventas' | 'pdv
     const r = result as GeoUploadResult;
     return (
       <div className={`${baseCard} bg-[#16a34a]/[0.06] border-[#16a34a]/20`}>
-        <p className="font-semibold text-[#16a34a] mb-1">Geolocalización actualizada</p>
+        <p className="font-semibold text-[#15803d] mb-1">Geolocalización actualizada</p>
         <p className="text-[#27272a]">
           <strong>{r.upserted}</strong> PDVs actualizados
-          {r.corrected > 0 && <span className="text-[#d97706]">, {r.corrected} corregidos al centro de su localidad</span>}
+          {r.corrected > 0 && <span className="text-[#b45309]">, {r.corrected} corregidos al centro de su localidad</span>}
           {r.skipped_no_coords > 0 && <span className="text-[#71717a]">, {r.skipped_no_coords} ignorados sin coordenadas</span>}
           {r.skipped_orphans  > 0 && <span className="text-[#71717a]">, {r.skipped_orphans} ignorados (PDV no encontrado en base)</span>}
         </p>
@@ -750,7 +750,7 @@ export function CargarClient() {
           </button>
         </div>
         {borrarResult && (
-          <p className={`mt-3 text-[13px] px-3 py-2 rounded-[10px] border ${borrarResult.startsWith('✓') ? 'text-[#16a34a] bg-[#16a34a]/[0.08] border-[#16a34a]/20' : 'text-[#dc2626] bg-[#dc2626]/[0.08] border-[#dc2626]/20'}`}>
+          <p className={`mt-3 text-[13px] px-3 py-2 rounded-[10px] border ${borrarResult.startsWith('✓') ? 'text-[#15803d] bg-[#16a34a]/[0.08] border-[#16a34a]/20' : 'text-[#dc2626] bg-[#dc2626]/[0.08] border-[#dc2626]/20'}`}>
             {borrarResult}
           </p>
         )}

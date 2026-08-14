@@ -154,7 +154,7 @@ export function MetasClient({ defaultAnio, defaultMes, vendedores = [] }: { defa
                       />
                       <span className="text-[12px] text-[#27272a] truncate" title={v.nombre}>{v.nombre}</span>
                       {v.sinSupervisor && (
-                        <span className="text-[9px] font-semibold uppercase px-1.5 py-px rounded-full shrink-0 bg-[rgba(217,119,6,0.1)] text-[#d97706] border border-[rgba(217,119,6,0.2)]" style={{fontFamily: "'JetBrains Mono', monospace"}}>
+                        <span className="text-[9px] font-semibold uppercase px-1.5 py-px rounded-full shrink-0 bg-[rgba(217,119,6,0.1)] text-[#b45309] border border-[rgba(217,119,6,0.2)]" style={{fontFamily: "'JetBrains Mono', monospace"}}>
                           sin sup.
                         </span>
                       )}
@@ -221,7 +221,7 @@ export function MetasClient({ defaultAnio, defaultMes, vendedores = [] }: { defa
             >
               {saving ? 'Guardando...' : 'Guardar metas'}
             </button>
-            {savedMsg && <span className="text-[12px] text-[#16a34a] font-medium">{savedMsg}</span>}
+            {savedMsg && <span className="text-[12px] text-[#15803d] font-medium">{savedMsg}</span>}
           </div>
         </section>
       )}
@@ -234,7 +234,7 @@ function RubroCard({ preview }: { preview: MetaPreviewRubro }) {
   const isMondelez = preview.origen === 'mondelez';
   const badgeCls = isMondelez
     ? 'bg-[rgba(12,92,171,0.1)] text-[#0c5cab] border border-[rgba(12,92,171,0.2)]'
-    : 'bg-[rgba(217,119,6,0.1)] text-[#d97706] border border-[rgba(217,119,6,0.2)]';
+    : 'bg-[rgba(217,119,6,0.1)] text-[#b45309] border border-[rgba(217,119,6,0.2)]';
 
   return (
     <div className="rounded-xl border border-[#e4e4e7] overflow-hidden">

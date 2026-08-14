@@ -166,7 +166,7 @@ export function UsuariosClient({ supervisores, vendedores, currentUserId }: Prop
       {/* Contraseña temporal — se muestra una sola vez */}
       {tempPassword && (
         <div className="bg-[#16a34a]/[0.06] border border-[#16a34a]/30 rounded-2xl px-5 py-4">
-          <p className="text-[13px] font-semibold text-[#16a34a] mb-1">Cuenta creada para {tempPassword.email}</p>
+          <p className="text-[13px] font-semibold text-[#15803d] mb-1">Cuenta creada para {tempPassword.email}</p>
           <p className="text-[12px] text-[#71717a] mb-2">
             Compartí esta contraseña temporal con el usuario. <strong>No se vuelve a mostrar.</strong> Se le pedirá cambiarla en el primer ingreso.
           </p>
@@ -269,7 +269,7 @@ export function UsuariosClient({ supervisores, vendedores, currentUserId }: Prop
                         <span className="text-[10px] font-semibold text-[#dc2626] bg-[#dc2626]/[0.1] px-1.5 py-0.5 rounded-full">Inactivo</span>
                       )}
                       {u.must_change_password && (
-                        <span className="text-[10px] font-semibold text-[#d97706] bg-[#d97706]/[0.1] px-1.5 py-0.5 rounded-full">Pass temporal</span>
+                        <span className="text-[10px] font-semibold text-[#b45309] bg-[#d97706]/[0.1] px-1.5 py-0.5 rounded-full">Pass temporal</span>
                       )}
                       {u.ve_empresa && u.rol !== 'admin' && (
                         <span className="text-[10px] font-semibold text-[#0c5cab] bg-[#0c5cab]/[0.1] px-1.5 py-0.5 rounded-full">Ve toda la empresa</span>

@@ -151,8 +151,8 @@ interface AvanceBarChartProps {
 }
 
 function trackColor(pct: number) {
-  if (pct >= 95) return { bar: '#16a34a', ghost: '#16a34a20', text: 'text-[#16a34a]' };
-  if (pct >= 75) return { bar: '#d97706', ghost: '#d9770620', text: 'text-[#d97706]' };
+  if (pct >= 95) return { bar: '#16a34a', ghost: '#16a34a20', text: 'text-[#15803d]' };
+  if (pct >= 75) return { bar: '#d97706', ghost: '#d9770620', text: 'text-[#b45309]' };
   return        { bar: '#dc2626',  ghost: '#dc262620', text: 'text-[#dc2626]' };
 }
 
@@ -203,7 +203,7 @@ export function AvanceBarChart({ data, title }: AvanceBarChartProps) {
           const vsAaLabel = vsAa !== null
             ? (vsAa >= 0 ? `+${vsAa.toFixed(0)}%` : `${vsAa.toFixed(0)}%`)
             : null;
-          const vsAaColor = vsAa !== null && vsAa >= 0 ? 'text-[#16a34a]' : 'text-[#dc2626]';
+          const vsAaColor = vsAa !== null && vsAa >= 0 ? 'text-[#15803d]' : 'text-[#dc2626]';
 
           return (
             <div key={d.rubro}>
@@ -278,10 +278,19 @@ interface RadarMetaChartProps {
   title?: string;
 }
 
+// Dos variantes del mismo semáforo: el relleno de la barra conserva el tono
+// original —de ahí sale el aspecto del gráfico— y el texto usa la variante
+// profunda, porque #16a34a y #d97706 dan 3.30:1 y 3.19:1 y reprueban AA.
 function radarColor(pct: number) {
   if (pct >= 100) return '#16a34a';
   if (pct >= 75)  return '#d97706';
   return '#dc2626';
+}
+
+function radarTextColor(pct: number) {
+  if (pct >= 100) return '#15803d';
+  if (pct >= 75)  return '#b45309';
+  return '#b91c1c';
 }
 
 export function RadarMetaChart({ data, title }: RadarMetaChartProps) {
@@ -366,7 +375,7 @@ export function RadarMetaChart({ data, title }: RadarMetaChartProps) {
                   </span>
                   <span
                     className="text-[10px] font-bold tabular-nums ml-1 shrink-0"
-                    style={{ color, fontFamily: "'JetBrains Mono', monospace" }}
+                    style={{ color: radarTextColor(pct), fontFamily: "'JetBrains Mono', monospace" }}
                   >
                     {pct.toFixed(0)}%
                   </span>
