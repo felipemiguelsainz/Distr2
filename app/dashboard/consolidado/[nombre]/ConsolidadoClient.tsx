@@ -56,10 +56,17 @@ function aggregateByVendedor(rows: KpiVendedor[]): VendedorAgg[] {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-function TH({ children, right }: { children: React.ReactNode; right?: boolean }) {
+// `sticky` es para la columna que identifica la fila (Vendedor): con
+// table-fixed las 7 columnas se repartían el ancho en partes iguales, así que
+// el nombre quedaba con ~56px útiles —ocho caracteres— y "ANALIA C…" y
+// "ANALIA T…" eran indistinguibles. Ahora tiene ancho propio y queda fija al
+// scrollear a lo ancho, que es lo único que hace legible una tabla de 7
+// columnas en un teléfono. El fondo tiene que ser opaco: el de la fila es
+// translúcido y dejaría pasar las celdas que scrollean por debajo.
+function TH({ children, right, sticky }: { children: React.ReactNode; right?: boolean; sticky?: boolean }) {
   return (
     <th
-      className={`px-3 py-2.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[#71717a] whitespace-nowrap ${right ? 'text-right' : 'text-left'}`}
+      className={`px-3 py-2.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[#71717a] whitespace-nowrap ${right ? 'text-right' : 'text-left'} ${sticky ? 'sticky left-0 z-20 bg-[#f8f8f9] w-[150px]' : ''}`}
       style={MONO}
     >
       {children}
@@ -128,7 +135,7 @@ function KgVendedorTable({ data }: { data: VendedorAgg[] }) {
       <table className="table-fixed w-full text-[11px] min-w-[560px]">
         <thead>
           <tr className="border-b border-[#e4e4e7] bg-[#f4f4f5]/60">
-            <TH>Vendedor</TH>
+            <TH sticky>Vendedor</TH>
             <TH right>Meta KG</TH>
             <TH right>Acum.</TH>
             <TH right>Tend.</TH>
@@ -140,7 +147,7 @@ function KgVendedorTable({ data }: { data: VendedorAgg[] }) {
         <tbody className="divide-y divide-[#e4e4e7]">
           {data.map((r) => (
             <tr key={r.vendedor} className="hover:bg-[rgba(12,92,171,0.04)]">
-              <td className="px-3 py-2 text-[10px] truncate text-[#27272a]" style={MONO}>{r.vendedor}</td>
+              <td className="sticky left-0 z-10 bg-[#ffffff] px-3 py-2 text-[10px] truncate text-[#27272a]" style={MONO}>{r.vendedor}</td>
               <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{formatKg(r.meta)}</td>
               <td className="px-3 py-2 text-right tabular-nums text-[#09090b]" style={MONO}>{formatKg(r.acumulado)}</td>
               <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{r.tendencia != null ? formatKg(r.tendencia) : '—'}</td>
@@ -150,7 +157,7 @@ function KgVendedorTable({ data }: { data: VendedorAgg[] }) {
             </tr>
           ))}
           <tr className="bg-[#f4f4f5]/70 border-t-2 border-t-[#e4e4e7]">
-            <td className="px-3 py-2 text-[10px] text-[#09090b] font-bold" style={MONO}>TOTAL</td>
+            <td className="sticky left-0 z-10 bg-[#f7f7f8] px-3 py-2 text-[10px] text-[#09090b] font-bold" style={MONO}>TOTAL</td>
             <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{formatKg(tot.meta)}</td>
             <td className="px-3 py-2 text-right tabular-nums text-[#09090b] font-bold" style={MONO}>{formatKg(tot.acumulado)}</td>
             <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{tot.tendencia != null ? formatKg(tot.tendencia) : '—'}</td>
@@ -185,7 +192,7 @@ function NetoVendedorTable({ data }: { data: VendedorAgg[] }) {
       <table className="table-fixed w-full text-[11px] min-w-[560px]">
         <thead>
           <tr className="border-b border-[#e4e4e7] bg-[#f4f4f5]/60">
-            <TH>Vendedor</TH>
+            <TH sticky>Vendedor</TH>
             <TH right>Meta $</TH>
             <TH right>Acum.</TH>
             <TH right>Tend.</TH>
@@ -197,7 +204,7 @@ function NetoVendedorTable({ data }: { data: VendedorAgg[] }) {
         <tbody className="divide-y divide-[#e4e4e7]">
           {data.map((r) => (
             <tr key={r.vendedor} className="hover:bg-[rgba(12,92,171,0.04)]">
-              <td className="px-3 py-2 text-[10px] truncate text-[#27272a]" style={MONO}>{r.vendedor}</td>
+              <td className="sticky left-0 z-10 bg-[#ffffff] px-3 py-2 text-[10px] truncate text-[#27272a]" style={MONO}>{r.vendedor}</td>
               <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{formatCurrency(r.neto_meta)}</td>
               <td className="px-3 py-2 text-right tabular-nums text-[#09090b]" style={MONO}>{formatCurrency(r.neto_acumulado)}</td>
               <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{r.neto_tendencia != null ? formatCurrency(r.neto_tendencia) : '—'}</td>
@@ -207,7 +214,7 @@ function NetoVendedorTable({ data }: { data: VendedorAgg[] }) {
             </tr>
           ))}
           <tr className="bg-[#f4f4f5]/70 border-t-2 border-t-[#e4e4e7]">
-            <td className="px-3 py-2 text-[10px] text-[#09090b] font-bold" style={MONO}>TOTAL</td>
+            <td className="sticky left-0 z-10 bg-[#f7f7f8] px-3 py-2 text-[10px] text-[#09090b] font-bold" style={MONO}>TOTAL</td>
             <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{formatCurrency(tot.meta)}</td>
             <td className="px-3 py-2 text-right tabular-nums text-[#09090b] font-bold" style={MONO}>{formatCurrency(tot.acumulado)}</td>
             <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{tot.tendencia != null ? formatCurrency(tot.tendencia) : '—'}</td>
@@ -238,7 +245,7 @@ function CccVendedorTable({ data, metaByVendedor }: { data: CccRow[]; metaByVend
       <table className="table-fixed w-full text-[11px] min-w-[480px]">
         <thead>
           <tr className="border-b border-[#e4e4e7] bg-[#f4f4f5]/60">
-            <TH>Vendedor</TH>
+            <TH sticky>Vendedor</TH>
             <TH right>Meta</TH>
             <TH right>Acum.</TH>
             <TH right>Cumpl.</TH>
@@ -253,7 +260,7 @@ function CccVendedorTable({ data, metaByVendedor }: { data: CccRow[]; metaByVend
             const cumpl = meta > 0 ? (r.mes_actual / meta) * 100 : null;
             return (
               <tr key={r.vendedor} className="hover:bg-[rgba(12,92,171,0.04)]">
-                <td className="px-3 py-2 text-[10px] truncate text-[#27272a]" style={MONO}>{r.vendedor}</td>
+                <td className="sticky left-0 z-10 bg-[#ffffff] px-3 py-2 text-[10px] truncate text-[#27272a]" style={MONO}>{r.vendedor}</td>
                 <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{meta > 0 ? meta : '—'}</td>
                 <td className="px-3 py-2 text-right tabular-nums text-[#09090b] font-semibold" style={MONO}>{r.mes_actual}</td>
                 <td className={`px-3 py-2 text-right tabular-nums font-semibold text-[11px] rounded-md ${cumpl !== null ? avanceColor(cumpl) : 'text-[#71717a]'}`} style={MONO}>
@@ -268,7 +275,7 @@ function CccVendedorTable({ data, metaByVendedor }: { data: CccRow[]; metaByVend
           })}
           {sorted.length > 0 && (
             <tr className="bg-[#f4f4f5]/70 border-t-2 border-t-[#e4e4e7]">
-              <td className="px-3 py-2 text-[10px] text-[#09090b] font-bold" style={MONO}>TOTAL</td>
+              <td className="sticky left-0 z-10 bg-[#f7f7f8] px-3 py-2 text-[10px] text-[#09090b] font-bold" style={MONO}>TOTAL</td>
               <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{totMeta > 0 ? totMeta : '—'}</td>
               <td className="px-3 py-2 text-right tabular-nums text-[#09090b] font-bold" style={MONO}>{totAct}</td>
               <td className={`px-3 py-2 text-right tabular-nums font-bold text-[11px] rounded-md ${totCumpl !== null ? avanceColor(totCumpl) : 'text-[#71717a]'}`} style={MONO}>
