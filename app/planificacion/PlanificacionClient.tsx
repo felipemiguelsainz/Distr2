@@ -276,6 +276,18 @@ export default function PlanificacionClient() {
     setAviso(null);
   }, []);
 
+  /** ¿El borrador se apartó del cuadrante del que salió? Sirve para no
+      descartar ediciones sin avisar cuando se salta de un cuadrante a otro. */
+  const borradorTieneCambios = useCallback((b: Borrador, original: Cuadrante | undefined) => {
+    if (!original) return b.vertices.length > 0; // cuadrante nuevo a medio dibujar
+    return b.nombre !== original.nombre
+      || b.dia !== original.dia
+      || b.vendedor !== original.vendedor_nombre
+      || b.color !== original.color
+      || JSON.stringify(b.vertices) !== JSON.stringify(original.poligono)
+      || JSON.stringify([...b.pdvIds].sort()) !== JSON.stringify([...original.pdv_ids].sort());
+  }, []);
+
   const editar = useCallback((c: Cuadrante) => {
     setBorrador({
       editandoId: c.id,
@@ -295,6 +307,35 @@ export default function PlanificacionClient() {
     setTab('cuadrantes');
     setPanelAbierto(true);
   }, []);
+
+  /**
+   * Clic en la etiqueta de un cuadrante del mapa.
+   *
+   * Antes esto era `if (modo === 'ver') editar(c)`, así que una vez abierto el
+   * primer cuadrante el modo pasaba a 'formulario' y clickear otro no hacía
+   * nada — ni abría el nuevo ni avisaba por qué. Saltar de un cuadrante a otro
+   * es justo lo que uno hace revisando la semana, así que ahora se permite.
+   *
+   * Dibujando no: ahí el clic es un vértice más, no una consulta.
+   */
+  const abrirCuadrante = useCallback((c: Cuadrante) => {
+    if (modo === 'dibujando') return;
+    if (borrador?.editandoId === c.id) return; // ya está abierto
+
+    // Cambiar de cuadrante descarta el borrador actual. Si tiene ediciones sin
+    // guardar se pregunta; si está igual que como se abrió, se salta directo.
+    if (borrador) {
+      const original = cuadrantes.find((q) => q.id === borrador.editandoId);
+      if (borradorTieneCambios(borrador, original)) {
+        // El nombre del cuadrante como estaba guardado, no el que se esté
+        // tipeando: si justo lo renombraste, citarte el nombre nuevo no te
+        // dice cuál de los cuadrantes del mapa estás por descartar.
+        const queEs = original ? `"${original.nombre}"` : 'el cuadrante nuevo';
+        if (!window.confirm(`Tenés cambios sin guardar en ${queEs}. ¿Los descartás y abrís "${c.nombre}"?`)) return;
+      }
+    }
+    editar(c);
+  }, [modo, borrador, cuadrantes, borradorTieneCambios, editar]);
 
   /** Vuelve a dibujar el contorno de un cuadrante que ya existe. */
   const redibujar = useCallback(() => {
@@ -1058,7 +1099,7 @@ export default function PlanificacionClient() {
                   direction="center"
                   interactive
                   className="etiqueta-cuadrante"
-                  eventHandlers={{ click: () => { if (modo === 'ver') editar(c); } }}
+                  eventHandlers={{ click: () => abrirCuadrante(c) }}
                 >
                   <span style={{ fontWeight: 700, color: c.color }}>{c.nombre}</span>
                   <br />
