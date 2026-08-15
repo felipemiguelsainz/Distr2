@@ -94,7 +94,7 @@ export function Asistente() {
             ))}
             {loading && (
               <div className="flex justify-start">
-                <div className="px-3 py-2 rounded-[12px] bg-[#f4f4f5] text-[#71717a] text-[12.5px]">Pensando…</div>
+                <div className="px-3 py-2 rounded-[12px] bg-[#f4f4f5] text-[#52525b] text-[12.5px]">Pensando…</div>
               </div>
             )}
             {error && <p className="text-[12px] text-[#dc2626] px-1">{error}</p>}

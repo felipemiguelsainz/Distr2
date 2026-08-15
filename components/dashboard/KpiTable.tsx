@@ -208,7 +208,7 @@ function DataTable({ data, label, isKg }: { data: KpiRubro[]; label: string; isK
         <table className="w-full table-fixed min-w-[var(--mw-m)] sm:min-w-[var(--mw-d)]" style={cssVars}>
           <thead>
             <tr className="bg-[#f4f4f5]/80 border-b border-[#e4e4e7]">
-              <th className="sticky left-0 z-10 bg-[#f4f4f5] px-3 py-2.5 text-left text-[9px] font-semibold uppercase tracking-[0.1em] text-[#71717a] w-[110px] sm:w-[150px]" style={{fontFamily: "'JetBrains Mono', monospace"}}>
+              <th className="sticky left-0 z-10 bg-[#f4f4f5] px-3 py-2.5 text-left text-[9px] font-semibold uppercase tracking-[0.1em] text-[#52525b] w-[110px] sm:w-[150px]" style={{fontFamily: "'JetBrains Mono', monospace"}}>
                 Rubro
               </th>
               {cols.map((c, i) => (

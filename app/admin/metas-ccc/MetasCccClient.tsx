@@ -115,7 +115,7 @@ export function MetasCccClient({
           <table className="w-full text-[12px]" style={{ minWidth }}>
             <thead>
               <tr className="bg-[#f4f4f5]/80 border-b border-[#e4e4e7]">
-                <th className="sticky left-0 z-10 bg-[#f4f4f5] px-3 py-2.5 text-left text-[9px] font-semibold uppercase tracking-[0.1em] text-[#71717a] w-[160px]" style={MONO}>
+                <th className="sticky left-0 z-10 bg-[#f4f4f5] px-3 py-2.5 text-left text-[9px] font-semibold uppercase tracking-[0.1em] text-[#52525b] w-[160px]" style={MONO}>
                   Vendedor
                 </th>
                 <th className="px-3 py-2.5 text-right text-[9px] font-semibold uppercase tracking-[0.1em] text-[#0c5cab] whitespace-nowrap w-[120px]" style={MONO}>
@@ -139,7 +139,7 @@ export function MetasCccClient({
                         <span
                           className={`text-[8px] font-semibold px-1 py-0.5 rounded-full ${
                             preset
-                              ? 'text-[#71717a] bg-[#f4f4f5]'
+                              ? 'text-[#52525b] bg-[#f4f4f5]'
                               : 'text-[#0c5cab] bg-[#0c5cab]/[0.1]'
                           }`}
                           title={preset ? 'Meta preseteada automática' : 'Editada por el supervisor'}
