@@ -30,18 +30,18 @@ export default async function InsightsPage() {
 
   return (
     <AppShell>
-      <div className="bg-gray-50 -mx-4 -my-6 lg:-mx-6 lg:-my-8 min-h-full px-4 py-6 lg:px-8 lg:py-8">
+      <div className="bg-[#f4f4f5] -mx-4 -my-6 lg:-mx-6 lg:-my-8 min-h-full px-4 py-6 lg:px-8 lg:py-8">
         <div className="max-w-4xl mx-auto">
           {!llmAvailable() ? (
             <>
-              <h1 className="text-3xl font-bold tracking-tight text-gray-900">Insights</h1>
-              <p className="mt-4 text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-xl">
+              <h1 className="text-3xl font-bold tracking-tight text-[#09090b]">Insights</h1>
+              <p className="mt-4 text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-[16px]">
                 Los insights no están configurados (falta la API key del proveedor de IA).
               </p>
             </>
           ) : (
             // InsightsClient lee ?vendedor= con useSearchParams → necesita Suspense.
-            <Suspense fallback={<p className="text-sm text-gray-500">Cargando…</p>}>
+            <Suspense fallback={<p className="text-sm text-[#71717a]">Cargando…</p>}>
               <InsightsClient vendedores={vendedores} />
             </Suspense>
           )}

@@ -29,11 +29,11 @@ export default async function EnfriandosePage() {
 
   return (
     <AppShell>
-      <div className="bg-gray-50 -mx-4 -my-6 lg:-mx-6 lg:-my-8 min-h-full px-4 py-6 lg:px-8 lg:py-8">
+      <div className="bg-[#f4f4f5] -mx-4 -my-6 lg:-mx-6 lg:-my-8 min-h-full px-4 py-6 lg:px-8 lg:py-8">
         <div className="max-w-5xl mx-auto">
-          <Link href="/insights" className="text-sm text-blue-600 hover:text-blue-700">← Volver a Insights</Link>
+          <Link href="/insights" className="text-sm text-[#0c5cab] hover:text-[#0a4f95]">← Volver a Insights</Link>
           {/* EnfriandoseClient lee ?vendedor= con useSearchParams → necesita Suspense. */}
-          <Suspense fallback={<p className="mt-4 text-sm text-gray-500">Cargando…</p>}>
+          <Suspense fallback={<p className="mt-4 text-sm text-[#71717a]">Cargando…</p>}>
             <EnfriandoseClient vendedores={vendedores} mostrarVendedor={carteras === null || vendedores.length > 1} />
           </Suspense>
         </div>

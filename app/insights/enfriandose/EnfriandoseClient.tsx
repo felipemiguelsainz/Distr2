@@ -78,8 +78,8 @@ export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores:
         <div className="flex items-center gap-2 min-w-0">
           <Clock className="w-6 h-6 sm:w-7 sm:h-7 text-amber-500 shrink-0" />
           <div className="min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">Clientes enfriándose</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Todavía compran pero rompieron su frecuencia habitual. Contactalos antes de que se apaguen.</p>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#09090b]">Clientes enfriándose</h1>
+            <p className="text-sm text-[#71717a] mt-0.5">Todavía compran pero rompieron su frecuencia habitual. Contactalos antes de que se apaguen.</p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
@@ -88,16 +88,16 @@ export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores:
               <select
                 value={vendedor}
                 onChange={(e) => setVendedor(e.target.value)}
-                className="w-full appearance-none cursor-pointer pl-3 pr-8 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-lg shadow-sm hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition"
+                className="w-full appearance-none cursor-pointer pl-3 pr-8 py-2 text-sm font-medium text-[#09090b] bg-white border border-[#e4e4e7] rounded-[10px] shadow-sm hover:border-[#d4d4d8] focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition"
               >
                 <option value="">Todos los vendedores</option>
                 {vendedores.map((v) => <option key={v} value={v}>{v}</option>)}
               </select>
-              <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <ChevronDown className="w-4 h-4 text-[#a1a1aa] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           )}
           {mapsHref && (
-            <a href={mapsHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition">
+            <a href={mapsHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-[10px] bg-[#0c5cab] text-white hover:bg-[#0a4f95] transition">
               <MapPin className="w-4 h-4" /> Ver en mapa
             </a>
           )}
@@ -106,24 +106,24 @@ export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores:
 
       {/* KPI cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-amber-500 px-4 py-3">
-          <p className="text-xs text-gray-500">Clientes enfriándose</p>
+        <div className="bg-white rounded-[16px] shadow-sm border border-[#e4e4e7] border-l-4 border-l-amber-500 px-4 py-3">
+          <p className="text-xs text-[#71717a]">Clientes enfriándose</p>
           <p className="text-3xl font-bold text-amber-600 tabular-nums">{clientes.length}</p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-red-500 px-4 py-3">
-          <p className="text-xs text-gray-500">$/mes en juego</p>
+        <div className="bg-white rounded-[16px] shadow-sm border border-[#e4e4e7] border-l-4 border-l-red-500 px-4 py-3">
+          <p className="text-xs text-[#71717a]">$/mes en juego</p>
           <p className="text-3xl font-bold text-red-600 tabular-nums">{fmtPesos(valorTotal)}</p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-slate-400 px-4 py-3">
-          <p className="text-xs text-gray-500">Kg/mes en juego</p>
-          <p className="text-3xl font-bold text-slate-700 tabular-nums">{fmtKg(kgTotal)}</p>
+        <div className="bg-white rounded-[16px] shadow-sm border border-[#e4e4e7] border-l-4 border-l-slate-400 px-4 py-3">
+          <p className="text-xs text-[#71717a]">Kg/mes en juego</p>
+          <p className="text-3xl font-bold text-[#27272a] tabular-nums">{fmtKg(kgTotal)}</p>
         </div>
       </div>
 
-      {error && <p className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-xl">{error}</p>}
+      {error && <p className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-[16px]">{error}</p>}
 
       {loading ? (
-        <div className="flex items-center gap-2.5 text-sm text-gray-500 py-10 justify-center">
+        <div className="flex items-center gap-2.5 text-sm text-[#71717a] py-10 justify-center">
           <RefreshCw className="w-4 h-4 animate-spin" /> Calculando…
         </div>
       ) : clientes.length === 0 ? (
@@ -142,9 +142,9 @@ export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores:
             const zr = 90 - c.dias_sin;
             const s = zonaRojaStyle(zr);
             return (
-              <li key={c.pdv_id} className="bg-white rounded-xl shadow-sm border border-gray-100 px-3.5 py-3">
+              <li key={c.pdv_id} className="bg-white rounded-[16px] shadow-sm border border-[#e4e4e7] px-3.5 py-3">
                 <div className="flex items-start justify-between gap-2">
-                  <p className="text-[13px] font-semibold text-gray-900 leading-snug min-w-0">
+                  <p className="text-[13px] font-semibold text-[#09090b] leading-snug min-w-0">
                     #{c.pdv_id} — {c.razon_social ?? 's/n'}
                   </p>
                   <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${s.bg} ${s.text} ${s.pulse ? 'animate-pulse motion-reduce:animate-none' : ''}`}>
@@ -152,26 +152,26 @@ export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores:
                   </span>
                 </div>
 
-                <p className="text-[12px] text-gray-500 mt-0.5 truncate">
+                <p className="text-[12px] text-[#71717a] mt-0.5 truncate">
                   {c.localidad ?? '—'}{mostrarVendedor && c.cartera ? ` · ${c.cartera}` : ''}
                 </p>
 
                 <div className="flex items-baseline gap-1.5 mt-2">
                   <span className={`text-[17px] font-bold tabular-nums leading-none ${s.text}`}>{c.dias_sin}</span>
-                  <span className="text-[12px] text-gray-500">días sin comprar</span>
+                  <span className="text-[12px] text-[#71717a]">días sin comprar</span>
                   <span className="text-[11px] text-[#71717a] ml-auto tabular-nums">compra cada {c.cadencia_dias} d</span>
                 </div>
 
-                <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-gray-100">
-                  <p className="text-[12px] text-gray-700 tabular-nums">
-                    <span className="font-semibold text-gray-900">{fmtPesos(c.valor_mensual)}</span>
+                <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-[#e4e4e7]">
+                  <p className="text-[12px] text-[#27272a] tabular-nums">
+                    <span className="font-semibold text-[#09090b]">{fmtPesos(c.valor_mensual)}</span>
                     <span className="text-[#a1a1aa]"> · </span>
                     {fmtKg(c.kg_mensual ?? 0)}
                     <span className="text-[#71717a] text-[11px]"> /mes</span>
                   </p>
                   <a
                     href={`/mapa?pdvs=${c.pdv_id}${c.cartera ? `&vendedor=${encodeURIComponent(c.cartera)}` : ''}`}
-                    className="shrink-0 inline-flex items-center gap-1 min-h-[32px] px-2.5 text-[12px] font-semibold rounded-lg text-blue-600 bg-blue-50 active:bg-blue-100"
+                    className="shrink-0 inline-flex items-center gap-1 min-h-[32px] px-2.5 text-[12px] font-semibold rounded-[10px] text-[#0c5cab] bg-[rgba(12,92,171,0.08)] active:bg-blue-100"
                   >
                     <MapPin className="w-3.5 h-3.5" /> Mapa
                   </a>
@@ -182,11 +182,11 @@ export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores:
         </ul>
 
         {/* ── Desktop: la tabla completa ── */}
-        <div className="hidden sm:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="hidden sm:block bg-white rounded-[16px] shadow-sm border border-[#e4e4e7] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-[680px] [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap">
               <thead>
-                <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
+                <tr className="text-left text-xs text-[#71717a] border-b border-[#e4e4e7]">
                   <th className="px-4 py-2.5 font-medium">Cliente</th>
                   <th className="px-4 py-2.5 font-medium">Localidad</th>
                   {mostrarVendedor && <th className="px-4 py-2.5 font-medium hidden md:table-cell">Vendedor</th>}
@@ -203,11 +203,11 @@ export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores:
                   const zr = 90 - c.dias_sin;
                   const s = zonaRojaStyle(zr);
                   return (
-                    <tr key={c.pdv_id} className="hover:bg-gray-50">
-                      <td className="px-4 py-2.5 text-gray-900">#{c.pdv_id} — {c.razon_social ?? 's/n'}</td>
-                      <td className="px-4 py-2.5 text-gray-500">{c.localidad ?? '—'}</td>
-                      {mostrarVendedor && <td className="px-4 py-2.5 text-gray-500 hidden md:table-cell">{c.cartera ?? '—'}</td>}
-                      <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 hidden md:table-cell">{c.cadencia_dias} d</td>
+                    <tr key={c.pdv_id} className="hover:bg-[#f4f4f5]">
+                      <td className="px-4 py-2.5 text-[#09090b]">#{c.pdv_id} — {c.razon_social ?? 's/n'}</td>
+                      <td className="px-4 py-2.5 text-[#71717a]">{c.localidad ?? '—'}</td>
+                      {mostrarVendedor && <td className="px-4 py-2.5 text-[#71717a] hidden md:table-cell">{c.cartera ?? '—'}</td>}
+                      <td className="px-4 py-2.5 text-right tabular-nums text-[#27272a] hidden md:table-cell">{c.cadencia_dias} d</td>
                       <td className={`px-4 py-2.5 text-right tabular-nums font-medium ${s.text}`}>{c.dias_sin} d</td>
                       <td className="px-4 py-2.5 text-center">
                         <span
@@ -220,14 +220,14 @@ export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores:
                           {s.label}
                         </span>
                       </td>
-                      <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-gray-900">{fmtPesos(c.valor_mensual)}</td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-gray-700">{fmtKg(c.kg_mensual ?? 0)}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-[#09090b]">{fmtPesos(c.valor_mensual)}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-[#27272a]">{fmtKg(c.kg_mensual ?? 0)}</td>
                       <td className="px-4 py-2.5">
                         <div className="flex items-center justify-center gap-1.5">
                           <a
                             href={`/mapa?pdvs=${c.pdv_id}${c.cartera ? `&vendedor=${encodeURIComponent(c.cartera)}` : ''}`}
                             title="Ver en el mapa"
-                            className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition"
+                            className="p-1.5 rounded-[10px] text-[#0c5cab] hover:bg-[rgba(12,92,171,0.08)] transition"
                           >
                             <MapPin className="w-4 h-4" />
                           </a>
@@ -235,7 +235,7 @@ export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores:
                             type="button"
                             title="Registrar visita (próximamente)"
                             disabled
-                            className="p-1.5 rounded-lg text-gray-400 cursor-not-allowed"
+                            className="p-1.5 rounded-[10px] text-[#a1a1aa] cursor-not-allowed"
                           >
                             <ClipboardList className="w-4 h-4" />
                           </button>

@@ -39,7 +39,7 @@ function fmtPesos(n: number): string {
 const TIPO_CFG: Record<CardTipo, { icon: typeof RefreshCw; color: string; bg: string; border: string }> = {
   'RECUPERACIÓN': { icon: RefreshCw,     color: '#b45309', bg: 'bg-amber-50',   border: 'border-l-amber-500' },
   'CRECIMIENTO':  { icon: TrendingUp,    color: '#15803d', bg: 'bg-green-50',   border: 'border-l-green-500' },
-  'COBERTURA':    { icon: MapPin,        color: '#0c5cab', bg: 'bg-blue-50',    border: 'border-l-blue-500' },
+  'COBERTURA':    { icon: MapPin,        color: '#0c5cab', bg: 'bg-[rgba(12,92,171,0.08)]',    border: 'border-l-blue-500' },
   'ALERTA':       { icon: AlertTriangle, color: '#b91c1c', bg: 'bg-red-50',     border: 'border-l-red-500' },
 };
 
@@ -117,7 +117,7 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
   const esEmpresa = !vendedor;
 
   const kpis = d ? [
-    { label: 'Total PDVs', val: d.actividad.total, icon: Users, accent: 'border-l-slate-400', num: 'text-slate-800', ic: 'text-slate-400' },
+    { label: 'Total PDVs', val: d.actividad.total, icon: Users, accent: 'border-l-slate-400', num: 'text-[#27272a]', ic: 'text-slate-400' },
     { label: 'Activos ≤1m', val: d.actividad.activos, icon: UserCheck, accent: 'border-l-green-500', num: 'text-green-600', ic: 'text-green-500' },
     { label: 'Tibios 1-3m', val: d.actividad.tibios, icon: Clock, accent: 'border-l-yellow-500', num: 'text-yellow-600', ic: 'text-yellow-500' },
     { label: 'En riesgo +3m', val: d.actividad.inactivos, icon: AlertTriangle, accent: 'border-l-red-500', num: 'text-red-600', ic: 'text-red-500', sub: d.churn.valor_total > 0 ? `${fmtPesos(d.churn.valor_total)}/mes en juego` : undefined },
@@ -128,19 +128,19 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:justify-between gap-3 mb-8">
         <div className="flex items-center gap-2 min-w-0">
-          {esEmpresa && <Building2 className="w-6 h-6 sm:w-7 sm:h-7 text-blue-600 shrink-0" />}
+          {esEmpresa && <Building2 className="w-6 h-6 sm:w-7 sm:h-7 text-[#0c5cab] shrink-0" />}
           <div className="min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 break-words">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#09090b] break-words">
               Insights{d ? ` — ${d.alcance}` : ''}
             </h1>
-            <p className="text-sm text-gray-500 mt-0.5">Acciones priorizadas por impacto.</p>
+            <p className="text-sm text-[#71717a] mt-0.5">Acciones priorizadas por impacto.</p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           {generatedAt && !loading && (
             <span
-              className="text-xs text-gray-500 bg-white border border-gray-200 rounded-full px-2.5 py-1 whitespace-nowrap"
+              className="text-xs text-[#71717a] bg-white border border-[#e4e4e7] rounded-full px-2.5 py-1 whitespace-nowrap"
               title={`Generado ${hace(generatedAt)}`}
             >
               Datos al {fmtFechaAnalisis(generatedAt)}
@@ -150,22 +150,22 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
             <select
               value={vendedor}
               onChange={(e) => setVendedor(e.target.value)}
-              className="w-full appearance-none cursor-pointer pl-3 pr-8 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-lg shadow-sm hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition"
+              className="w-full appearance-none cursor-pointer pl-3 pr-8 py-2 text-sm font-medium text-[#09090b] bg-white border border-[#e4e4e7] rounded-[10px] shadow-sm hover:border-[#d4d4d8] focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition"
             >
               <option value="">Filtrar por vendedor…</option>
               {vendedores.map((v) => <option key={v} value={v}>{v}</option>)}
             </select>
-            <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <ChevronDown className="w-4 h-4 text-[#a1a1aa] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
         </div>
       </div>
 
-      {error && <p className="mb-6 text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-xl">{error}</p>}
+      {error && <p className="mb-6 text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-[16px]">{error}</p>}
 
       {/* Aviso: el análisis mostrado no es de hoy (es el último disponible) */}
       {payload && !loading && generatedAt && !esDeHoy(generatedAt) && (
-        <div className="mb-6 flex items-start gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5">
-          <Clock className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+        <div className="mb-6 flex items-start gap-2 rounded-[16px] border border-[rgba(12,92,171,0.25)] bg-[rgba(12,92,171,0.08)] px-4 py-2.5">
+          <Clock className="w-4 h-4 text-[#0c5cab] mt-0.5 shrink-0" />
           <p className="text-sm text-blue-800">
             Mostrando el último análisis disponible, con datos al <strong>{fmtFechaAnalisis(generatedAt)}</strong>.
             El análisis de hoy se genera en la próxima corrida.
@@ -181,7 +181,7 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
             return (
               <div key={c.label} className={`bg-white rounded-2xl border border-[#e4e4e7] shadow-xl shadow-black/5 border-l-4 ${c.accent} p-4 hover:shadow-md transition-shadow`}>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">{c.label}</span>
+                  <span className="text-xs text-[#71717a]">{c.label}</span>
                   <Icon className={`w-4 h-4 ${c.ic}`} />
                 </div>
                 <p className={`text-3xl sm:text-4xl font-bold tabular-nums mt-1 ${c.num}`}>{c.val}</p>
@@ -195,7 +195,7 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
 
       {/* Alerta temprana: clientes enfriándose */}
       {d && d.enfriandose?.count > 0 && (
-        <div className="mb-6 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5">
+        <div className="mb-6 flex items-start gap-2 rounded-[16px] border border-amber-200 bg-amber-50 px-4 py-2.5">
           <Clock className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
           <p className="text-sm text-amber-800 flex-1">
             <strong>{d.enfriandose.count} clientes enfriándose</strong> — todavía compran pero rompieron su frecuencia
@@ -211,15 +211,15 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
       {/* Tendencia vs año pasado (por rubro, a igual día del mes) */}
       {d && (d.tendencia ?? []).some((a) => a.pct != null) && (
         <div className="mb-6 bg-white rounded-2xl border border-[#e4e4e7] shadow-xl shadow-black/5 px-5 py-3.5">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Tendencia vs año pasado <span className="normal-case font-normal text-[#71717a]">(a igual día del mes)</span></p>
+          <p className="text-xs font-semibold text-[#71717a] uppercase tracking-wide mb-2">Tendencia vs año pasado <span className="normal-case font-normal text-[#71717a]">(a igual día del mes)</span></p>
           <div className="flex flex-wrap gap-2">
             {(d.tendencia ?? []).filter((a) => a.pct != null).map((a) => {
               const up = (a.pct as number) >= 0;
               const Icon = up ? TrendingUp : TrendingDown;
               return (
-                <span key={a.rubro} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${up ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                <span key={a.rubro} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[10px] text-xs font-medium ${up ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
                   <Icon className="w-3.5 h-3.5" />
-                  <span className="text-gray-700">{a.rubro}</span>
+                  <span className="text-[#27272a]">{a.rubro}</span>
                   <span className="text-[13px] font-semibold tabular-nums">{up ? '+' : ''}{a.pct}%</span>
                 </span>
               );
@@ -230,7 +230,7 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
 
       {/* Loading inicial */}
       {loading && !payload && (
-        <div className="flex items-center gap-2.5 text-sm text-gray-500 py-10 justify-center">
+        <div className="flex items-center gap-2.5 text-sm text-[#71717a] py-10 justify-center">
           <RefreshCw className="w-4 h-4 animate-spin" />
           Cargando…
         </div>
@@ -240,7 +240,7 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
       {!loading && !error && payload === null && (
         <div className="flex flex-col items-center gap-2 text-center py-12 px-4">
           <Clock className="w-7 h-7 text-gray-300" />
-          <p className="text-sm font-medium text-gray-600">El análisis de este alcance todavía no está disponible.</p>
+          <p className="text-sm font-medium text-[#52525b]">El análisis de este alcance todavía no está disponible.</p>
           <p className="text-xs text-[#71717a] max-w-sm">Se genera automáticamente cada mañana. Si recién cargaste datos, va a aparecer en la próxima corrida.</p>
         </div>
       )}
@@ -279,14 +279,14 @@ function ActionCard({ card, when, vendedor, clientes }: { card: InsightCard; whe
     <div className={`bg-white rounded-2xl border border-[#e4e4e7] shadow-xl shadow-black/5 border-l-4 ${cfg.border} overflow-hidden transition-all ${done ? 'opacity-50' : 'hover:shadow-md'}`}>
       <div className="p-4">
         <div className="flex items-center gap-2 mb-1.5">
-          <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg" style={{ background: cfg.color + '14' }}>
+          <span className="inline-flex items-center justify-center w-6 h-6 rounded-[10px]" style={{ background: cfg.color + '14' }}>
             <Icon className="w-4 h-4" style={{ color: cfg.color }} />
           </span>
           <span className="text-xs font-semibold tracking-wide" style={{ color: cfg.color }}>{card.tipo}</span>
           {when && <span className="text-xs text-[#71717a]">• {when}</span>}
         </div>
 
-        <p className={`text-base font-semibold text-gray-900 ${done ? 'line-through' : ''}`}>{card.accion}</p>
+        <p className={`text-base font-semibold text-[#09090b] ${done ? 'line-through' : ''}`}>{card.accion}</p>
 
         <div className="flex items-center justify-between mt-2.5">
           {card.metrica
@@ -296,7 +296,7 @@ function ActionCard({ card, when, vendedor, clientes }: { card: InsightCard; whe
           {vendedor ? (
             <button
               onClick={() => setOpen((o) => !o)}
-              className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700 transition"
+              className="inline-flex items-center gap-1 text-sm font-medium text-[#0c5cab] hover:text-[#0a4f95] transition"
             >
               {card.cta}
               <ArrowRight className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-90' : ''}`} />
@@ -316,18 +316,18 @@ function ActionCard({ card, when, vendedor, clientes }: { card: InsightCard; whe
       {/* Panel expandible (solo en vista por vendedor) */}
       <div className={`grid transition-all duration-300 ease-in-out ${open && vendedor ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
         <div className="overflow-hidden">
-          <div className="px-4 pb-4 pt-1 border-t border-gray-100">
+          <div className="px-4 pb-4 pt-1 border-t border-[#e4e4e7]">
             {card.detalle && (
-              <p className="text-sm text-gray-600 mt-3">
-                <span className="font-semibold text-gray-800">Por qué: </span>{card.detalle}
+              <p className="text-sm text-[#52525b] mt-3">
+                <span className="font-semibold text-[#18181b]">Por qué: </span>{card.detalle}
               </p>
             )}
             {card.pasos.length > 0 && (
               <div className="mt-3">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Pasos sugeridos</p>
+                <p className="text-xs font-semibold text-[#71717a] uppercase tracking-wide mb-1.5">Pasos sugeridos</p>
                 <ol className="space-y-1">
                   {card.pasos.map((p, j) => (
-                    <li key={j} className="text-sm text-gray-700 flex gap-2">
+                    <li key={j} className="text-sm text-[#27272a] flex gap-2">
                       <span className="font-semibold text-[#71717a]">{j + 1}.</span>
                       <span>{p}</span>
                     </li>
@@ -337,18 +337,18 @@ function ActionCard({ card, when, vendedor, clientes }: { card: InsightCard; whe
             )}
             {refClientes.length > 0 && (
               <div className="mt-3">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Clientes ({refClientes.length})</p>
-                <div className="divide-y divide-gray-100 rounded-lg border border-gray-100">
+                <p className="text-xs font-semibold text-[#71717a] uppercase tracking-wide mb-1.5">Clientes ({refClientes.length})</p>
+                <div className="divide-y divide-gray-100 rounded-[10px] border border-[#e4e4e7]">
                   {refClientes.map((c) => (
                     <div key={c.pdv_id} className="flex items-center justify-between gap-2 px-3 py-1.5">
                       <span className="min-w-0">
-                        <span className="block text-sm text-gray-900 truncate">#{c.pdv_id} — {c.razon_social ?? 's/n'}</span>
-                        <span className="block text-xs text-gray-500">
+                        <span className="block text-sm text-[#09090b] truncate">#{c.pdv_id} — {c.razon_social ?? 's/n'}</span>
+                        <span className="block text-xs text-[#71717a]">
                           {c.localidad ?? '—'} · {c.ultima_vta === 'sin registro' ? 'sin compras' : `últ: ${c.ultima_vta.slice(0, 10)}`}
                         </span>
                       </span>
                       {c.valor_mensual > 0 && (
-                        <span className="shrink-0 text-xs font-semibold text-gray-700" title="Facturaba por mes">
+                        <span className="shrink-0 text-xs font-semibold text-[#27272a]" title="Facturaba por mes">
                           {fmtPesos(c.valor_mensual)}<span className="text-[#71717a] font-normal">/mes</span>
                         </span>
                       )}
@@ -363,7 +363,7 @@ function ActionCard({ card, when, vendedor, clientes }: { card: InsightCard; whe
                   href={`/mapa?pdvs=${refClientes.map((c) => c.pdv_id).join(',')}${vendedor ? `&vendedor=${encodeURIComponent(vendedor)}` : ''}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-[10px] bg-[#0c5cab] text-white hover:bg-[#0a4f95] transition"
                 >
                   <MapPin className="w-4 h-4" />
                   Ver en mapa
@@ -371,7 +371,7 @@ function ActionCard({ card, when, vendedor, clientes }: { card: InsightCard; whe
               )}
               <button
                 onClick={() => { setDone((v) => !v); setOpen(false); }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-[10px] border border-[#e4e4e7] text-[#27272a] hover:bg-[#f4f4f5] transition"
               >
                 <Check className="w-4 h-4" />
                 {done ? 'Marcar como pendiente' : 'Marcar como gestionado'}
