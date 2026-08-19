@@ -15,6 +15,8 @@ export interface PdvPlan {
   lat: number;
   lon: number;
   razon_social: string | null;
+  /** Calle y altura. Sin esto la hoja de ruta no sirve para salir a la calle. */
+  domicilio: string | null;
   /** Vendedor del maestro (pdvs.cartera). Solo lectura: es el "antes". */
   cartera: string | null;
   /** Día del maestro (pdvs.dia_visita). Solo lectura: es el "antes". */
@@ -139,6 +141,12 @@ export function colorPorCanal(canalVenta: string | null): string {
   if (t === 'tradicional')  return COLOR_TRADICIONAL;
   if (t === 'autoservicio') return COLOR_AUTOSERVICIO;
   return COLOR_OTRO_CANAL;
+}
+
+/** jsPDF pide los colores como tres enteros 0-255, no como hex. */
+export function hexARgb(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
 export const LEYENDA_CANAL: { tipo: TipoPdv; color: string; label: string }[] = [

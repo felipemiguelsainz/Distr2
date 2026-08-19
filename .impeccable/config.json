@@ -14,6 +14,15 @@
         "value": "rgba(0, 0, 0, 0.18)",
         "createdAt": "2026-08-12T15:40:49.020Z",
         "reason": "sombra etiqueta-mapa-hover, documentada en .impeccable/design.json extensions.shadows"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#000",
+        "files": [
+          "scripts/check-hoja-ruta.ts"
+        ],
+        "createdAt": "2026-08-19T16:58:15.352Z",
+        "reason": "fixture de test: color de un cuadrante falso en assert, no se renderiza"
       }
     ]
   }

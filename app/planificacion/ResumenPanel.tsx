@@ -6,6 +6,7 @@ import {
   DIAS_HABILES, DIA_NOMBRE, contarPorCanal, tipoPDV,
   type Cuadrante, type PdvPlan, type TipoPdv,
 } from './types';
+import { generarHojaRuta, rutaPorDia } from '@/lib/planificacion/hojaRuta';
 
 /** Nombres para el Excel: 'otro' a secas no dice nada en una planilla. */
 const TIPO_LABEL: Record<TipoPdv, string> = {
@@ -54,6 +55,7 @@ export function ResumenPanel({
   progresoPdf?: { hecho: number; total: number } | null;
 }) {
   const [exportando, setExportando] = useState(false);
+  const [rutaDe, setRutaDe] = useState<string | null>(null);
 
   const porId = useMemo(() => new Map(puntos.map((p) => [p.pdv_id, p])), [puntos]);
 
@@ -111,6 +113,7 @@ export function ResumenPanel({
           return {
             'ID':                   id,
             'Razón social':         p?.razon_social ?? '',
+            'Domicilio':            p?.domicilio ?? '',
             'Localidad':            p?.localidad ?? '',
             'Partido':              p?.partido ?? '',
             'Cuadrante':            c.nombre,
@@ -166,9 +169,9 @@ export function ResumenPanel({
       const wsDetalle = XLSX.utils.json_to_sheet(detalle);
       // Un ancho por columna, en el mismo orden que las claves de `detalle`.
       wsDetalle['!cols'] = [
-        { wch: 8 }, { wch: 38 }, { wch: 22 }, { wch: 18 }, { wch: 22 },
-        { wch: 22 }, { wch: 16 }, { wch: 22 }, { wch: 12 }, { wch: 18 },
-        { wch: 16 }, { wch: 14 }, { wch: 13 },
+        { wch: 8 }, { wch: 38 }, { wch: 34 }, { wch: 22 }, { wch: 18 },
+        { wch: 22 }, { wch: 22 }, { wch: 16 }, { wch: 22 }, { wch: 12 },
+        { wch: 18 }, { wch: 16 }, { wch: 14 }, { wch: 13 },
       ];
       XLSX.utils.book_append_sheet(wb, wsDetalle, 'Asignación');
 
@@ -190,6 +193,15 @@ export function ResumenPanel({
       XLSX.writeFile(wb, `planificacion-${new Date().toISOString().slice(0, 10)}.xlsx`);
     } finally {
       setExportando(false);
+    }
+  }
+
+  async function hojaDeRuta(vendedor: string) {
+    setRutaDe(vendedor);
+    try {
+      await generarHojaRuta(vendedor, rutaPorDia(cuadrantes, porId, vendedor));
+    } finally {
+      setRutaDe(null);
     }
   }
 
@@ -306,22 +318,44 @@ export function ResumenPanel({
           {exportando ? 'Generando…' : 'Exportar a Excel'}
         </button>
 
-        {/* Un PDF por vendedor: es la unidad que se imprime y se reparte. */}
-        {onExportarVendedor && filas.map((f) => (
-          <button
-            key={f.vendedor}
-            onClick={() => onExportarVendedor(f.vendedor)}
-            disabled={!!exportandoPdf}
-            className="w-full px-3 py-1.5 text-[11.5px] font-medium rounded-[8px] text-[#0c5cab] bg-[rgba(12,92,171,0.06)] border border-[rgba(12,92,171,0.18)] hover:bg-[rgba(12,92,171,0.12)] disabled:opacity-40 transition-colors text-left"
-          >
-            {exportandoPdf === `v:${f.vendedor}`
-              ? `Generando zona ${(progresoPdf?.hecho ?? 0) + 1} de ${progresoPdf?.total ?? f.cuadrantes}…`
-              : `PDF · todas las zonas de ${f.vendedor} (${f.cuadrantes})`}
-          </button>
+        {/* Lo que se imprime y se reparte, por vendedor. Son dos papeles
+            distintos: la hoja de ruta es para salir a la calle (un día por
+            hoja, con la dirección) y el PDF de zonas es para revisar la
+            zonificación en el mapa. */}
+        <p className="text-[9.5px] font-semibold uppercase tracking-[0.07em] text-[#71717a] mt-1" style={MONO}>
+          Para el vendedor
+        </p>
+        {filas.map((f) => (
+          <div key={f.vendedor} className="rounded-[10px] border border-[#e4e4e7] bg-white px-2.5 py-2">
+            <p className="text-[12px] font-semibold text-[#09090b] truncate">{f.vendedor}</p>
+            <p className="text-[11px] text-[#71717a]">
+              {f.pdvs} clientes · {f.visitas} visitas · {f.cuadrantes} zonas
+            </p>
+            <div className="flex gap-1.5 mt-1.5">
+              <button
+                onClick={() => hojaDeRuta(f.vendedor)}
+                disabled={!!rutaDe || !!exportandoPdf}
+                className="flex-1 px-2 py-1.5 text-[11.5px] font-semibold rounded-[7px] bg-[#0c5cab] text-white hover:bg-[#0a4d90] disabled:opacity-40 transition-colors"
+              >
+                {rutaDe === f.vendedor ? 'Generando…' : 'Hoja de ruta'}
+              </button>
+              {onExportarVendedor && (
+                <button
+                  onClick={() => onExportarVendedor(f.vendedor)}
+                  disabled={!!exportandoPdf || !!rutaDe}
+                  className="flex-1 px-2 py-1.5 text-[11.5px] font-medium rounded-[7px] text-[#0c5cab] bg-[rgba(12,92,171,0.06)] border border-[rgba(12,92,171,0.18)] hover:bg-[rgba(12,92,171,0.12)] disabled:opacity-40 transition-colors"
+                >
+                  {exportandoPdf === `v:${f.vendedor}`
+                    ? `Zona ${(progresoPdf?.hecho ?? 0) + 1} de ${progresoPdf?.total ?? f.cuadrantes}…`
+                    : 'Zonas con mapa'}
+                </button>
+              )}
+            </div>
+          </div>
         ))}
       </div>
       <p className="text-[11px] text-[#71717a] leading-relaxed">
-        El Excel trae el vendedor y el día planificados junto al actual del maestro, para poder comparar antes de bajar los cambios al sistema.
+        La <strong className="font-semibold text-[#27272a]">hoja de ruta</strong> es el papel del vendedor: un día por hoja, con la dirección y ordenada por calle. El Excel trae el vendedor y el día planificados junto al actual del maestro, para comparar antes de bajar los cambios al sistema.
       </p>
     </div>
   );

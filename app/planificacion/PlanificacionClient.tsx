@@ -7,7 +7,7 @@ import {
 import type { Map as LeafletMap } from 'leaflet';
 import {
   COLORES_CUADRANTE, DIAS_HABILES, DIA_NOMBRE, LEYENDA_CANAL, colorPorCanal, contarPorCanal,
-  dentroDelPoligono, diaMencionadoEn,
+  dentroDelPoligono, diaMencionadoEn, hexARgb,
   type Anillo, type Cuadrante, type Dia, type GuardarResultado, type PdvPlan, type PlanificacionData,
 } from './types';
 import { PuntosLayer, type EstiloPunto } from './PuntosLayer';
@@ -25,12 +25,6 @@ const DIA_COLOR: Record<string, string> = {
   JUE: '#f59e0b', VIE: '#7c3aed', SAB: '#0891b2',
 };
 const COLOR_SIN_DATO = '#a1a1aa';
-
-/** jsPDF pide los colores como tres enteros 0-255, no como hex. */
-function hexARgb(hex: string): [number, number, number] {
-  const n = parseInt(hex.slice(1), 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-}
 
 type Modo = 'ver' | 'dibujando' | 'formulario';
 // 'canal' entra acá y no como toggle aparte porque es otro criterio de color, y

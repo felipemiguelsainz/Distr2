@@ -28,7 +28,7 @@ export async function GET() {
     raw = await traerTodo<RawRow>((desde, hasta) =>
       svc
         .from('pdvs_geo')
-        .select('pdv_id, latitud, longitud, partido, pdvs ( razon_social, cartera, dia_visita, localidad, zona, canal_venta, ultima_vta, activo )')
+        .select('pdv_id, latitud, longitud, partido, pdvs ( razon_social, domicilio, cartera, dia_visita, localidad, zona, canal_venta, ultima_vta, activo )')
         .not('latitud', 'is', null)
         .not('longitud', 'is', null)
         .range(desde, hasta) as unknown as PromiseLike<{ data: RawRow[] | null; error: { message: string } | null }>,
@@ -49,6 +49,7 @@ export async function GET() {
         lat:          round5(Number(r.latitud)),
         lon:          round5(Number(r.longitud)),
         razon_social: (pdv?.razon_social as string) ?? null,
+        domicilio:    (pdv?.domicilio as string) ?? null,
         cartera:      (pdv?.cartera as string) ?? null,
         dia_visita:   (pdv?.dia_visita as string) ?? null,
         localidad:    (pdv?.localidad as string) ?? null,
