@@ -53,3 +53,6 @@ scripts/*-backup-*.json
 # Cache por sesión del detector de impeccable (UUIDs y rutas absolutas).
 # DESIGN.md, .impeccable/design.json y .impeccable/config.json SÍ se versionan.
 .impeccable/hook.cache.json
+
+# artefactos de Playwright MCP (capturas y logs de diagnostico)
+.playwright-mcp/
