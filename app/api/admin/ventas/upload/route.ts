@@ -141,7 +141,14 @@ export async function POST(request: NextRequest) {
       await recalcularResumenDiario(fechas_afectadas);
     } catch (resumenErr) {
       console.error('[ventas-upload] recalcularResumenDiario falló:', resumenErr);
-      resumen_warning = 'Ventas guardadas, pero el resumen diario no pudo recalcularse. Usá Panel Admin → Recalcular para actualizarlo.';
+      // El detalle nombra el paso que falló (recalcularResumenDiario corre tres
+      // RPCs en orden). El mensaje genérico culpaba siempre al resumen diario:
+      // durante meses el que fallaba era el catálogo de productos —el último—
+      // mientras el resumen diario se había recalculado bien, y el aviso
+      // mandaba a "Recalcular", que ni siquiera toca el catálogo. Ver la
+      // migración 048.
+      const detalle = resumenErr instanceof Error ? resumenErr.message : String(resumenErr);
+      resumen_warning = `Ventas guardadas, pero un paso del recálculo falló: ${detalle}`;
     }
 
     // Invalidate cached KPI queries — data just changed
