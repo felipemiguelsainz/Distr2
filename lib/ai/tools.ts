@@ -284,7 +284,7 @@ const TOOLS: Tool[] = [
           .eq('anio', anio)
           .eq('mes', mes)
           .ilike('rubro', rubro) // case-insensitive
-          .or('kilos.gt.0,neto.gt.0') // CCC = compró: un PDV que sólo devolvió no cuenta (migración 044)
+          .gt('lineas_compra', 0) // CCC = compró: al menos una línea de compra en el mes (mig. 044/049)
           .range(desde, hasta);
         if (vendedoresFiltro !== null) {
           q = q.in('vendedor', vendedoresFiltro.length ? vendedoresFiltro : ['__none__']);
