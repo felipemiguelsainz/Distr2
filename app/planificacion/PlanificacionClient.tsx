@@ -10,6 +10,7 @@ import {
   dentroDelPoligono, diaMencionadoEn, hexARgb,
   type Anillo, type Cuadrante, type Dia, type GuardarResultado, type PdvPlan, type PlanificacionData,
 } from './types';
+import { celda, ordenarParaRecorrer } from '@/lib/planificacion/hojaRuta';
 import { PuntosLayer, type EstiloPunto } from './PuntosLayer';
 import { ResumenPanel } from './ResumenPanel';
 import { Dropdown, Segmentado } from './Dropdown';
@@ -576,6 +577,9 @@ export default function PlanificacionClient() {
         }
 
         // ── Lista de clientes ──
+        // En columnas y con la dirección: esta hoja se usa para salir a buscar
+        // los PDVs, y una razón social sin domicilio no lleva a ningún lado.
+        // Mismo orden que la hoja de ruta (localidad → calle → altura).
         pdf.setDrawColor(...BORDE);
         pdf.line(MARGIN, y - 2, PAGE_W - MARGIN, y - 2);
         pdf.setTextColor(9, 9, 11);
@@ -584,18 +588,36 @@ export default function PlanificacionClient() {
         pdf.text(`CLIENTES DE ESTA ZONA (${pdvs.length})`, MARGIN, y + 5);
         y += 12;
 
-        for (const p of pdvs) {
-          if (y > 278) { pdf.addPage(); y = 20; }
+        // x de cada columna, en mm desde el margen (CONTENT_W = 180).
+        const COL = { cliente: 5, dir: 80, loc: 145 };
+        const ANCHO = { cliente: 72, dir: 62, loc: 35 };
+
+        const encabezadoTabla = (yy: number) => {
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(7.5);
+          pdf.setTextColor(...GRIS);
+          pdf.text('CLIENTE', MARGIN + COL.cliente, yy);
+          pdf.text('DIRECCION', MARGIN + COL.dir, yy);
+          pdf.text('LOCALIDAD', MARGIN + COL.loc, yy);
+          pdf.setDrawColor(...BORDE);
+          pdf.line(MARGIN, yy + 1.8, PAGE_W - MARGIN, yy + 1.8);
+          return yy + 6;
+        };
+        y = encabezadoTabla(y);
+
+        for (const p of ordenarParaRecorrer(pdvs)) {
+          if (y > 278) { pdf.addPage(); y = encabezadoTabla(20); }
           // Punto del color de su canal: el vendedor ve en la lista lo mismo
           // que ve en el mapa de arriba.
           const [r, g, b] = hexARgb(colorPorCanal(p.canal_venta));
           pdf.setFillColor(r, g, b);
           pdf.circle(MARGIN + 1.6, y - 1.1, 1.4, 'F');
-          pdf.setTextColor(9, 9, 11);
           pdf.setFont('helvetica', 'normal');
-          pdf.setFontSize(9.5);
-          const linea = `${p.razon_social ?? `PDV #${p.pdv_id}`}${p.localidad ? ` — ${p.localidad}` : ''}`;
-          pdf.text(pdf.splitTextToSize(linea, CONTENT_W - 8)[0], MARGIN + 5, y);
+          pdf.setTextColor(9, 9, 11);
+          celda(pdf, p.razon_social ?? `PDV #${p.pdv_id}`, MARGIN + COL.cliente, y, ANCHO.cliente, 9);
+          celda(pdf, p.domicilio ?? '', MARGIN + COL.dir, y, ANCHO.dir, 9);
+          pdf.setTextColor(...GRIS);
+          celda(pdf, p.localidad ?? '', MARGIN + COL.loc, y, ANCHO.loc, 9);
           y += 6;
         }
       }

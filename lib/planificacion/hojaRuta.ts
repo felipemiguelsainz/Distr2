@@ -11,6 +11,7 @@
 // peso del archivo por diez. Esto tiene que salir en un segundo y viajar por
 // WhatsApp.
 // ---------------------------------------------------------------------------
+import type { jsPDF } from 'jspdf';
 import {
   DIAS_HABILES, DIA_NOMBRE, colorPorCanal, contarPorCanal, hexARgb,
   type Cuadrante, type Dia, type PdvPlan,
@@ -103,6 +104,32 @@ function fechaCorta(iso: string | null): string {
   return `${d}/${m}/${a.slice(2)}`;
 }
 
+/**
+ * Texto que entra sí o sí en su columna: primero achica la fuente, y recién si
+ * aun así no entra corta con puntos suspensivos.
+ *
+ * `splitTextToSize(...)[0]` a secas cortaba en silencio y sin marca: una
+ * localidad como SAN FRANCISCO SOLANO salía impresa "SAN", que en un papel que
+ * se usa para manejar es peor que no poner nada.
+ */
+export function celda(
+  pdf: jsPDF, txt: string, x: number, y: number, ancho: number, base: number,
+) {
+  let tam = base;
+  pdf.setFontSize(tam);
+  while (pdf.getTextWidth(txt) > ancho && tam > 6) {
+    tam -= 0.5;
+    pdf.setFontSize(tam);
+  }
+  let t = txt;
+  if (pdf.getTextWidth(t) > ancho) {
+    while (t.length > 1 && pdf.getTextWidth(`${t}…`) > ancho) t = t.slice(0, -1);
+    t = `${t.trimEnd()}…`;
+  }
+  pdf.text(t, x, y);
+  pdf.setFontSize(base);
+}
+
 // ---------------------------------------------------------------------------
 // PDF A4 vertical. Una hoja nueva por día: el vendedor arranca el martes en una
 // hoja limpia, no a mitad del lunes.
@@ -123,30 +150,6 @@ export async function generarHojaRuta(vendedor: string, dias: DiaRuta[]): Promis
   // x de cada columna, en mm desde el margen. La suma es CONTENT_W (186).
   const COL = { check: 0, punto: 5, num: 7, cliente: 12, dir: 84, loc: 148, vta: 174 };
   const ANCHO = { cliente: 70, dir: 62, loc: 25, vta: 12 };
-
-  /**
-   * Texto que entra sí o sí en su columna: primero achica la fuente, y recién
-   * si aun así no entra corta con puntos suspensivos.
-   *
-   * `splitTextToSize(...)[0]` a secas cortaba en silencio y sin marca: una
-   * localidad como SAN FRANCISCO SOLANO salía impresa "SAN", que en un papel
-   * que se usa para manejar es peor que no poner nada.
-   */
-  function celda(txt: string, x: number, y: number, ancho: number, base: number) {
-    let tam = base;
-    pdf.setFontSize(tam);
-    while (pdf.getTextWidth(txt) > ancho && tam > 6) {
-      tam -= 0.5;
-      pdf.setFontSize(tam);
-    }
-    let t = txt;
-    if (pdf.getTextWidth(t) > ancho) {
-      while (t.length > 1 && pdf.getTextWidth(`${t}…`) > ancho) t = t.slice(0, -1);
-      t = `${t.trimEnd()}…`;
-    }
-    pdf.text(t, x, y);
-    pdf.setFontSize(base);
-  }
 
   const recorte = (txt: string, ancho: number) =>
     pdf.splitTextToSize(txt || '', ancho)[0] ?? '';
@@ -213,10 +216,10 @@ export async function generarHojaRuta(vendedor: string, dias: DiaRuta[]): Promis
       pdf.setFontSize(8.5);
       pdf.setTextColor(9, 9, 11);
       pdf.text(String(i + 1), MARGIN + COL.num, y);
-      celda(p.razon_social ?? `PDV #${p.pdv_id}`, MARGIN + COL.cliente, y, ANCHO.cliente, 8.5);
-      celda(p.domicilio ?? '', MARGIN + COL.dir, y, ANCHO.dir, 8.5);
+      celda(pdf, p.razon_social ?? `PDV #${p.pdv_id}`, MARGIN + COL.cliente, y, ANCHO.cliente, 8.5);
+      celda(pdf, p.domicilio ?? '', MARGIN + COL.dir, y, ANCHO.dir, 8.5);
       pdf.setTextColor(...GRIS);
-      celda(p.localidad ?? '', MARGIN + COL.loc, y, ANCHO.loc, 8.5);
+      celda(pdf, p.localidad ?? '', MARGIN + COL.loc, y, ANCHO.loc, 8.5);
       pdf.text(fechaCorta(p.ultima_vta), MARGIN + COL.vta, y);
       y += FILA_H;
     });
