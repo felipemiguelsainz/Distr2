@@ -6,7 +6,7 @@ import {
 } from 'react-leaflet';
 import type { Map as LeafletMap } from 'leaflet';
 import {
-  COLORES_CUADRANTE, DIAS_HABILES, DIA_NOMBRE, LEYENDA_CANAL, colorPorCanal,
+  COLORES_CUADRANTE, DIAS_HABILES, DIA_NOMBRE, colorPorCanal, contarPorCanal,
   dentroDelPoligono, diaMencionadoEn, hexARgb,
   type Anillo, type Cuadrante, type Dia, type GuardarResultado, type PdvPlan, type PlanificacionData,
 } from './types';
@@ -474,6 +474,9 @@ export default function PlanificacionClient() {
 
   const puntosPorId = useMemo(() => new Map(puntos.map((p) => [p.pdv_id, p])), [puntos]);
 
+  /** Canales presentes en el mapa, para la leyenda de "colorear por canal". */
+  const leyendaCanal = useMemo(() => contarPorCanal(puntosVisibles), [puntosVisibles]);
+
   // --- Exportar zonas a PDF -----------------------------------------------
   // Se maneja acá y no en ResumenPanel porque el mapa vive acá: para capturar
   // una zona hay que encuadrarla primero, y eso es la instancia de Leaflet.
@@ -839,10 +842,12 @@ export default function PlanificacionClient() {
                         Cada PDV toma el color de su cuadrante; los grises todavía no tienen.
                       </span>
                     )}
-                    {colorearPor === 'canal' && LEYENDA_CANAL.map((l) => (
-                      <span key={l.tipo} className="flex items-center gap-1">
+                    {/* Los canales que hay a la vista, con el nombre que les
+                        pone el maestro. */}
+                    {colorearPor === 'canal' && leyendaCanal.map((l) => (
+                      <span key={l.canal} className="flex items-center gap-1">
                         <span className="w-2 h-2 rounded-full" style={{ background: l.color }} />
-                        <span className="text-[10.5px] text-[#71717a]">{l.label}</span>
+                        <span className="text-[10.5px] text-[#71717a]">{l.canal}</span>
                       </span>
                     ))}
                   </div>

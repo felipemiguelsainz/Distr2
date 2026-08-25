@@ -2,18 +2,16 @@
 
 import { useMemo, useState } from 'react';
 import {
-  COLOR_AUTOSERVICIO, COLOR_OTRO_CANAL, COLOR_TRADICIONAL,
-  DIAS_HABILES, DIA_NOMBRE, contarPorCanal, tipoPDV,
-  type Cuadrante, type PdvPlan, type TipoPdv,
+  DIAS_HABILES, DIA_NOMBRE, canalDe, contarPorCanal,
+  type CuentaCanal, type Cuadrante, type PdvPlan,
 } from './types';
 import { generarHojaRuta, rutaPorDia } from '@/lib/planificacion/hojaRuta';
 
-/** Nombres para el Excel: 'otro' a secas no dice nada en una planilla. */
-const TIPO_LABEL: Record<TipoPdv, string> = {
-  tradicional: 'Tradicional',
-  autoservicio: 'Autoservicio',
-  otro: 'Otros',
-};
+/** Una columna por canal para el Excel, con 0 en los que esa fila no tiene. */
+function columnasPorCanal(canales: CuentaCanal[], todos: string[]) {
+  const n = new Map(canales.map((c) => [c.canal, c.n]));
+  return Object.fromEntries(todos.map((c) => [c, n.get(c) ?? 0]));
+}
 
 // Ver la nota en PlanificacionClient.tsx: la fuente de cifras es JetBrains Mono.
 const MONO = { fontFamily: "'JetBrains Mono', ui-monospace, monospace" } as const;
@@ -58,6 +56,14 @@ export function ResumenPanel({
   const [rutaDe, setRutaDe] = useState<string | null>(null);
 
   const porId = useMemo(() => new Map(puntos.map((p) => [p.pdv_id, p])), [puntos]);
+
+  /** Los canales que existen hoy en el maestro, en orden de leyenda. Fija las
+      columnas del Excel: si cada fila trajera las suyas, la planilla saldría
+      desalineada. */
+  const canalesDelMaestro = useMemo(
+    () => contarPorCanal(puntos).map((c) => c.canal),
+    [puntos],
+  );
 
   /** Una fila por cuadrante con su mezcla de canales. */
   const porCuadrante = useMemo(
@@ -122,10 +128,8 @@ export function ResumenPanel({
             'Vendedor actual':      p?.cartera ?? '',
             'Día actual':           p?.dia_visita ?? '',
             'Cambia de vendedor':   p?.cartera === c.vendedor_nombre ? 'No' : 'Sí',
-            // El canal crudo del maestro y su clasificación: quien revise el
-            // Excel tiene que poder auditar por qué un PDV cayó en un tipo.
-            'Canal':                p?.canal_venta ?? '',
-            'Tipo':                 p ? TIPO_LABEL[tipoPDV(p.canal_venta)] : '',
+            // El canal tal cual el maestro (normalizado a mayúsculas).
+            'Canal':                p ? canalDe(p.canal_venta) : '',
             'Última venta':         p?.ultima_vta ? p.ultima_vta.slice(0, 10) : '',
           };
         })
@@ -144,9 +148,7 @@ export function ResumenPanel({
           'Cuadrantes':    f.cuadrantes,
           'PDVs':          f.pdvs,
           'Visitas':       f.visitas,
-          'Tradicionales': canales.tradicional,
-          'Autoservicios': canales.autoservicio,
-          'Otros': canales.otro,
+          ...columnasPorCanal(canales, canalesDelMaestro),
           ...Object.fromEntries(DIAS_HABILES.map((d) => [DIA_NOMBRE[d], f.porDia[d] ?? 0])),
         };
       });
@@ -158,9 +160,7 @@ export function ResumenPanel({
         'Vendedor':       c.vendedor_nombre,
         'Día':            DIA_NOMBRE[c.dia] ?? c.dia,
         'PDVs':           c.pdv_ids.length,
-        'Tradicionales':  canales.tradicional,
-        'Autoservicios':  canales.autoservicio,
-        'Otros': canales.otro,
+        ...columnasPorCanal(canales, canalesDelMaestro),
         'Localidad':      c.localidad ?? '',
       }));
 
@@ -171,14 +171,14 @@ export function ResumenPanel({
       wsDetalle['!cols'] = [
         { wch: 8 }, { wch: 38 }, { wch: 34 }, { wch: 22 }, { wch: 18 },
         { wch: 22 }, { wch: 22 }, { wch: 16 }, { wch: 22 }, { wch: 12 },
-        { wch: 18 }, { wch: 16 }, { wch: 14 }, { wch: 13 },
+        { wch: 18 }, { wch: 16 }, { wch: 14 },
       ];
       XLSX.utils.book_append_sheet(wb, wsDetalle, 'Asignación');
 
       const wsResumen = XLSX.utils.json_to_sheet(resumen);
       wsResumen['!cols'] = [
         { wch: 24 }, { wch: 12 }, { wch: 10 }, { wch: 10 },
-        { wch: 14 }, { wch: 14 }, { wch: 14 },
+        ...canalesDelMaestro.map(() => ({ wch: 15 })),
         ...DIAS_HABILES.map(() => ({ wch: 11 })),
       ];
       XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen');
@@ -186,7 +186,8 @@ export function ResumenPanel({
       const wsZonas = XLSX.utils.json_to_sheet(zonas);
       wsZonas['!cols'] = [
         { wch: 24 }, { wch: 22 }, { wch: 12 }, { wch: 8 },
-        { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 22 },
+        ...canalesDelMaestro.map(() => ({ wch: 15 })),
+        { wch: 22 },
       ];
       XLSX.utils.book_append_sheet(wb, wsZonas, 'Zonas');
 
@@ -289,18 +290,15 @@ export function ResumenPanel({
                   </button>
                 )}
               </div>
-              {/* Desglose por canal. Los ceros no se muestran: en una zona de
-                  puro kiosco, un "0 autoservicios" es ruido. */}
+              {/* Desglose por canal, como lo nombra el maestro. Los canales
+                  que la zona no tiene no aparecen: en una zona de puro kiosco,
+                  un "0 AUTOSERVICIO" es ruido. */}
               <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-1.5">
-                {([
-                  ['tradicional',  canales.tradicional,  COLOR_TRADICIONAL,  'tradicionales'],
-                  ['autoservicio', canales.autoservicio, COLOR_AUTOSERVICIO, 'autoservicios'],
-                  ['otro',         canales.otro,         COLOR_OTRO_CANAL,   'otros'],
-                ] as const).filter(([, n]) => n > 0).map(([k, n, color, label]) => (
-                  <span key={k} className="flex items-center gap-1 text-[11px] text-[#52525b]">
+                {canales.map(({ canal, color, n }) => (
+                  <span key={canal} className="flex items-center gap-1 text-[11px] text-[#52525b]">
                     <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
                     <span className="font-semibold text-[#09090b]" style={MONO}>{n}</span>
-                    {label}
+                    {canal}
                   </span>
                 ))}
               </div>

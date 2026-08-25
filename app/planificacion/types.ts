@@ -107,45 +107,47 @@ export function diaMencionadoEn(nombre: string): Dia | null {
 }
 
 // ---------------------------------------------------------------------------
-// Tipo de PDV según el canal de venta.
+// Canal de venta.
 //
-// `pdvs.canal_venta` es texto libre del maestro. Los valores reales hoy (7.109
-// PDVs) son: KIOSCO 2.674 · TRADICIONALES 1.597 · AUTOSERVICIO 1.176 ·
-// OTROS 1.037 · MAXI KIOSCO 520 · REVENTA 1 · '' 2, más 102 en NULL.
+// Se muestra tal cual viene del maestro: el canal ya está puesto ahí y agrupar
+// KIOSCO + MAXI KIOSCO + TRADICIONALES en un "tradicional" inventado escondía
+// justamente lo que se quiere ver en el mapa.
 //
-// El match es por substring y en minúsculas para que aguante variantes de
-// tipeo del maestro ("Maxi Kiosco", "AUTOSERVICIOS"). Cualquier valor nuevo
-// que aparezca cae en 'otro' y se ve gris en el mapa: es un fallback visible,
-// que es el modo correcto de fallar acá.
+// Valores reales hoy (7.109 PDVs): KIOSCO 2.674 · TRADICIONALES 1.597 ·
+// AUTOSERVICIO 1.176 · OTROS 1.037 · MAXI KIOSCO 520 · REVENTA 1, más 108 sin
+// dato (solo 9 activos). Se normaliza a MAYÚSCULAS y sin espacios de más
+// —el maestro es texto libre y admite "Maxi Kiosco"— pero no se traduce nada.
 //
-// 'otro' NO quiere decir "le falta la categoría": OTROS es una categoría del
-// maestro como cualquier otra y son 1.037 PDVs. Sin dato hay 108 (9 activos),
-// y hoy ninguno cae dentro de un cuadrante. Por eso se muestra "Otros" y no
-// "Sin clasificar", que hacía pensar que el maestro estaba incompleto.
+// Un canal nuevo que aparezca en el maestro se muestra igual, con su nombre y
+// el color de reserva: no hay que tocar código para que se vea.
 // ---------------------------------------------------------------------------
-export type TipoPdv = 'tradicional' | 'autoservicio' | 'otro';
 
-export function tipoPDV(canalVenta: string | null): TipoPdv {
-  if (!canalVenta) return 'otro'; // cubre null y '' (2 filas en la base)
-  const c = canalVenta.toLowerCase();
-  // Autoservicio primero: es el más específico y no comparte substring con los
-  // de abajo. 'super'/'hiper' no matchean nada hoy, quedan por si el maestro
-  // suma esos canales más adelante.
-  if (c.includes('autoservicio') || c.includes('super') || c.includes('hiper')) return 'autoservicio';
-  // 'tradicional' cubre TRADICIONALES; 'kiosco' cubre KIOSCO y MAXI KIOSCO.
-  if (c.includes('kiosco') || c.includes('tradicional') || c.includes('ventana')) return 'tradicional';
-  return 'otro'; // OTROS, REVENTA y lo que venga
+/** Cuando el maestro no trae canal. No es un canal: es la ausencia de dato. */
+export const SIN_CANAL = 'SIN CANAL';
+
+/** El canal del PDV, normalizado. Nunca vacío. */
+export function canalDe(canalVenta: string | null): string {
+  const c = (canalVenta ?? '').trim().toUpperCase().replace(/\s+/g, ' ');
+  return c || SIN_CANAL;
 }
 
-export const COLOR_TRADICIONAL  = '#22c55e';
-export const COLOR_AUTOSERVICIO = '#ef4444';
-export const COLOR_OTRO_CANAL   = '#94a3b8';
+// Colores de los canales de hoy. El orden es el de la leyenda: de más PDVs a
+// menos, que es como se lee. Los dos kioscos son parientes y llevan la misma
+// familia de verde; el gris queda para "sin dato", que no es una categoría.
+export const CANALES: { canal: string; color: string }[] = [
+  { canal: 'KIOSCO',        color: '#22c55e' },
+  { canal: 'TRADICIONALES', color: '#0ea5e9' },
+  { canal: 'AUTOSERVICIO',  color: '#ef4444' },
+  { canal: 'OTROS',         color: '#f59e0b' },
+  { canal: 'MAXI KIOSCO',   color: '#15803d' },
+  { canal: 'REVENTA',       color: '#a855f7' },
+];
+const COLOR_RESERVA = '#94a3b8';
+
+const COLOR_POR_CANAL = new Map(CANALES.map((c) => [c.canal, c.color]));
 
 export function colorPorCanal(canalVenta: string | null): string {
-  const t = tipoPDV(canalVenta);
-  if (t === 'tradicional')  return COLOR_TRADICIONAL;
-  if (t === 'autoservicio') return COLOR_AUTOSERVICIO;
-  return COLOR_OTRO_CANAL;
+  return COLOR_POR_CANAL.get(canalDe(canalVenta)) ?? COLOR_RESERVA;
 }
 
 /** jsPDF pide los colores como tres enteros 0-255, no como hex. */
@@ -154,17 +156,29 @@ export function hexARgb(hex: string): [number, number, number] {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
-export const LEYENDA_CANAL: { tipo: TipoPdv; color: string; label: string }[] = [
-  { tipo: 'tradicional',  color: COLOR_TRADICIONAL,  label: 'Tradicional / Kiosco' },
-  { tipo: 'autoservicio', color: COLOR_AUTOSERVICIO, label: 'Autoservicio' },
-  { tipo: 'otro',         color: COLOR_OTRO_CANAL,   label: 'Otros' },
-];
+export interface CuentaCanal { canal: string; color: string; n: number }
 
-/** Cuenta cuántos PDVs de cada tipo hay en una lista. */
-export function contarPorCanal(pdvs: PdvPlan[]): Record<TipoPdv, number> {
-  const out: Record<TipoPdv, number> = { tradicional: 0, autoservicio: 0, otro: 0 };
-  for (const p of pdvs) out[tipoPDV(p.canal_venta)] += 1;
-  return out;
+/**
+ * Cuántos PDVs hay de cada canal, en el orden de la leyenda y sin los canales
+ * que no aparecen: una leyenda con "0 REVENTA" es ruido.
+ *
+ * Un canal que no esté en CANALES (o los sin dato) va al final, de mayor a
+ * menor: es el caso raro y no tiene por qué encabezar la lista.
+ */
+export function contarPorCanal(pdvs: PdvPlan[]): CuentaCanal[] {
+  const n = new Map<string, number>();
+  for (const p of pdvs) {
+    const c = canalDe(p.canal_venta);
+    n.set(c, (n.get(c) ?? 0) + 1);
+  }
+  const conocidos = CANALES
+    .filter((c) => n.has(c.canal))
+    .map((c) => ({ ...c, n: n.get(c.canal)! }));
+  const resto = [...n.keys()]
+    .filter((c) => !COLOR_POR_CANAL.has(c))
+    .map((canal) => ({ canal, color: COLOR_RESERVA, n: n.get(canal)! }))
+    .sort((a, b) => b.n - a.n);
+  return [...conocidos, ...resto];
 }
 
 /** Paleta de los cuadrantes: alto contraste entre sí y contra el mapa base. */

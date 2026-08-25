@@ -13,8 +13,8 @@
 // ---------------------------------------------------------------------------
 import type { jsPDF } from 'jspdf';
 import {
-  DIAS_HABILES, DIA_NOMBRE, LEYENDA_CANAL, colorPorCanal, contarPorCanal, hexARgb,
-  type Cuadrante, type Dia, type PdvPlan, type TipoPdv,
+  DIAS_HABILES, DIA_NOMBRE, colorPorCanal, contarPorCanal, hexARgb,
+  type Cuadrante, type Dia, type PdvPlan,
 } from '@/app/planificacion/types';
 
 export interface DiaRuta {
@@ -130,35 +130,26 @@ export function celda(
   pdf.setFontSize(base);
 }
 
-/** Plural para contar, que el label de la leyenda del mapa no sirve acá:
- *  "12 Tradicional / Kiosco" no se lee. */
-const PLURAL: Record<TipoPdv, string> = {
-  tradicional: 'tradicionales',
-  autoservicio: 'autoservicios',
-  otro: 'otros',
-};
-
 /**
- * Mezcla de canales con el punto de color adelante de cada una.
+ * Mezcla de canales con el punto de color adelante de cada uno, con el nombre
+ * que les pone el maestro.
  *
  * Es la única aclaración de qué significa cada color: los puntos del mapa y
- * los de la lista se pintan por canal, y sin esto el papel tiene tres colores
- * que no dicen nada. Va en los dos PDFs, que antes escribían la misma línea
- * por su cuenta y sin color.
+ * los de la lista se pintan por canal, y sin esto el papel tiene colores que
+ * no dicen nada. Va en los dos PDFs, que antes escribían la misma línea por su
+ * cuenta y sin color.
  */
 export function leyendaCanales(pdf: jsPDF, pdvs: PdvPlan[], x: number, y: number, tam = 8) {
-  const n = contarPorCanal(pdvs);
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(tam);
-  for (const { tipo, color } of LEYENDA_CANAL) {
-    if (!n[tipo]) continue;
+  for (const { canal, color, n } of contarPorCanal(pdvs)) {
     const [r, g, b] = hexARgb(color);
     pdf.setFillColor(r, g, b);
     pdf.circle(x + 1.3, y - 1, 1.3, 'F');
     pdf.setTextColor(63, 63, 70);
-    const txt = `${n[tipo]} ${PLURAL[tipo]}`;
+    const txt = `${n} ${canal}`;
     pdf.text(txt, x + 3.6, y);
-    x += 3.6 + pdf.getTextWidth(txt) + 7;
+    x += 3.6 + pdf.getTextWidth(txt) + 6;
   }
 }
 
