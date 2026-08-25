@@ -13,8 +13,8 @@
 // ---------------------------------------------------------------------------
 import type { jsPDF } from 'jspdf';
 import {
-  DIAS_HABILES, DIA_NOMBRE, colorPorCanal, contarPorCanal, hexARgb,
-  type Cuadrante, type Dia, type PdvPlan,
+  DIAS_HABILES, DIA_NOMBRE, LEYENDA_CANAL, colorPorCanal, contarPorCanal, hexARgb,
+  type Cuadrante, type Dia, type PdvPlan, type TipoPdv,
 } from '@/app/planificacion/types';
 
 export interface DiaRuta {
@@ -130,6 +130,38 @@ export function celda(
   pdf.setFontSize(base);
 }
 
+/** Plural para contar, que el label de la leyenda del mapa no sirve acá:
+ *  "12 Tradicional / Kiosco" no se lee. */
+const PLURAL: Record<TipoPdv, string> = {
+  tradicional: 'tradicionales',
+  autoservicio: 'autoservicios',
+  otro: 'sin clasificar',
+};
+
+/**
+ * Mezcla de canales con el punto de color adelante de cada una.
+ *
+ * Es la única aclaración de qué significa cada color: los puntos del mapa y
+ * los de la lista se pintan por canal, y sin esto el papel tiene tres colores
+ * que no dicen nada. Va en los dos PDFs, que antes escribían la misma línea
+ * por su cuenta y sin color.
+ */
+export function leyendaCanales(pdf: jsPDF, pdvs: PdvPlan[], x: number, y: number, tam = 8) {
+  const n = contarPorCanal(pdvs);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(tam);
+  for (const { tipo, color } of LEYENDA_CANAL) {
+    if (!n[tipo]) continue;
+    const [r, g, b] = hexARgb(color);
+    pdf.setFillColor(r, g, b);
+    pdf.circle(x + 1.3, y - 1, 1.3, 'F');
+    pdf.setTextColor(63, 63, 70);
+    const txt = `${n[tipo]} ${PLURAL[tipo]}`;
+    pdf.text(txt, x + 3.6, y);
+    x += 3.6 + pdf.getTextWidth(txt) + 7;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // PDF A4 vertical. Una hoja nueva por día: el vendedor arranca el martes en una
 // hoja limpia, no a mitad del lunes.
@@ -224,20 +256,12 @@ export async function generarHojaRuta(vendedor: string, dias: DiaRuta[]): Promis
       y += FILA_H;
     });
 
-    // Mezcla de canales del día, abajo del listado.
-    const canales = contarPorCanal(d.pdvs);
-    const mezcla = [
-      canales.tradicional ? `${canales.tradicional} tradicionales` : '',
-      canales.autoservicio ? `${canales.autoservicio} autoservicios` : '',
-      canales.otro ? `${canales.otro} sin clasificar` : '',
-    ].filter(Boolean).join('   ·   ');
-    if (mezcla && y < PIE_Y - 6) {
+    // Mezcla de canales del día, abajo del listado: es además la referencia
+    // del color de los puntos de la columna de la izquierda.
+    if (y < PIE_Y - 6) {
       pdf.setDrawColor(...BORDE);
       pdf.line(MARGIN, y - 2, PAGE_W - MARGIN, y - 2);
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(8);
-      pdf.setTextColor(...GRIS);
-      pdf.text(mezcla, MARGIN, y + 3);
+      leyendaCanales(pdf, d.pdvs, MARGIN, y + 3);
     }
   });
 

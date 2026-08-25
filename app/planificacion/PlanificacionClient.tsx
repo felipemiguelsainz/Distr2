@@ -6,11 +6,11 @@ import {
 } from 'react-leaflet';
 import type { Map as LeafletMap } from 'leaflet';
 import {
-  COLORES_CUADRANTE, DIAS_HABILES, DIA_NOMBRE, LEYENDA_CANAL, colorPorCanal, contarPorCanal,
+  COLORES_CUADRANTE, DIAS_HABILES, DIA_NOMBRE, LEYENDA_CANAL, colorPorCanal,
   dentroDelPoligono, diaMencionadoEn, hexARgb,
   type Anillo, type Cuadrante, type Dia, type GuardarResultado, type PdvPlan, type PlanificacionData,
 } from './types';
-import { celda, ordenarParaRecorrer } from '@/lib/planificacion/hojaRuta';
+import { celda, leyendaCanales, ordenarParaRecorrer } from '@/lib/planificacion/hojaRuta';
 import { recorteDeZona } from '@/lib/planificacion/recorte';
 import { PuntosLayer, type EstiloPunto } from './PuntosLayer';
 import { ResumenPanel } from './ResumenPanel';
@@ -566,7 +566,6 @@ export default function PlanificacionClient() {
         setZonaCaptura(c.id);
         const img = await capturarZona(c, html2canvas);
         const pdvs = c.pdv_ids.map((id) => puntosPorId.get(id)).filter((p): p is PdvPlan => !!p);
-        const canales = contarPorCanal(pdvs);
 
         // ── Header ──
         pdf.setFillColor(...AZUL);
@@ -607,17 +606,11 @@ export default function PlanificacionClient() {
           y += 37;
         }
 
-        // ── Mezcla de canales ──
-        pdf.setFontSize(9.5);
-        pdf.setFont('helvetica', 'normal');
-        const mezcla = [
-          canales.tradicional  ? `${canales.tradicional} tradicionales` : '',
-          canales.autoservicio ? `${canales.autoservicio} autoservicios` : '',
-          canales.otro         ? `${canales.otro} sin clasificar` : '',
-        ].filter(Boolean).join('   ·   ');
-        if (mezcla) {
-          pdf.setTextColor(...GRIS);
-          pdf.text(mezcla, MARGIN, y);
+        // ── Referencia de colores ──
+        // Los puntos del mapa de arriba y los de la lista de abajo se pintan
+        // por canal; sin esta línea el papel tiene tres colores sin explicar.
+        if (pdvs.length > 0) {
+          leyendaCanales(pdf, pdvs, MARGIN, y, 9);
           y += 7;
         }
 
