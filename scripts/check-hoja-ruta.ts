@@ -73,3 +73,34 @@ const dup = rutaPorDia([cuad('a', 'LUN', 'ANA', [1]), cuad('b', 'LUN', 'ANA', [1
 assert.deepStrictEqual(dup[0].pdvs.map((p) => p.pdv_id), [1], 'sin duplicados dentro del día');
 
 console.log('hoja de ruta: OK');
+
+// ── recorteDeZona: el pedazo de mapa que va al PDF de la zona ───────────────
+// Lo que puede salir mal sin avisar: un rectángulo fuera del canvas (queda una
+// franja gris) o uno con otra proporción (el mapa sale deformado).
+{
+  const { recorteDeZona } = require('@/lib/planificacion/recorte') as
+    typeof import('@/lib/planificacion/recorte');
+  const W = 1200, H = 900, ASP = 180 / 115;
+  const casi = (a: number, b: number, m: string) =>
+    assert.ok(Math.abs(a - b) < 0.01, `${m}: ${a} vs ${b}`);
+
+  // Zona chica en el medio: se acerca, y con la proporción de la hoja.
+  const r = recorteDeZona([{ x: 500, y: 400 }, { x: 700, y: 600 }], W, H, ASP);
+  casi(r.w / r.h, ASP, 'aspecto');
+  assert.ok(r.w < W / 2, `tiene que acercarse, no abarcar todo: ${r.w}`);
+  casi(r.x + r.w / 2, 600, 'centrado en x');
+  casi(r.y + r.h / 2, 500, 'centrado en y');
+
+  // Zona pegada al borde: el recorte se corre adentro, nunca se sale.
+  for (const p of [[0, 0], [W, H], [0, H], [W, 0]] as [number, number][]) {
+    const b = recorteDeZona([{ x: p[0], y: p[1] }, { x: p[0], y: p[1] }], W, H, ASP);
+    assert.ok(b.x >= 0 && b.y >= 0 && b.x + b.w <= W + 0.01 && b.y + b.h <= H + 0.01,
+      `recorte fuera del canvas en ${p}: ${JSON.stringify(b)}`);
+  }
+
+  // Zona más grande que el contenedor: se queda con lo que hay.
+  const g = recorteDeZona([{ x: -500, y: -500 }, { x: 2000, y: 2000 }], W, H, ASP);
+  assert.deepStrictEqual(g, { x: 0, y: 0, w: W, h: H }, 'zona gigante');
+
+  console.log('✓ recorteDeZona');
+}

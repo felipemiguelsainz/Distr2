@@ -11,6 +11,7 @@ import {
   type Anillo, type Cuadrante, type Dia, type GuardarResultado, type PdvPlan, type PlanificacionData,
 } from './types';
 import { celda, ordenarParaRecorrer } from '@/lib/planificacion/hojaRuta';
+import { recorteDeZona } from '@/lib/planificacion/recorte';
 import { PuntosLayer, type EstiloPunto } from './PuntosLayer';
 import { ResumenPanel } from './ResumenPanel';
 import { Dropdown, Segmentado } from './Dropdown';
@@ -201,7 +202,17 @@ export default function PlanificacionClient() {
   /** id del cuadrante en edicion; null si es nuevo o no hay borrador. */
   const editandoId = borrador?.editandoId ?? null;
 
+  // Mientras se captura una zona, el mapa muestra SOLO esa zona y SOLO sus
+  // PDVs: en la captura anterior salían los polígonos, las etiquetas y los
+  // puntos de todas las zonas vecinas encima, y no se distinguía cuál era la
+  // que estabas exportando.
+  const [zonaCaptura, setZonaCaptura] = useState<string | null>(null);
+
   const puntosVisibles = useMemo(() => {
+    if (zonaCaptura != null) {
+      const suyos = new Set(cuadrantes.find((c) => c.id === zonaCaptura)?.pdv_ids ?? []);
+      return puntos.filter((p) => suyos.has(p.pdv_id));
+    }
     let out = puntos;
     if (localidad) out = out.filter((p) => p.localidad === localidad);
     if (soloSinPlan) {
@@ -215,7 +226,7 @@ export default function PlanificacionClient() {
       });
     }
     return out;
-  }, [puntos, localidad, soloSinPlan, cuadrantePorPdv, editandoId]);
+  }, [puntos, localidad, soloSinPlan, cuadrantePorPdv, editandoId, zonaCaptura, cuadrantes]);
   const [guardando, setGuardando] = useState(false);
   const [aviso, setAviso]         = useState<string | null>(null);
   const [tab, setTab]             = useState<'cuadrantes' | 'resumen'>('cuadrantes');
@@ -466,6 +477,10 @@ export default function PlanificacionClient() {
   // --- Exportar zonas a PDF -----------------------------------------------
   // Se maneja acá y no en ResumenPanel porque el mapa vive acá: para capturar
   // una zona hay que encuadrarla primero, y eso es la instancia de Leaflet.
+  // Tamaño que ocupa el mapa en la hoja (mm). La captura se recorta con este
+  // mismo aspecto: si no, jsPDF la estira y el mapa sale deformado.
+  const IMG_W = 180, IMG_H_MAX = 115;
+
   const mapRef = useRef<LeafletMap | null>(null);
   const mapaDomRef = useRef<HTMLDivElement>(null);
   const [exportandoPdf, setExportandoPdf] = useState<string | null>(null);
@@ -475,7 +490,14 @@ export default function PlanificacionClient() {
   const [progresoPdf, setProgresoPdf] = useState<{ hecho: number; total: number } | null>(null);
 
   /**
-   * Encuadra una zona, espera los tiles y devuelve su captura.
+   * Encuadra una zona, espera los tiles y devuelve su captura ya recortada.
+   *
+   * El recorte no es cosmético: el contenedor del mapa es bien apaisado y
+   * `fitBounds` ajusta contra el lado que sobra, así que una zona más o menos
+   * cuadrada terminaba ocupando un tercio del ancho con medio conurbano
+   * alrededor. Se recorta al polígono —proyectado a píxeles del contenedor—
+   * más un margen, y recién eso va a la hoja.
+   *
    * Devuelve null si la captura falla: el PDF sale igual con la lista.
    */
   const capturarZona = useCallback(async (
@@ -483,18 +505,36 @@ export default function PlanificacionClient() {
     html2canvas: typeof import('html2canvas').default,
   ): Promise<{ data: string; ratio: number } | null> => {
     const mapa = mapRef.current;
-    if (!mapa || !mapaDomRef.current || c.poligono.length === 0) return null;
+    const dom = mapaDomRef.current;
+    if (!mapa || !dom || c.poligono.length === 0) return null;
     // El anillo ya es [lat, lng][], que es un LatLngBoundsExpression válido.
     mapa.fitBounds(c.poligono, { padding: [40, 40] });
     await new Promise((r) => setTimeout(r, 2000)); // que carguen los tiles
     try {
-      const canvas = await html2canvas(mapaDomRef.current, {
+      const canvas = await html2canvas(dom, {
         useCORS: true, allowTaint: true, scale: 2, logging: false, backgroundColor: '#ffffff',
+        // El +/- del zoom y la marca de Leaflet son controles de pantalla; en
+        // un papel no hacen nada más que tapar el mapa.
+        ignoreElements: (el) => el.classList?.contains('leaflet-control-container'),
       });
+      const esc = canvas.width / dom.clientWidth; // scale real (2, salvo DPR raro)
+      const W = canvas.width / esc, H = canvas.height / esc;
+
+      // Caja del polígono en píxeles CSS del contenedor (ver recorte.ts).
+      const pts = c.poligono.map(([lat, lng]) => mapa.latLngToContainerPoint([lat, lng]));
+      const r = recorteDeZona(pts, W, H, IMG_W / IMG_H_MAX);
+
+      const out = document.createElement('canvas');
+      out.width = Math.round(r.w * esc);
+      out.height = Math.round(r.h * esc);
+      out.getContext('2d')!.drawImage(
+        canvas, Math.round(r.x * esc), Math.round(r.y * esc), out.width, out.height,
+        0, 0, out.width, out.height,
+      );
       // JPEG y no PNG: un mapa es una imagen fotográfica y en PNG cada hoja
       // pesaba ~10 MB, así que un vendedor con 10 zonas daba un PDF de 100 MB
       // imposible de mandar por mail. A 0.82 la diferencia no se ve impresa.
-      return { data: canvas.toDataURL('image/jpeg', 0.82), ratio: canvas.height / canvas.width };
+      return { data: out.toDataURL('image/jpeg', 0.82), ratio: out.height / out.width };
     } catch {
       return null;
     }
@@ -523,6 +563,7 @@ export default function PlanificacionClient() {
         const c = zonas[i];
         setProgresoPdf({ hecho: i, total: zonas.length });
         if (i > 0) pdf.addPage();
+        setZonaCaptura(c.id);
         const img = await capturarZona(c, html2canvas);
         const pdvs = c.pdv_ids.map((id) => puntosPorId.get(id)).filter((p): p is PdvPlan => !!p);
         const canales = contarPorCanal(pdvs);
@@ -547,10 +588,14 @@ export default function PlanificacionClient() {
         // ── Mapa ──
         let y = 32;
         if (img) {
-          const imgH = Math.min(105, img.ratio * CONTENT_W);
-          pdf.addImage(img.data, 'JPEG', MARGIN, y, CONTENT_W, imgH);
+          // Encajar respetando la proporción: antes se forzaba 180x105mm y el
+          // mapa salía aplastado a lo alto.
+          let imgW = CONTENT_W, imgH = img.ratio * CONTENT_W;
+          if (imgH > IMG_H_MAX) { imgH = IMG_H_MAX; imgW = imgH / img.ratio; }
+          const x = MARGIN + (CONTENT_W - imgW) / 2;
+          pdf.addImage(img.data, 'JPEG', x, y, imgW, imgH);
           pdf.setDrawColor(...BORDE);
-          pdf.rect(MARGIN, y, CONTENT_W, imgH);
+          pdf.rect(x, y, imgW, imgH);
           y += imgH + 7;
         } else {
           pdf.setFillColor(244, 244, 245);
@@ -641,6 +686,7 @@ export default function PlanificacionClient() {
       setAviso('No se pudo generar el PDF. Probá de nuevo.');
     } finally {
       // Devolver el mapa a donde estaba: el usuario no pidió moverse.
+      setZonaCaptura(null);
       if (vistaPrevia) mapRef.current?.setView(vistaPrevia.centro, vistaPrevia.zoom);
       setExportandoPdf(null);
       setProgresoPdf(null);
@@ -669,11 +715,13 @@ export default function PlanificacionClient() {
 
   const cuadrantesVisibles = useMemo(
     () => cuadrantes.filter((c) =>
-      !ocultos.has(c.id)
-      && c.id !== borrador?.editandoId
-      && (diasVisibles.size === 0 || diasVisibles.has(c.dia))
+      zonaCaptura != null
+        ? c.id === zonaCaptura
+        : !ocultos.has(c.id)
+          && c.id !== borrador?.editandoId
+          && (diasVisibles.size === 0 || diasVisibles.has(c.dia))
     ),
-    [cuadrantes, ocultos, borrador, diasVisibles]
+    [cuadrantes, ocultos, borrador, diasVisibles, zonaCaptura]
   );
 
   /** La lista del panel sigue el mismo filtro que el mapa, para que lo que se
@@ -1110,19 +1158,24 @@ export default function PlanificacionClient() {
                 interactive={false}
                 pathOptions={{ color: c.color, weight: 2, fillColor: c.color, fillOpacity: 0.1 }}
               >
-                <Tooltip
-                  permanent
-                  direction="center"
-                  interactive
-                  className="etiqueta-cuadrante"
-                  eventHandlers={{ click: () => abrirCuadrante(c) }}
-                >
-                  <span style={{ fontWeight: 700, color: c.color }}>{c.nombre}</span>
-                  <br />
-                  <span style={{ color: '#52525b' }}>
-                    {DIA_NOMBRE[c.dia]} · {c.vendedor_nombre} · {c.pdv_ids.length} PDVs
-                  </span>
-                </Tooltip>
+                {/* En la captura no va: la cabecera del PDF ya dice zona,
+                    vendedor, día y cantidad, y la etiqueta tapa justo el
+                    medio del mapa, que es donde están los PDVs. */}
+                {zonaCaptura == null && (
+                  <Tooltip
+                    permanent
+                    direction="center"
+                    interactive
+                    className="etiqueta-cuadrante"
+                    eventHandlers={{ click: () => abrirCuadrante(c) }}
+                  >
+                    <span style={{ fontWeight: 700, color: c.color }}>{c.nombre}</span>
+                    <br />
+                    <span style={{ color: '#52525b' }}>
+                      {DIA_NOMBRE[c.dia]} · {c.vendedor_nombre} · {c.pdv_ids.length} PDVs
+                    </span>
+                  </Tooltip>
+                )}
               </Polygon>
             ))}
           </PaneCuadrantes>
