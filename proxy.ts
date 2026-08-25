@@ -60,10 +60,13 @@ export async function proxy(request: NextRequest) {
     .eq('id', userId)
     .single();
 
-  // Cuenta desactivada o sin perfil → afuera (fail-closed).
+  // Cuenta desactivada o sin perfil → afuera (fail-closed), pero diciendo cuál
+  // de las dos cosas es: el token sigue vivo y sin motivo el usuario queda
+  // rebotando entre el login y acá sin ninguna explicación.
   if (!profile || profile.activo === false) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
+    url.searchParams.set('e', profile ? 'inactiva' : 'perfil');
     return NextResponse.redirect(url);
   }
   const rol = profile.rol;

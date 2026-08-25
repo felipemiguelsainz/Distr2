@@ -1,11 +1,32 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff } from 'lucide-react';
 
+/**
+ * Por qué te devolvimos al login. Lo ponen app/page.tsx y proxy.ts: la sesión
+ * es válida, así que sin decir el motivo el usuario entra, rebota, y ve la
+ * misma pantalla de login otra vez — parece que la contraseña no anda cuando
+ * lo que está mal es el perfil.
+ */
+const MOTIVO: Record<string, string> = {
+  inactiva: 'Tu cuenta está desactivada. Pedile al administrador que la reactive.',
+  sinvendedor: 'Tu cuenta no está vinculada a ningún vendedor. Pedile al administrador que la vincule.',
+  perfil: 'Tu cuenta no tiene el perfil configurado. Pedile al administrador que la vuelva a crear.',
+};
+
+// useSearchParams obliga a un <Suspense> arriba o el build de producción falla.
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -13,6 +34,14 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
+
+  const motivo = MOTIVO[useSearchParams().get('e') ?? ''] ?? null;
+
+  // Con un motivo en la URL la sesión está viva pero no sirve: cortarla, o
+  // volver a entrar es volver a rebotar.
+  useEffect(() => {
+    if (motivo) supabase.auth.signOut();
+  }, [motivo, supabase]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -87,8 +116,8 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {error && (
-            <p className="text-[13px] text-[#dc2626] bg-[#dc2626]/[0.08] border border-[#dc2626]/20 px-3 py-2 rounded-[8px]">{error}</p>
+          {(error || motivo) && (
+            <p className="text-[13px] text-[#dc2626] bg-[#dc2626]/[0.08] border border-[#dc2626]/20 px-3 py-2 rounded-[8px]">{error || motivo}</p>
           )}
 
           <button

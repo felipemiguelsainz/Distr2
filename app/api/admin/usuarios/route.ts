@@ -77,7 +77,12 @@ export async function POST(request: NextRequest) {
     email?: string; nombre?: string; rol?: Rol; target?: string | null;
   };
 
-  if (!email || !rol) {
+  // El email se pega de un mail o un WhatsApp: viene con espacios de sobra y a
+  // veces en mayúsculas. Con un espacio al final, Supabase lo rechaza por
+  // formato inválido y el alta fallaba sin que se entendiera por qué.
+  const emailLimpio = (email ?? '').trim().toLowerCase();
+
+  if (!emailLimpio || !rol) {
     return NextResponse.json({ error: 'Faltan email o rol.' }, { status: 400 });
   }
   if (!isRol(rol)) {
@@ -92,15 +97,17 @@ export async function POST(request: NextRequest) {
 
   // 1) Crear el usuario en Supabase Auth con la contraseña temporal.
   const { data: created, error: createErr } = await svc.auth.admin.createUser({
-    email,
+    email: emailLimpio,
     password: tempPassword,
     email_confirm: true,
   });
   if (createErr || !created?.user) {
     console.error('[usuarios:POST] createUser', createErr);
+    // El error real y no un genérico: "No se pudo crear la cuenta" no le sirve
+    // a nadie para arreglar un email mal escrito o una clave rechazada.
     const msg = createErr?.message?.includes('already')
       ? 'Ya existe una cuenta con ese email.'
-      : 'No se pudo crear la cuenta.';
+      : `No se pudo crear la cuenta: ${createErr?.message ?? 'error desconocido'}`;
     return NextResponse.json({ error: msg }, { status: 400 });
   }
 
@@ -108,7 +115,7 @@ export async function POST(request: NextRequest) {
   const { vendedor_nombre, equipo } = linkFor(rol, target ?? null);
   const { error: profileErr } = await svc.from('profiles').insert({
     id: created.user.id,
-    nombre: nombre || email,
+    nombre: nombre || emailLimpio,
     rol,
     vendedor_nombre,
     equipo,
