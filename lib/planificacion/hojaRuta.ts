@@ -135,7 +135,7 @@ export function celda(
 const PLURAL: Record<TipoPdv, string> = {
   tradicional: 'tradicionales',
   autoservicio: 'autoservicios',
-  otro: 'sin clasificar',
+  otro: 'otros',
 };
 
 /**

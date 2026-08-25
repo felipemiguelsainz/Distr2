@@ -116,7 +116,12 @@ export function diaMencionadoEn(nombre: string): Dia | null {
 // El match es por substring y en minúsculas para que aguante variantes de
 // tipeo del maestro ("Maxi Kiosco", "AUTOSERVICIOS"). Cualquier valor nuevo
 // que aparezca cae en 'otro' y se ve gris en el mapa: es un fallback visible,
-// que es el modo correcto de fallar acá — un canal sin clasificar se nota.
+// que es el modo correcto de fallar acá.
+//
+// 'otro' NO quiere decir "le falta la categoría": OTROS es una categoría del
+// maestro como cualquier otra y son 1.037 PDVs. Sin dato hay 108 (9 activos),
+// y hoy ninguno cae dentro de un cuadrante. Por eso se muestra "Otros" y no
+// "Sin clasificar", que hacía pensar que el maestro estaba incompleto.
 // ---------------------------------------------------------------------------
 export type TipoPdv = 'tradicional' | 'autoservicio' | 'otro';
 
@@ -152,7 +157,7 @@ export function hexARgb(hex: string): [number, number, number] {
 export const LEYENDA_CANAL: { tipo: TipoPdv; color: string; label: string }[] = [
   { tipo: 'tradicional',  color: COLOR_TRADICIONAL,  label: 'Tradicional / Kiosco' },
   { tipo: 'autoservicio', color: COLOR_AUTOSERVICIO, label: 'Autoservicio' },
-  { tipo: 'otro',         color: COLOR_OTRO_CANAL,   label: 'Sin clasificar' },
+  { tipo: 'otro',         color: COLOR_OTRO_CANAL,   label: 'Otros' },
 ];
 
 /** Cuenta cuántos PDVs de cada tipo hay en una lista. */

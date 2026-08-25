@@ -12,7 +12,7 @@ import { generarHojaRuta, rutaPorDia } from '@/lib/planificacion/hojaRuta';
 const TIPO_LABEL: Record<TipoPdv, string> = {
   tradicional: 'Tradicional',
   autoservicio: 'Autoservicio',
-  otro: 'Sin clasificar',
+  otro: 'Otros',
 };
 
 // Ver la nota en PlanificacionClient.tsx: la fuente de cifras es JetBrains Mono.
@@ -146,7 +146,7 @@ export function ResumenPanel({
           'Visitas':       f.visitas,
           'Tradicionales': canales.tradicional,
           'Autoservicios': canales.autoservicio,
-          'Sin clasificar': canales.otro,
+          'Otros': canales.otro,
           ...Object.fromEntries(DIAS_HABILES.map((d) => [DIA_NOMBRE[d], f.porDia[d] ?? 0])),
         };
       });
@@ -160,7 +160,7 @@ export function ResumenPanel({
         'PDVs':           c.pdv_ids.length,
         'Tradicionales':  canales.tradicional,
         'Autoservicios':  canales.autoservicio,
-        'Sin clasificar': canales.otro,
+        'Otros': canales.otro,
         'Localidad':      c.localidad ?? '',
       }));
 
@@ -295,7 +295,7 @@ export function ResumenPanel({
                 {([
                   ['tradicional',  canales.tradicional,  COLOR_TRADICIONAL,  'tradicionales'],
                   ['autoservicio', canales.autoservicio, COLOR_AUTOSERVICIO, 'autoservicios'],
-                  ['otro',         canales.otro,         COLOR_OTRO_CANAL,   'sin clasificar'],
+                  ['otro',         canales.otro,         COLOR_OTRO_CANAL,   'otros'],
                 ] as const).filter(([, n]) => n > 0).map(([k, n, color, label]) => (
                   <span key={k} className="flex items-center gap-1 text-[11px] text-[#52525b]">
                     <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
