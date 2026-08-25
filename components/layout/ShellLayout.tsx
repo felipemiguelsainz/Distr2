@@ -15,6 +15,11 @@ export function ShellLayout({ sidebar, children, floating }: ShellLayoutProps) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
+  // Pantallas de alto completo: el tope de 1280px les deja una franja blanca a
+  // los costados en monitores anchos. Cancelan el padding con -mx-*, pero un
+  // max-width no se cancela con margen negativo.
+  const anchoCompleto = pathname === '/mapa' || pathname === '/planificacion';
+
   // Cerrar el sidebar al navegar (mobile). Se ajusta en render y no en un
   // efecto: así no queda un frame con el menú abierto sobre la página nueva.
   const [pathPrev, setPathPrev] = useState(pathname);
@@ -68,7 +73,9 @@ export function ShellLayout({ sidebar, children, floating }: ShellLayoutProps) {
             botones alineados a la derecha quedan tapados por el chat.
             Las pantallas de alto completo (mapa, planificación) lo cancelan
             con -mb-20, igual que ya cancelaban el resto del padding. */}
-        <div className="max-w-[1280px] mx-auto px-4 lg:px-6 pt-6 lg:pt-8 pb-20 animate-rise">
+        <div
+          className={`${anchoCompleto ? '' : 'max-w-[1280px]'} mx-auto px-4 lg:px-6 pt-6 lg:pt-8 pb-20 animate-rise`}
+        >
           {children}
         </div>
       </main>
