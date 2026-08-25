@@ -131,23 +131,26 @@ export function canalDe(canalVenta: string | null): string {
   return c || SIN_CANAL;
 }
 
-// Colores de los canales de hoy. El orden es el de la leyenda: de más PDVs a
-// menos, que es como se lee. Los dos kioscos son parientes y llevan la misma
-// familia de verde; el gris queda para "sin dato", que no es una categoría.
-export const CANALES: { canal: string; color: string }[] = [
-  { canal: 'KIOSCO',        color: '#22c55e' },
-  { canal: 'TRADICIONALES', color: '#0ea5e9' },
-  { canal: 'AUTOSERVICIO',  color: '#ef4444' },
-  { canal: 'OTROS',         color: '#f59e0b' },
-  { canal: 'MAXI KIOSCO',   color: '#15803d' },
-  { canal: 'REVENTA',       color: '#a855f7' },
+// Los canales de hoy, en el orden en que se listan: de más PDVs a menos, que
+// es como se lee. Sirve para ordenar leyendas y columnas; el color no sale de
+// acá, para que un canal nuevo del maestro no dependa de esta lista.
+export const CANALES = [
+  'KIOSCO', 'TRADICIONALES', 'AUTOSERVICIO', 'OTROS', 'MAXI KIOSCO', 'REVENTA',
 ];
-const COLOR_RESERVA = '#94a3b8';
 
-const COLOR_POR_CANAL = new Map(CANALES.map((c) => [c.canal, c.color]));
+// Dos colores y nada más: en el mapa lo que se decide es dónde están los
+// autoservicios: el resto de los canales se recorre igual y pintarlos de seis
+// colores distintos era ruido. El nombre del canal sí se muestra completo en
+// la leyenda y en las listas, así que no se pierde nada.
+export const COLOR_AUTOSERVICIO = '#ef4444';
+export const COLOR_OTROS_CANALES = '#22c55e';
 
 export function colorPorCanal(canalVenta: string | null): string {
-  return COLOR_POR_CANAL.get(canalDe(canalVenta)) ?? COLOR_RESERVA;
+  // Por substring: el maestro hoy dice AUTOSERVICIO, pero un AUTOSERVICIOS o
+  // un AUTOSERVICIO GRANDE tienen que caer del mismo lado.
+  return canalDe(canalVenta).includes('AUTOSERVICIO')
+    ? COLOR_AUTOSERVICIO
+    : COLOR_OTROS_CANALES;
 }
 
 /** jsPDF pide los colores como tres enteros 0-255, no como hex. */
@@ -159,8 +162,8 @@ export function hexARgb(hex: string): [number, number, number] {
 export interface CuentaCanal { canal: string; color: string; n: number }
 
 /**
- * Cuántos PDVs hay de cada canal, en el orden de la leyenda y sin los canales
- * que no aparecen: una leyenda con "0 REVENTA" es ruido.
+ * Cuántos PDVs hay de cada canal, en el orden de CANALES y sin los que no
+ * aparecen: una leyenda con "0 REVENTA" es ruido.
  *
  * Un canal que no esté en CANALES (o los sin dato) va al final, de mayor a
  * menor: es el caso raro y no tiene por qué encabezar la lista.
@@ -171,14 +174,14 @@ export function contarPorCanal(pdvs: PdvPlan[]): CuentaCanal[] {
     const c = canalDe(p.canal_venta);
     n.set(c, (n.get(c) ?? 0) + 1);
   }
-  const conocidos = CANALES
-    .filter((c) => n.has(c.canal))
-    .map((c) => ({ ...c, n: n.get(c.canal)! }));
-  const resto = [...n.keys()]
-    .filter((c) => !COLOR_POR_CANAL.has(c))
-    .map((canal) => ({ canal, color: COLOR_RESERVA, n: n.get(canal)! }))
-    .sort((a, b) => b.n - a.n);
-  return [...conocidos, ...resto];
+  const orden = (c: string) => {
+    const i = CANALES.indexOf(c);
+    return i === -1 ? CANALES.length : i;
+  };
+  return [...n.entries()]
+    .map(([canal, cant]) => ({ canal, color: colorPorCanal(canal), n: cant }))
+    // Desempate por cantidad para los que no están en CANALES.
+    .sort((a, b) => orden(a.canal) - orden(b.canal) || b.n - a.n);
 }
 
 /** Paleta de los cuadrantes: alto contraste entre sí y contra el mapa base. */
