@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  MapContainer, TileLayer, Polygon, Polyline, CircleMarker, Tooltip, useMap, useMapEvents,
+  MapContainer, TileLayer, Polygon, Polyline, CircleMarker, Marker, Tooltip, useMap, useMapEvents,
 } from 'react-leaflet';
-import type { Map as LeafletMap } from 'leaflet';
+import L, { type Map as LeafletMap } from 'leaflet';
 import {
   COLORES_CUADRANTE, DIAS_HABILES, DIA_NOMBRE, colorPorCanal, contarPorCanal,
   dentroDelPoligono, diaMencionadoEn, hexARgb,
@@ -198,6 +198,8 @@ export default function PlanificacionClient() {
   // --- Dibujo -------------------------------------------------------------
   const [modo, setModo]           = useState<Modo>('ver');
   const [borrador, setBorrador]   = useState<Borrador | null>(null);
+  /** Cuadrante al que se le hizo zoom: se dibuja más marcado que el resto. */
+  const [enfocado, setEnfocado]   = useState<string | null>(null);
 
   /** id del cuadrante en edicion; null si es nuevo o no hay borrador. */
   const editandoId = borrador?.editandoId ?? null;
@@ -266,20 +268,64 @@ export default function PlanificacionClient() {
     setBorrador((b) => (b ? { ...b, vertices: b.vertices.slice(0, -1) } : b));
   }, []);
 
+  /** Qué PDVs de los que están a la vista caen dentro de un contorno. */
+  const pdvsDentro = useCallback(
+    (vertices: Anillo) => puntosVisibles
+      .filter((p) => dentroDelPoligono(p.lat, p.lon, vertices))
+      .map((p) => p.pdv_id),
+    [puntosVisibles],
+  );
+
   /** Cierra el polígono y calcula qué quedó adentro (de lo que está a la vista). */
   const cerrarPoligono = useCallback(() => {
-    setBorrador((b) => {
-      if (!b || b.vertices.length < 3) return b;
-      const dentro = puntosVisibles.filter((p) => dentroDelPoligono(p.lat, p.lon, b.vertices));
-      return { ...b, pdvIds: dentro.map((p) => p.pdv_id) };
-    });
+    setBorrador((b) => (b && b.vertices.length >= 3 ? { ...b, pdvIds: pdvsDentro(b.vertices) } : b));
     setModo((m) => (m === 'dibujando' ? 'formulario' : m));
-  }, [puntosVisibles]);
+  }, [pdvsDentro]);
+
+  // ── Retoque del contorno ya dibujado ────────────────────────────────────
+  // Antes la única forma de corregir un cuadrante era borrarlo entero y volver
+  // a dibujarlo punto por punto, cuando lo normal es que sobre o falte media
+  // manzana. Se arrastran las puntas.
+
+  /** Mueve una punta. Mientras se arrastra no se recalculan los PDVs: son
+   *  7.000 puntos por cada cuadro de la animación. */
+  const moverVertice = useCallback((i: number, lat: number, lng: number) => {
+    setBorrador((b) => {
+      if (!b) return b;
+      const vertices = b.vertices.map((v, k) => (k === i ? [lat, lng] as [number, number] : v));
+      return { ...b, vertices };
+    });
+  }, []);
+
+  /** Al soltar sí: el contorno cambió, así que cambia lo que quedó adentro. */
+  const recalcularBorrador = useCallback(() => {
+    setBorrador((b) => (b && b.vertices.length >= 3 ? { ...b, pdvIds: pdvsDentro(b.vertices) } : b));
+  }, [pdvsDentro]);
+
+  /** Saca una punta. Con tres no se puede: dejaría de ser un polígono. */
+  const quitarVertice = useCallback((i: number) => {
+    setBorrador((b) => {
+      if (!b || b.vertices.length <= 3) return b;
+      const vertices = b.vertices.filter((_, k) => k !== i);
+      return { ...b, vertices, pdvIds: pdvsDentro(vertices) };
+    });
+  }, [pdvsDentro]);
+
+  /** Agrega una punta en el medio de un lado, para poder doblarlo. */
+  const insertarVertice = useCallback((i: number, lat: number, lng: number) => {
+    setBorrador((b) => {
+      if (!b) return b;
+      const vertices = [...b.vertices];
+      vertices.splice(i + 1, 0, [lat, lng]);
+      return { ...b, vertices, pdvIds: pdvsDentro(vertices) };
+    });
+  }, [pdvsDentro]);
 
   const cancelar = useCallback(() => {
     setBorrador(null);
     setModo('ver');
     setAviso(null);
+    setEnfocado(null);
   }, []);
 
   /** ¿El borrador se apartó del cuadrante del que salió? Sirve para no
@@ -292,6 +338,17 @@ export default function PlanificacionClient() {
       || b.color !== original.color
       || JSON.stringify(b.vertices) !== JSON.stringify(original.poligono)
       || JSON.stringify([...b.pdvIds].sort()) !== JSON.stringify([...original.pdv_ids].sort());
+  }, []);
+
+  /**
+   * Zoom al cuadrante y destacarlo. Es lo que hace falta para mirarlo: la
+   * vista suele estar en toda la distribuidora y una zona son diez cuadras.
+   * No toca el modo ni la solapa — desde el Resumen se quiere mirar el mapa
+   * sin salir del Resumen.
+   */
+  const enfocarCuadrante = useCallback((c: Cuadrante) => {
+    setEnfocado(c.id);
+    if (c.poligono.length > 0) mapRef.current?.fitBounds(c.poligono, { padding: [60, 60] });
   }, []);
 
   const editar = useCallback((c: Cuadrante) => {
@@ -312,7 +369,8 @@ export default function PlanificacionClient() {
     // nada y ademas desaparecia el boton de dibujar.
     setTab('cuadrantes');
     setPanelAbierto(true);
-  }, []);
+    enfocarCuadrante(c);
+  }, [enfocarCuadrante]);
 
   /**
    * Clic en la etiqueta de un cuadrante del mapa.
@@ -473,6 +531,25 @@ export default function PlanificacionClient() {
   }, [borrador, pdvsDelBorrador, pdvsEnConflicto, colorearPor, cuadrantePorPdv]);
 
   const puntosPorId = useMemo(() => new Map(puntos.map((p) => [p.pdv_id, p])), [puntos]);
+
+  // Iconos de las puntas: CircleMarker no se puede arrastrar en Leaflet, así
+  // que las puntas editables son Marker con un divIcon redondo.
+  const iconos = useMemo(() => {
+    const color = borrador?.color ?? '#0c5cab';
+    const base = 'border-radius:50%;box-sizing:border-box;';
+    return {
+      punta: L.divIcon({
+        className: '',
+        html: `<div style="${base}width:14px;height:14px;background:${color};border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);cursor:grab"></div>`,
+        iconSize: [14, 14], iconAnchor: [7, 7],
+      }),
+      medio: L.divIcon({
+        className: '',
+        html: `<div style="${base}width:10px;height:10px;background:#fff;border:2px solid ${color};opacity:.65;cursor:copy"></div>`,
+        iconSize: [10, 10], iconAnchor: [5, 5],
+      }),
+    };
+  }, [borrador?.color]);
 
   /** Canales presentes en el mapa, para la leyenda de "colorear por canal". */
   const leyendaCanal = useMemo(() => contarPorCanal(puntosVisibles), [puntosVisibles]);
@@ -741,6 +818,51 @@ export default function PlanificacionClient() {
     );
   }
 
+  // El mismo filtro por día en las dos solapas: en Resumen no había forma de
+  // filtrar, así que se miraban los números de toda la semana sin poder aislar
+  // el lunes. Es una variable y no un componente aparte para que no se remonte
+  // en cada render y no haya dos estados que sincronizar.
+  const filtroDias = cuadrantes.length === 0 ? null : (
+    <div className="flex flex-col gap-1.5 border-t border-[#f4f4f5] pt-2">
+      <div className="flex items-center justify-between">
+        <span className="text-[9.5px] font-semibold uppercase tracking-[0.07em] text-[#71717a]" style={MONO}>
+          Ver cuadrantes de
+        </span>
+        {diasVisibles.size > 0 && (
+          <button
+            onClick={() => setDiasVisibles(new Set())}
+            className="text-[11px] text-[#0c5cab] hover:underline"
+          >
+            Todos
+          </button>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {DIAS_HABILES.map((d) => {
+          const n = cuadrantes.filter((c) => c.dia === d).length;
+          if (n === 0) return null;
+          const activo = diasVisibles.has(d);
+          return (
+            <button
+              key={d}
+              onClick={() => setDiasVisibles((s) => {
+                const next = new Set(s);
+                if (next.has(d)) next.delete(d); else next.add(d);
+                return next;
+              })}
+              className={`px-1.5 py-0.5 text-[11px] font-semibold rounded-[5px] border transition-colors ${
+                activo ? 'text-white border-transparent' : 'bg-white border-[#e4e4e7] text-[#71717a] hover:text-[#09090b]'
+              }`}
+              style={activo ? { background: DIA_COLOR[d] } : undefined}
+            >
+              {d} <span className="opacity-70">{n}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex h-full flex-col lg:flex-row bg-[#fafafa]">
       {/* ═══ Panel ═══ */}
@@ -787,8 +909,11 @@ export default function PlanificacionClient() {
         <div className={`flex-1 min-h-0 overflow-y-auto ${expandido ? '' : 'hidden lg:block'}`}>
           {tab === 'resumen' ? (
             <ResumenPanel
-              cuadrantes={cuadrantes}
+              cuadrantes={cuadrantesListados}
               puntos={puntos}
+              filtroDias={filtroDias}
+              enfocado={enfocado}
+              onEnfocar={enfocarCuadrante}
               onExportarCuadrante={exportarCuadrante}
               onExportarVendedor={exportarVendedor}
               exportandoPdf={exportandoPdf}
@@ -872,49 +997,7 @@ export default function PlanificacionClient() {
                     Solo los que todavía no tienen cuadrante
                   </button>
 
-                  {/* Filtro por día de los cuadrantes. Con 28 cuadrantes el mapa
-                      se llena de etiquetas superpuestas y no se lee nada; además
-                      "mostrame el lunes" es como se planifica de verdad. */}
-                  {cuadrantes.length > 0 && (
-                    <div className="flex flex-col gap-1.5 border-t border-[#f4f4f5] pt-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[9.5px] font-semibold uppercase tracking-[0.07em] text-[#71717a]" style={MONO}>
-                          Ver cuadrantes de
-                        </span>
-                        {diasVisibles.size > 0 && (
-                          <button
-                            onClick={() => setDiasVisibles(new Set())}
-                            className="text-[11px] text-[#0c5cab] hover:underline"
-                          >
-                            Todos
-                          </button>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {DIAS_HABILES.map((d) => {
-                          const n = cuadrantes.filter((c) => c.dia === d).length;
-                          if (n === 0) return null;
-                          const activo = diasVisibles.has(d);
-                          return (
-                            <button
-                              key={d}
-                              onClick={() => setDiasVisibles((s) => {
-                                const next = new Set(s);
-                                if (next.has(d)) next.delete(d); else next.add(d);
-                                return next;
-                              })}
-                              className={`px-1.5 py-0.5 text-[11px] font-semibold rounded-[5px] border transition-colors ${
-                                activo ? 'text-white border-transparent' : 'bg-white border-[#e4e4e7] text-[#71717a] hover:text-[#09090b]'
-                              }`}
-                              style={activo ? { background: DIA_COLOR[d] } : undefined}
-                            >
-                              {d} <span className="opacity-70">{n}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
+                  {filtroDias}
 
                   <div className="flex items-baseline gap-1.5 border-t border-[#f4f4f5] pt-2">
                     <span className="text-[15px] font-bold text-[#09090b] leading-none" style={MONO}>
@@ -1154,7 +1237,11 @@ export default function PlanificacionClient() {
                 positions={c.poligono}
                 pane={PANE_CUADRANTES}
                 interactive={false}
-                pathOptions={{ color: c.color, weight: 2, fillColor: c.color, fillOpacity: 0.1 }}
+                pathOptions={
+                  c.id === enfocado
+                    ? { color: c.color, weight: 4, fillColor: c.color, fillOpacity: 0.3 }
+                    : { color: c.color, weight: 2, fillColor: c.color, fillOpacity: 0.1 }
+                }
               >
                 {/* En la captura no va: la cabecera del PDF ya dice zona,
                     vendedor, día y cantidad, y la etiqueta tapa justo el
@@ -1192,28 +1279,74 @@ export default function PlanificacionClient() {
                   pathOptions={{ color: borrador.color, weight: 2.5, dashArray: '5 4' }}
                 />
               )}
-              {borrador.vertices.map((v, i) => (
-                <CircleMarker
-                  key={i}
-                  center={v}
-                  radius={i === 0 ? 7 : 5}
-                  pathOptions={{ color: '#ffffff', weight: 2, fillColor: borrador.color, fillOpacity: 1 }}
-                  eventHandlers={{
-                    // Clickear el primer vértice cierra el contorno, como en
-                    // cualquier herramienta de dibujo de mapas.
-                    click: (e) => {
-                      if (i === 0 && modo === 'dibujando' && borrador.vertices.length >= 3) {
-                        e.originalEvent.stopPropagation();
-                        cerrarPoligono();
-                      }
-                    },
-                  }}
-                >
-                  {i === 0 && modo === 'dibujando' && borrador.vertices.length >= 3 && (
-                    <Tooltip direction="top">Clic acá para cerrar</Tooltip>
-                  )}
-                </CircleMarker>
-              ))}
+              {/* Con el contorno cerrado las puntas se arrastran; mientras se
+                  dibuja siguen siendo marcas fijas (ahí el gesto es clickear
+                  para sumar puntos, y una punta que se mueve estorba). */}
+              {modo === 'formulario'
+                ? borrador.vertices.map((v, i) => (
+                    <Marker
+                      key={`v${i}`}
+                      position={v}
+                      icon={iconos.punta}
+                      draggable
+                      eventHandlers={{
+                        drag: (e) => {
+                          const { lat, lng } = (e.target as L.Marker).getLatLng();
+                          moverVertice(i, lat, lng);
+                        },
+                        dragend: recalcularBorrador,
+                        // Doble clic saca la punta: es el gesto de siempre para
+                        // esto y no gasta un botón en el panel.
+                        dblclick: (e) => {
+                          L.DomEvent.stop(e as unknown as Event);
+                          quitarVertice(i);
+                        },
+                      }}
+                    >
+                      <Tooltip direction="top" offset={[0, -8]}>
+                        Arrastrá para mover · doble clic para sacarla
+                      </Tooltip>
+                    </Marker>
+                  ))
+                : borrador.vertices.map((v, i) => (
+                    <CircleMarker
+                      key={i}
+                      center={v}
+                      radius={i === 0 ? 7 : 5}
+                      pathOptions={{ color: '#ffffff', weight: 2, fillColor: borrador.color, fillOpacity: 1 }}
+                      eventHandlers={{
+                        // Clickear el primer vértice cierra el contorno, como en
+                        // cualquier herramienta de dibujo de mapas.
+                        click: (e) => {
+                          if (i === 0 && modo === 'dibujando' && borrador.vertices.length >= 3) {
+                            e.originalEvent.stopPropagation();
+                            cerrarPoligono();
+                          }
+                        },
+                      }}
+                    >
+                      {i === 0 && modo === 'dibujando' && borrador.vertices.length >= 3 && (
+                        <Tooltip direction="top">Clic acá para cerrar</Tooltip>
+                      )}
+                    </CircleMarker>
+                  ))}
+
+              {/* Un punto en el medio de cada lado: clickearlo agrega una punta
+                  ahí, que es como se dobla un lado que quedó recto de más. */}
+              {modo === 'formulario' && borrador.vertices.length >= 3 && borrador.vertices.map((v, i) => {
+                const w = borrador.vertices[(i + 1) % borrador.vertices.length];
+                const medio: [number, number] = [(v[0] + w[0]) / 2, (v[1] + w[1]) / 2];
+                return (
+                  <Marker
+                    key={`m${i}`}
+                    position={medio}
+                    icon={iconos.medio}
+                    eventHandlers={{ click: () => insertarVertice(i, medio[0], medio[1]) }}
+                  >
+                    <Tooltip direction="top" offset={[0, -6]}>Clic para agregar una punta</Tooltip>
+                  </Marker>
+                );
+              })}
             </>
           )}
         </MapContainer>
@@ -1466,12 +1599,16 @@ function FormularioCuadrante({
             {guardando ? 'Guardando…' : vacio ? 'No hay PDVs para asignar' : 'Guardar cuadrante'}
           </button>
         )}
+        <p className="text-[10.5px] text-[#71717a] leading-relaxed mb-1.5">
+          Arrastrá las puntas del contorno para ajustarlo. Doble clic saca una punta;
+          el puntito del medio de cada lado agrega una.
+        </p>
         <div className="flex gap-1.5">
           <button
             onClick={onRedibujar}
             className="flex-1 px-3 py-1.5 text-[11.5px] font-medium rounded-[8px] border border-[#e4e4e7] bg-white text-[#52525b] hover:text-[#09090b] transition-colors"
           >
-            Redibujar contorno
+            Redibujar de cero
           </button>
           <button
             onClick={onCancelar}

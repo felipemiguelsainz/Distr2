@@ -36,13 +36,23 @@ interface FilaVendedor {
 export function ResumenPanel({
   cuadrantes,
   puntos,
+  filtroDias,
+  enfocado,
+  onEnfocar,
   onExportarCuadrante,
   onExportarVendedor,
   exportandoPdf,
   progresoPdf,
 }: {
+  /** Ya vienen filtrados por día: acá se ve lo mismo que en el mapa. */
   cuadrantes: Cuadrante[];
   puntos: PdvPlan[];
+  /** El mismo control de días de la otra solapa, para poder filtrar desde acá. */
+  filtroDias?: React.ReactNode;
+  /** Zona a la que el mapa le hizo zoom, para marcarla también en la lista. */
+  enfocado?: string | null;
+  /** Clic en una zona: zoom del mapa, sin sacar al usuario del Resumen. */
+  onEnfocar?: (c: Cuadrante) => void;
   /** Genera el PDF de una zona. Lo maneja PlanificacionClient, que tiene el mapa. */
   onExportarCuadrante?: (c: Cuadrante) => void;
   /** Todas las zonas de un vendedor en un PDF multipágina. */
@@ -208,10 +218,12 @@ export function ResumenPanel({
 
   if (cuadrantes.length === 0) {
     return (
-      <div className="px-4 py-8 text-center">
-        <p className="text-[12.5px] text-[#71717a] leading-relaxed">
-          Todavía no hay cuadrantes.<br />
-          Dibujá el primero y acá vas a ver cómo queda repartida la semana.
+      <div className="flex flex-col gap-3 px-3 py-3">
+        {filtroDias}
+        <p className="px-1 py-6 text-center text-[12.5px] text-[#71717a] leading-relaxed">
+          {filtroDias
+            ? 'Ningún cuadrante cae en los días elegidos.'
+            : <>Todavía no hay cuadrantes.<br />Dibujá el primero y acá vas a ver cómo queda repartida la semana.</>}
         </p>
       </div>
     );
@@ -219,6 +231,7 @@ export function ResumenPanel({
 
   return (
     <div className="flex flex-col gap-3 px-3 py-3">
+      {filtroDias}
       <div className="grid grid-cols-3 gap-2">
         {[
           ['Cuadrantes', cuadrantes.length],
@@ -269,9 +282,22 @@ export function ResumenPanel({
         {porCuadrante.map(({ cuadrante: c, canales }) => {
           const ocupado = exportandoPdf === c.id;
           return (
-            <div key={c.id} className="rounded-[10px] border border-[#e4e4e7] bg-white px-2.5 py-2">
+            <div
+              key={c.id}
+              className={`rounded-[10px] border bg-white px-2.5 py-2 transition-colors ${
+                c.id === enfocado ? 'border-[#0c5cab] bg-[rgba(12,92,171,0.04)]' : 'border-[#e4e4e7]'
+              }`}
+            >
               <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
+                {/* El bloque entero es el botón: la zona se toca para verla en
+                    el mapa, que es lo que uno quiere hacer leyendo el resumen. */}
+                <button
+                  type="button"
+                  onClick={() => onEnfocar?.(c)}
+                  disabled={!onEnfocar}
+                  title="Ver esta zona en el mapa"
+                  className="min-w-0 text-left disabled:cursor-default"
+                >
                   <p className="flex items-center gap-1.5 text-[12px] font-semibold text-[#09090b] truncate">
                     <span className="w-2 h-2 rounded-full shrink-0" style={{ background: c.color }} />
                     {c.nombre}
@@ -279,7 +305,7 @@ export function ResumenPanel({
                   <p className="text-[11px] text-[#71717a] truncate">
                     {c.vendedor_nombre} · {DIA_NOMBRE[c.dia] ?? c.dia} · {c.pdv_ids.length} PDV
                   </p>
-                </div>
+                </button>
                 {onExportarCuadrante && (
                   <button
                     onClick={() => onExportarCuadrante(c)}
