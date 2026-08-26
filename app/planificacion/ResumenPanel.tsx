@@ -6,6 +6,7 @@ import {
   type CuentaCanal, type Cuadrante, type PdvPlan,
 } from './types';
 import { generarHojaRuta, rutaPorDia } from '@/lib/planificacion/hojaRuta';
+import { TarjetaZona } from './TarjetaZona';
 
 /** Una columna por canal para el Excel, con 0 en los que esa fila no tiene. */
 function columnasPorCanal(canales: CuentaCanal[], todos: string[]) {
@@ -282,40 +283,21 @@ export function ResumenPanel({
         {porCuadrante.map(({ cuadrante: c, canales }) => {
           const ocupado = exportandoPdf === c.id;
           return (
-            <div
+            <TarjetaZona
               key={c.id}
-              className={`rounded-[10px] border bg-white px-2.5 py-2 transition-colors ${
-                c.id === enfocado ? 'border-[#0c5cab] bg-[rgba(12,92,171,0.04)]' : 'border-[#e4e4e7]'
-              }`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                {/* El bloque entero es el botón: la zona se toca para verla en
-                    el mapa, que es lo que uno quiere hacer leyendo el resumen. */}
+              c={c}
+              enfocado={c.id === enfocado}
+              onEnfocar={onEnfocar}
+              accion={onExportarCuadrante && (
                 <button
-                  type="button"
-                  onClick={() => onEnfocar?.(c)}
-                  disabled={!onEnfocar}
-                  title="Ver esta zona en el mapa"
-                  className="min-w-0 text-left disabled:cursor-default"
+                  onClick={() => onExportarCuadrante(c)}
+                  disabled={!!exportandoPdf}
+                  className="px-2 py-1 text-[11px] font-semibold rounded-[6px] text-[#0c5cab] bg-[rgba(12,92,171,0.08)] border border-[rgba(12,92,171,0.2)] hover:bg-[rgba(12,92,171,0.14)] disabled:opacity-40 transition-colors"
                 >
-                  <p className="flex items-center gap-1.5 text-[12px] font-semibold text-[#09090b] truncate">
-                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: c.color }} />
-                    {c.nombre}
-                  </p>
-                  <p className="text-[11px] text-[#71717a] truncate">
-                    {c.vendedor_nombre} · {DIA_NOMBRE[c.dia] ?? c.dia} · {c.pdv_ids.length} PDV
-                  </p>
+                  {ocupado ? 'Generando…' : 'PDF'}
                 </button>
-                {onExportarCuadrante && (
-                  <button
-                    onClick={() => onExportarCuadrante(c)}
-                    disabled={!!exportandoPdf}
-                    className="shrink-0 px-2 py-1 text-[11px] font-semibold rounded-[6px] text-[#0c5cab] bg-[rgba(12,92,171,0.08)] border border-[rgba(12,92,171,0.2)] hover:bg-[rgba(12,92,171,0.14)] disabled:opacity-40 transition-colors"
-                  >
-                    {ocupado ? 'Generando…' : 'PDF'}
-                  </button>
-                )}
-              </div>
+              )}
+            >
               {/* Desglose por canal, como lo nombra el maestro. Los canales
                   que la zona no tiene no aparecen: en una zona de puro kiosco,
                   un "0 AUTOSERVICIO" es ruido. */}
@@ -328,7 +310,7 @@ export function ResumenPanel({
                   </span>
                 ))}
               </div>
-            </div>
+            </TarjetaZona>
           );
         })}
       </div>

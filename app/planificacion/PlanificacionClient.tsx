@@ -6,13 +6,14 @@ import {
 } from 'react-leaflet';
 import L, { type Map as LeafletMap } from 'leaflet';
 import {
-  COLORES_CUADRANTE, DIAS_HABILES, DIA_NOMBRE, colorPorCanal, contarPorCanal,
+  COLORES_CUADRANTE, DIAS_HABILES, DIA_COLOR, DIA_NOMBRE, colorPorCanal, contarPorCanal,
   dentroDelPoligono, diaMencionadoEn, hexARgb,
   type Anillo, type Cuadrante, type Dia, type GuardarResultado, type PdvPlan, type PlanificacionData,
 } from './types';
 import { celda, leyendaCanales, ordenarParaRecorrer } from '@/lib/planificacion/hojaRuta';
 import { recorteDeZona } from '@/lib/planificacion/recorte';
 import { PuntosLayer, type EstiloPunto } from './PuntosLayer';
+import { TarjetaZona } from './TarjetaZona';
 import { ResumenPanel } from './ResumenPanel';
 import { Dropdown, Segmentado } from './Dropdown';
 
@@ -21,11 +22,6 @@ import { Dropdown, Segmentado } from './Dropdown';
 // distinto del resto de la app. Ver DESIGN.md → La Regla del Número Monoespaciado.
 const MONO = { fontFamily: "'JetBrains Mono', ui-monospace, monospace" } as const;
 
-/** Color por día del maestro — para leer de un vistazo cómo está hoy la semana. */
-const DIA_COLOR: Record<string, string> = {
-  LUN: '#0c5cab', MAR: '#e11d48', MIE: '#16a34a',
-  JUE: '#f59e0b', VIE: '#7c3aed', SAB: '#0891b2',
-};
 const COLOR_SIN_DATO = '#a1a1aa';
 
 type Modo = 'ver' | 'dibujando' | 'formulario';
@@ -1095,7 +1091,9 @@ export default function PlanificacionClient() {
               )}
 
               {/* ── Lista de cuadrantes ── */}
-              <div className="flex flex-col">
+              {/* Mismas tarjetas que el Resumen: es la misma cosa listada dos
+                  veces y con dos aspectos distintos costaba reconocerla. */}
+              <div className="flex flex-col gap-1.5 px-3 py-2">
                 {loading && (
                   <p className="px-3 py-4 text-[12px] text-[#71717a]">Cargando PDVs…</p>
                 )}
@@ -1113,26 +1111,14 @@ export default function PlanificacionClient() {
                     separados: en una sola línea el nombre del vendedor y el
                     conteo quedaban cortados a la mitad. */}
                 {cuadrantesListados.map((c) => (
-                  <div
+                  <TarjetaZona
                     key={c.id}
-                    className={`group px-3.5 py-2 border-b border-[#f4f4f5] transition-colors hover:bg-[rgba(0,0,0,0.015)] ${
-                      ocultos.has(c.id) ? 'opacity-45' : ''
-                    }`}
+                    c={c}
+                    enfocado={enfocado === c.id}
+                    apagada={ocultos.has(c.id)}
+                    onEnfocar={enfocarCuadrante}
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: c.color }} />
-                      <p className="text-[12.5px] font-semibold text-[#09090b] truncate flex-1">{c.nombre}</p>
-                      <span
-                        className="text-[10px] font-semibold px-1.5 py-0.5 rounded-[5px] shrink-0"
-                        style={{ background: `${DIA_COLOR[c.dia]}1a`, color: DIA_COLOR[c.dia] }}
-                      >
-                        {c.dia}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-[#71717a] truncate pl-[18px] mt-0.5">
-                      {c.vendedor_nombre} · {c.pdv_ids.length} PDVs
-                    </p>
-                    <div className="flex items-center gap-3 pl-[18px] mt-1">
+                    <div className="flex items-center gap-3 mt-1">
                       <button
                         onClick={() => setOcultos((s) => {
                           const n = new Set(s);
@@ -1156,7 +1142,7 @@ export default function PlanificacionClient() {
                         Borrar
                       </button>
                     </div>
-                  </div>
+                  </TarjetaZona>
                 ))}
               </div>
             </div>

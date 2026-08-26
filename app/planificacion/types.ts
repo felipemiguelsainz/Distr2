@@ -98,6 +98,12 @@ const DIA_EN_NOMBRE: [Dia, RegExp][] = [
   ['SAB', /\bsab(ado)?\b/],
 ];
 
+/** Color por día del maestro — para leer de un vistazo cómo está hoy la semana. */
+export const DIA_COLOR: Record<string, string> = {
+  LUN: '#0c5cab', MAR: '#e11d48', MIE: '#16a34a',
+  JUE: '#f59e0b', VIE: '#7c3aed', SAB: '#0891b2',
+};
+
 /** Día que menciona el nombre, o null si no nombra ninguno. */
 export function diaMencionadoEn(nombre: string): Dia | null {
   const n = nombre.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
