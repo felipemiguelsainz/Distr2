@@ -703,13 +703,14 @@ export default function PlanificacionClient() {
         y += 12;
 
         // x de cada columna, en mm desde el margen (CONTENT_W = 180).
-        const COL = { cliente: 5, dir: 80, loc: 145 };
-        const ANCHO = { cliente: 72, dir: 62, loc: 35 };
+        const COL = { id: 5, cliente: 19, dir: 80, loc: 145 };
+        const ANCHO = { id: 12, cliente: 58, dir: 62, loc: 35 };
 
         const encabezadoTabla = (yy: number) => {
           pdf.setFont('helvetica', 'bold');
           pdf.setFontSize(7.5);
           pdf.setTextColor(...GRIS);
+          pdf.text('ID', MARGIN + COL.id, yy);
           pdf.text('CLIENTE', MARGIN + COL.cliente, yy);
           pdf.text('DIRECCION', MARGIN + COL.dir, yy);
           pdf.text('LOCALIDAD', MARGIN + COL.loc, yy);
@@ -728,7 +729,8 @@ export default function PlanificacionClient() {
           pdf.circle(MARGIN + 1.6, y - 1.1, 1.4, 'F');
           pdf.setFont('helvetica', 'normal');
           pdf.setTextColor(9, 9, 11);
-          celda(pdf, p.razon_social ?? `PDV #${p.pdv_id}`, MARGIN + COL.cliente, y, ANCHO.cliente, 9);
+          celda(pdf, String(p.pdv_id), MARGIN + COL.id, y, ANCHO.id, 9);
+          celda(pdf, p.razon_social ?? 's/n', MARGIN + COL.cliente, y, ANCHO.cliente, 9);
           celda(pdf, p.domicilio ?? '', MARGIN + COL.dir, y, ANCHO.dir, 9);
           pdf.setTextColor(...GRIS);
           celda(pdf, p.localidad ?? '', MARGIN + COL.loc, y, ANCHO.loc, 9);

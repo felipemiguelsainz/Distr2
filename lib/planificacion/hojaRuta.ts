@@ -171,8 +171,8 @@ export async function generarHojaRuta(vendedor: string, dias: DiaRuta[]): Promis
   const PIE_Y = PAGE_H - 12;
 
   // x de cada columna, en mm desde el margen. La suma es CONTENT_W (186).
-  const COL = { check: 0, punto: 5, num: 7, cliente: 12, dir: 84, loc: 148, vta: 174 };
-  const ANCHO = { cliente: 70, dir: 62, loc: 25, vta: 12 };
+  const COL = { check: 0, punto: 5, num: 7, id: 12, cliente: 26, dir: 86, loc: 148, vta: 174 };
+  const ANCHO = { id: 12, cliente: 58, dir: 60, loc: 25, vta: 12 };
 
   const recorte = (txt: string, ancho: number) =>
     pdf.splitTextToSize(txt || '', ancho)[0] ?? '';
@@ -202,6 +202,7 @@ export async function generarHojaRuta(vendedor: string, dias: DiaRuta[]): Promis
     pdf.setFontSize(7.5);
     pdf.setTextColor(...GRIS);
     pdf.text('#', MARGIN + COL.num, y);
+    pdf.text('ID', MARGIN + COL.id, y);
     pdf.text('CLIENTE', MARGIN + COL.cliente, y);
     pdf.text('DIRECCION', MARGIN + COL.dir, y);
     pdf.text('LOCALIDAD', MARGIN + COL.loc, y);
@@ -239,7 +240,9 @@ export async function generarHojaRuta(vendedor: string, dias: DiaRuta[]): Promis
       pdf.setFontSize(8.5);
       pdf.setTextColor(9, 9, 11);
       pdf.text(String(i + 1), MARGIN + COL.num, y);
-      celda(pdf, p.razon_social ?? `PDV #${p.pdv_id}`, MARGIN + COL.cliente, y, ANCHO.cliente, 8.5);
+      // Código de cliente del maestro: es con lo que se lo busca en el sistema.
+      celda(pdf, String(p.pdv_id), MARGIN + COL.id, y, ANCHO.id, 8.5);
+      celda(pdf, p.razon_social ?? 's/n', MARGIN + COL.cliente, y, ANCHO.cliente, 8.5);
       celda(pdf, p.domicilio ?? '', MARGIN + COL.dir, y, ANCHO.dir, 8.5);
       pdf.setTextColor(...GRIS);
       celda(pdf, p.localidad ?? '', MARGIN + COL.loc, y, ANCHO.loc, 8.5);
