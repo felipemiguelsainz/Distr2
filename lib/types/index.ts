@@ -71,6 +71,8 @@ export interface KpiRubro {
   neto_acumulado: number;
   neto_tendencia: number | null;
   neto_meta: number | null;          // derived: meta_kg × $/kg ratio
+  /** Cumplimiento en $. NO es avance_pct: kilos y facturación no van al mismo ritmo. */
+  neto_avance_pct: number;
   neto_media_real: number;
   neto_media_necesaria: number | null;
   neto_mismo_dia_minus7: number;

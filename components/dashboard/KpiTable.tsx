@@ -50,7 +50,7 @@ const NETO_CURRENT: ColDef[] = [
   { key: 'neto_meta',              label: 'Meta',  type: 'currency' },
   { key: 'neto_acumulado',         label: 'Acum.', type: 'currency' },
   { key: 'neto_tendencia',         label: 'Tend.', type: 'currency',                       mobileHidden: true },
-  { key: 'avance_pct',             label: 'Av%',   type: 'pct',        colorFn: avanceColor },
+  { key: 'neto_avance_pct',        label: 'Av%',   type: 'pct',        colorFn: avanceColor },
   { key: 'neto_media_real',        label: 'Med.R', type: 'currency',                       mobileHidden: true },
   { key: 'neto_media_necesaria',   label: 'Med.N', type: 'currency',                       mobileHidden: true },
   { key: 'neto_mismo_dia_minus7',  label: 'D−7',    type: 'currency',                      mobileHidden: true },
@@ -63,7 +63,7 @@ const NETO_CURRENT: ColDef[] = [
 const NETO_PAST: ColDef[] = [
   { key: 'neto_meta',         label: 'Meta',   type: 'currency' },
   { key: 'neto_acumulado',    label: 'Cierre', type: 'currency' },
-  { key: 'avance_pct',        label: 'Cumpl.', type: 'pct',        colorFn: avanceColor },
+  { key: 'neto_avance_pct',   label: 'Cumpl.', type: 'pct',        colorFn: avanceColor },
   { key: 'neto_media_real',   label: 'Med.R',  type: 'currency',                       mobileHidden: true },
   { key: 'neto_acumulado_aa', label: 'AA',     type: 'currency',                       mobileHidden: true },
   { key: 'neto_vs_aa_pct',    label: 'vsAA',   type: 'pct_signed', colorFn: vsAaColor },
@@ -89,6 +89,14 @@ function buildTotal(data: KpiRubro[]): KpiRubro {
   const neto      = sum('neto_acumulado');
   const neto_aa   = sum('neto_acumulado_aa');
 
+  // Meta $: la suma de los objetivos $ cargados; si no hay ninguno, el estimado
+  // por ratio. Se calcula una sola vez para que la columna Meta y el % de
+  // cumplimiento miren exactamente el mismo número.
+  const netoMetaStored = data.reduce((s, r) => s + (r.neto_meta ?? 0), 0);
+  const neto_meta = netoMetaStored > 0
+    ? netoMetaStored
+    : (acumulado > 0 && meta ? meta * (neto / acumulado) : null);
+
   return {
     rubro:                  'TOTAL',
     cerrado:                data.length > 0 && data.every(r => r.cerrado),
@@ -108,12 +116,11 @@ function buildTotal(data: KpiRubro[]): KpiRubro {
     avance_vs_aa_pct:       acum_aa > 0 ? ((acumulado - acum_aa) / acum_aa) * 100 : 0,
     neto_acumulado:         neto,
     neto_tendencia:         hasNetoTend ? sum('neto_tendencia') : null,
-    neto_meta:              (() => {
-                              // Sum stored neto_meta from rows (exact $ objectives)
-                              const stored = data.reduce((s, r) => s + (r.neto_meta ?? 0), 0);
-                              if (stored > 0) return stored;
-                              // Fall back to ratio estimate if none stored yet
-                              return acumulado > 0 && meta ? meta * (neto / acumulado) : null;
+    neto_meta,
+    neto_avance_pct:        (() => {
+                              if (!neto_meta || neto_meta <= 0) return 0;
+                              const tend = hasNetoTend ? sum('neto_tendencia') : null;
+                              return ((tend ?? neto) / neto_meta) * 100;
                             })(),
     neto_media_real:        sum('neto_media_real'),
     neto_media_necesaria:   hasNetoMediaNec ? sum('neto_media_necesaria') : null,

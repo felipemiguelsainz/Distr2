@@ -31,6 +31,28 @@ export function monthRange(year: number, month: number) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Hasta dónde llega el período que se está mirando.
+//
+// Los RPCs de KPI se llamaban con `p_hasta = hoy` SIEMPRE, también al elegir un
+// mes pasado: parados el 2 de septiembre, "julio" pedía 01/07 → 02/09 y sumaba
+// julio + agosto + septiembre (81.737 kg reales se mostraban como 178.615).
+// Lo mismo con dias_trabajados, que inflaba la media real.
+// ---------------------------------------------------------------------------
+export function hastaDelPeriodo(year: number, month: number, today: Date): string {
+  const finDeMes = monthRange(year, month).hasta;
+  const hoy = dateStr(today);
+  return hoy < finDeMes ? hoy : finDeMes;
+}
+
+/**
+ * El rango del período elegido: del 1 al cierre. ÚNICA forma de armarlo — cada
+ * consulta que lo hacía a mano volvía a equivocarse (ver hastaDelPeriodo).
+ */
+export function rangoDelPeriodo(year: number, month: number, today: Date) {
+  return { desde: `${pad(year, month)}-01`, hasta: hastaDelPeriodo(year, month, today) };
+}
+
 export function pad(year: number, month: number) {
   return `${year}-${String(month).padStart(2, '0')}`;
 }

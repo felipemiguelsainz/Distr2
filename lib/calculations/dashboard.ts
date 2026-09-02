@@ -67,6 +67,16 @@ export function buildKpi(input: KpiInput): KpiRubro {
     ? neto_meta_stored
     : (meta > 0 && acumulado > 0 ? meta * (neto_acumulado / acumulado) : null);
 
+  // Cumplimiento en $: misma regla que en kilos (tendencia en el mes corriente,
+  // cierre en los cerrados) pero contra la meta $ y con lo facturado. Las dos
+  // columnas mostraban avance_pct —el de kilos— así que un mes con la mezcla
+  // corrida (más kilos de rubro barato) informaba el mismo % en los dos lados.
+  // Cuando neto_meta es el estimado por ratio y no un objetivo $ cargado, los
+  // dos porcentajes coinciden por construcción: es correcto, no es el bug.
+  const neto_avance_pct = neto_meta !== null && neto_meta > 0
+    ? ((isCurrentMonth && neto_tendencia !== null ? neto_tendencia : neto_acumulado) / neto_meta) * 100
+    : 0;
+
   // La meta se muestra SIEMPRE (también en meses cerrados): es lo que permite
   // mirar el cierre del mes pasado contra el objetivo. Sin meta cargada → null.
   const meta_display = meta > 0 ? meta : null;
@@ -92,6 +102,7 @@ export function buildKpi(input: KpiInput): KpiRubro {
     neto_acumulado,
     neto_tendencia,
     neto_meta,
+    neto_avance_pct,
     neto_media_real,
     neto_media_necesaria,
     neto_mismo_dia_minus7: neto_minus7,
@@ -159,6 +170,10 @@ function combinar(rows: KpiRubro[], diasTrabajados: number): KpiRubro {
     neto_acumulado:         neto,
     neto_tendencia:         neto_tend,
     neto_meta:              conNetoMeta ? sum(r => r.neto_meta ?? 0) : null,
+    neto_avance_pct:        (() => {
+                              const nm = conNetoMeta ? sum(r => r.neto_meta ?? 0) : 0;
+                              return nm > 0 ? ((neto_tend ?? neto) / nm) * 100 : 0;
+                            })(),
     neto_media_real:        diasTrabajados > 0 ? neto / diasTrabajados : 0,
     neto_media_necesaria:   conNetoMediaNec ? sum(r => r.neto_media_necesaria ?? 0) : null,
     neto_mismo_dia_minus7:  enCurso?.neto_mismo_dia_minus7  ?? 0,

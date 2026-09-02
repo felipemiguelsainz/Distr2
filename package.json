@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "check:periodo": "ts-node --project tsconfig.scripts.json -r tsconfig-paths/register scripts/check-kpis-periodo.ts",
+    "check:kpis": "node scripts/check-kpis.cjs",
     "load:historical": "ts-node --project tsconfig.scripts.json scripts/load-historical.ts",
     "load:pdvs": "ts-node --project tsconfig.scripts.json scripts/load-pdvs.ts"
   },

@@ -4,7 +4,7 @@ import { buildKpi, mergeKpis, mergeKpisVendedor } from '../dashboard';
 import { KpiRubro, KpiVendedor } from '@/lib/types';
 import { Periodo } from '@/lib/periodos';
 import {
-  dateStr, cutoffDate, pad, aaCutoffDate,
+  dateStr, cutoffDate, pad, aaCutoffDate, rangoDelPeriodo,
   fetchDiasLaborables, buildKpisFromRpc, vendedoresByEquipo,
   mapConLimite, PERIODOS_EN_PARALELO,
   RpcKpiRow, RpcVendRow,
@@ -19,8 +19,7 @@ export async function fetchMonthInfo(
   today: Date,
 ): Promise<{ diasLaborables: number; diasTrabajados: number }> {
   const supabase = await createClient();
-  const start    = `${pad(year, month)}-01`;
-  const hasta    = dateStr(today);
+  const { desde: start, hasta } = rangoDelPeriodo(year, month, today);
 
   const [diasLab, { data: diasTrabData }] = await Promise.all([
     fetchDiasLaborables(year, month),
@@ -46,10 +45,12 @@ const _fetchTotalKpisImpl = unstable_cache(
   ): Promise<{ kpis: KpiRubro[]; diasTrabajados: number }> => {
   const today    = new Date(todayIso);
   const supabase = createServiceClient();
-  const start    = `${pad(year, month)}-01`;
-  const todayStr = dateStr(today);
-  const d7       = cutoffDate(7,  today);
-  const d14      = cutoffDate(14, today);
+  // Hasta el cierre del mes elegido, no hasta hoy (ver hastaDelPeriodo). El
+  // mediodía evita que el ida y vuelta a ISO corra un día por el huso.
+  const { desde: start, hasta } = rangoDelPeriodo(year, month, today);
+  const corte    = new Date(`${hasta}T12:00:00`);
+  const d7       = cutoffDate(7,  corte);
+  const d14      = cutoffDate(14, corte);
   const aaStart  = `${pad(year - 1, month)}-01`;
   const aaCutoff = aaCutoffDate(year, month, today);
 
@@ -63,11 +64,11 @@ const _fetchTotalKpisImpl = unstable_cache(
     diasLab,
     names,
   ] = await Promise.all([
-    supabase.rpc('kpi_resumen', { p_desde: start,   p_hasta: todayStr, p_equipo: eq, p_vendedor: vnd }),
+    supabase.rpc('kpi_resumen', { p_desde: start,   p_hasta: hasta, p_equipo: eq, p_vendedor: vnd }),
     supabase.rpc('kpi_resumen', { p_desde: d7,       p_hasta: d7,       p_equipo: eq, p_vendedor: vnd }),
     supabase.rpc('kpi_resumen', { p_desde: d14,      p_hasta: d14,      p_equipo: eq, p_vendedor: vnd }),
     supabase.rpc('kpi_resumen', { p_desde: aaStart, p_hasta: aaCutoff, p_equipo: eq, p_vendedor: vnd }),
-    supabase.rpc('kpi_dias_trabajados', { p_desde: start, p_hasta: todayStr, p_equipo: eq, p_vendedor: vnd }),
+    supabase.rpc('kpi_dias_trabajados', { p_desde: start, p_hasta: hasta, p_equipo: eq, p_vendedor: vnd }),
     fetchDiasLaborables(year, month),
     eq && !vnd ? vendedoresByEquipo(eq) : Promise.resolve<string[]>([]),
   ]);
@@ -147,10 +148,12 @@ const _fetchSupervisorKpisImpl = unstable_cache(
   ): Promise<{ totales: KpiRubro[]; porVendedor: KpiVendedor[]; diasTrabajados: number }> => {
   const today    = new Date(todayIso);
   const supabase = createServiceClient();
-  const start    = `${pad(year, month)}-01`;
-  const todayStr = dateStr(today);
-  const d7       = cutoffDate(7,  today);
-  const d14      = cutoffDate(14, today);
+  // Hasta el cierre del mes elegido, no hasta hoy (ver hastaDelPeriodo). El
+  // mediodía evita que el ida y vuelta a ISO corra un día por el huso.
+  const { desde: start, hasta } = rangoDelPeriodo(year, month, today);
+  const corte    = new Date(`${hasta}T12:00:00`);
+  const d7       = cutoffDate(7,  corte);
+  const d14      = cutoffDate(14, corte);
   const aaStart  = `${pad(year - 1, month)}-01`;
   const aaCutoff = aaCutoffDate(year, month, today);
   const eq       = equipo || null;
@@ -166,12 +169,12 @@ const _fetchSupervisorKpisImpl = unstable_cache(
     diasLab,
     equipoNames,
   ] = await Promise.all([
-    supabase.rpc('kpi_resumen',      { p_desde: start,   p_hasta: todayStr,  p_equipo: eq }),
+    supabase.rpc('kpi_resumen',      { p_desde: start,   p_hasta: hasta,  p_equipo: eq }),
     supabase.rpc('kpi_resumen',      { p_desde: d7,       p_hasta: d7,        p_equipo: eq }),
     supabase.rpc('kpi_resumen',      { p_desde: d14,      p_hasta: d14,       p_equipo: eq }),
     supabase.rpc('kpi_resumen',      { p_desde: aaStart, p_hasta: aaCutoff,  p_equipo: eq }),
-    supabase.rpc('kpi_por_vendedor', { p_desde: start,   p_hasta: todayStr,  p_equipo: eq }),
-    supabase.rpc('kpi_dias_trabajados', { p_desde: start, p_hasta: todayStr, p_equipo: eq }),
+    supabase.rpc('kpi_por_vendedor', { p_desde: start,   p_hasta: hasta,  p_equipo: eq }),
+    supabase.rpc('kpi_dias_trabajados', { p_desde: start, p_hasta: hasta, p_equipo: eq }),
     fetchDiasLaborables(year, month),
     equipo ? vendedoresByEquipo(equipo) : Promise.resolve<string[]>([]),
   ]);
@@ -290,10 +293,12 @@ const _fetchVendedorKpisImpl = unstable_cache(
   ): Promise<{ kpis: KpiRubro[]; diasTrabajados: number }> => {
   const today    = new Date(todayIso);
   const supabase = createServiceClient();
-  const start    = `${pad(year, month)}-01`;
-  const todayStr = dateStr(today);
-  const d7       = cutoffDate(7,  today);
-  const d14      = cutoffDate(14, today);
+  // Hasta el cierre del mes elegido, no hasta hoy (ver hastaDelPeriodo). El
+  // mediodía evita que el ida y vuelta a ISO corra un día por el huso.
+  const { desde: start, hasta } = rangoDelPeriodo(year, month, today);
+  const corte    = new Date(`${hasta}T12:00:00`);
+  const d7       = cutoffDate(7,  corte);
+  const d14      = cutoffDate(14, corte);
   const aaStart  = `${pad(year - 1, month)}-01`;
   const aaCutoff = aaCutoffDate(year, month, today);
 
@@ -306,12 +311,12 @@ const _fetchVendedorKpisImpl = unstable_cache(
     { data: diasTrabData },
     diasLab,
   ] = await Promise.all([
-    supabase.rpc('kpi_resumen', { p_desde: start,   p_hasta: todayStr,  p_vendedor: vendedor }),
+    supabase.rpc('kpi_resumen', { p_desde: start,   p_hasta: hasta,  p_vendedor: vendedor }),
     supabase.rpc('kpi_resumen', { p_desde: d7,       p_hasta: d7,        p_vendedor: vendedor }),
     supabase.rpc('kpi_resumen', { p_desde: d14,      p_hasta: d14,       p_vendedor: vendedor }),
     supabase.rpc('kpi_resumen', { p_desde: aaStart, p_hasta: aaCutoff,  p_vendedor: vendedor }),
     supabase.from('metas').select('rubro, kilos_meta, neto_meta').eq('vendedor_nombre', vendedor).eq('anio', year).eq('mes', month),
-    supabase.rpc('kpi_dias_trabajados', { p_desde: start, p_hasta: todayStr, p_vendedor: vendedor }),
+    supabase.rpc('kpi_dias_trabajados', { p_desde: start, p_hasta: hasta, p_vendedor: vendedor }),
     fetchDiasLaborables(year, month),
   ]);
 

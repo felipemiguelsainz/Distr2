@@ -1,7 +1,7 @@
 import { unstable_cache } from 'next/cache';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { CccData, CoberturaItem, ClientesRubro } from '@/lib/types';
-import { dateStr, monthRange, vendedoresByEquipo, vendedoresDelScope } from './shared';
+import { dateStr, monthRange, rangoDelPeriodo, vendedoresByEquipo, vendedoresDelScope } from './shared';
 
 // ---------------------------------------------------------------------------
 // CCC — Clientes que compraron (un vendedor, mes vs mes anterior)
@@ -200,10 +200,7 @@ const _fetchClientesDataImpl = unstable_cache(
   const mm      = String(month).padStart(2, '0');
   const lastDay = new Date(year, month, 0).getDate();
 
-  const mesDesde  = `${year}-${mm}-01`;
-  const mesHasta  = isCurrentMonth
-    ? dateStr(today)
-    : `${year}-${mm}-${String(lastDay).padStart(2, '0')}`;
+  const { desde: mesDesde, hasta: mesHasta } = rangoDelPeriodo(year, month, today);
 
   // 3-month cartera activa window: 3 months before mesHasta
   const ref3m = new Date(isCurrentMonth ? today : new Date(year, month - 1, lastDay));

@@ -1,7 +1,7 @@
 import { cache } from 'react';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { Periodo } from '@/lib/periodos';
-import { mapConLimite, PERIODOS_EN_PARALELO } from './queries/shared';
+import { mapConLimite, PERIODOS_EN_PARALELO, rangoDelPeriodo } from './queries/shared';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -60,13 +60,8 @@ async function fetchConsolidadoUnPeriodo(
 ): Promise<{ filas: ConsolidadoProductoRow[]; diasTrabajados: number }> {
   const svc = createServiceClient();
 
-  const mm      = String(month).padStart(2, '0');
-  const lastDay = new Date(year, month, 0).getDate();
-  const desde   = `${year}-${mm}-01`;
+  const { desde, hasta } = rangoDelPeriodo(year, month, today);
   const isCurrentMonth = year === today.getFullYear() && month === today.getMonth() + 1;
-  const hasta   = isCurrentMonth
-    ? today.toISOString().slice(0, 10)
-    : `${year}-${mm}-${String(lastDay).padStart(2, '0')}`;
   const p_equipo = equipo || null;
 
   const [{ data: rows }, { data: diasTrabData }, { data: cfg }] = await Promise.all([
