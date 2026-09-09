@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Clock, ChevronDown, RefreshCw, MapPin, ClipboardList } from 'lucide-react';
+import { BotonExcel } from '@/components/ui/BotonExcel';
+import type { ColExcel } from '@/lib/excel/exportar';
 
 interface Cliente {
   pdv_id: number; razon_social: string | null; localidad: string | null; cartera: string | null;
@@ -24,6 +26,19 @@ function zonaRojaStyle(diasRestantes: number) {
   if (diasRestantes <= 30) return { text: 'text-yellow-700', bg: 'bg-yellow-100', pulse: false, label: `${diasRestantes} días` };
   return { text: 'text-green-700', bg: 'bg-green-100', pulse: false, label: `${diasRestantes} días` };
 }
+
+const COLS_EXCEL: ColExcel[] = [
+  { key: 'pdv_id',        label: 'ID',            fmt: 'int' },
+  { key: 'razon_social',  label: 'Razon social',  w: 38 },
+  { key: 'localidad',     label: 'Localidad',     w: 22 },
+  { key: 'cartera',       label: 'Vendedor',      w: 24 },
+  { key: 'ultima_vta',    label: 'Ultima venta',  w: 14 },
+  { key: 'cadencia_dias', label: 'Compra cada (d)', fmt: 'int', w: 18 },
+  { key: 'dias_sin',      label: 'Dias sin comprar', fmt: 'int', w: 18 },
+  { key: 'dias_zona_roja', label: 'Dias a zona roja', fmt: 'int', w: 18 },
+  { key: 'valor_mensual', label: '$/mes',         fmt: 'money', w: 16 },
+  { key: 'kg_mensual',    label: 'Kg/mes',        fmt: 'kg' },
+];
 
 export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores: string[]; mostrarVendedor: boolean }) {
   // El vendedor vive en la URL (?vendedor=X): así respeta el filtro con el que se
@@ -96,6 +111,19 @@ export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores:
               <ChevronDown className="w-4 h-4 text-[#a1a1aa] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           )}
+          <BotonExcel
+            archivo="clientes-enfriandose"
+            hoja="Enfriandose"
+            cols={COLS_EXCEL}
+            filas={clientes.map((c) => ({
+              ...c,
+              ultima_vta: c.ultima_vta.slice(0, 10),
+              // Lo mismo que muestra la columna "Zona roja en": a los 90 días
+              // sin comprar el cliente pasa a inactivo.
+              dias_zona_roja: 90 - c.dias_sin,
+            }))}
+            className="py-2 text-[13px]"
+          />
           {mapsHref && (
             <a href={mapsHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-[10px] bg-[#0c5cab] text-white hover:bg-[#0a4f95] transition">
               <MapPin className="w-4 h-4" /> Ver en mapa

@@ -5,6 +5,18 @@ import { MONDELEZ_RUBROS } from '@/lib/constants';
 import { MetaPreviewRubro } from '@/lib/types';
 import { formatKg, formatCurrency, formatPctPlain } from '@/lib/calculations/dashboard';
 import { Select } from '@/components/ui/Select';
+import { BotonExcel } from '@/components/ui/BotonExcel';
+import type { ColExcel } from '@/lib/excel/exportar';
+
+// La distribución calculada, aplanada: una fila por rubro y vendedor. Es lo que
+// hay que poder mirar en una planilla antes de apretar "Guardar metas".
+const COLS_PREVIEW: ColExcel[] = [
+  { key: 'rubro',    label: 'Rubro',    w: 28 },
+  { key: 'origen',   label: 'Origen',   w: 12 },
+  { key: 'vendedor', label: 'Vendedor', w: 26 },
+  { key: 'peso_pct', label: 'Peso %',   fmt: 'pct' },
+  { key: 'kg_meta',  label: 'Meta kg',  fmt: 'kg' },
+];
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -189,8 +201,19 @@ export function MetasClient({ defaultAnio, defaultMes, vendedores = [] }: { defa
 
       {preview && (
         <section className="bg-[#ffffff] rounded-2xl border border-[#e4e4e7] shadow-xl shadow-black/5 p-6 space-y-5">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
             <h2 className="text-[15px] font-semibold text-[#09090b]">Distribución calculada</h2>
+            <BotonExcel
+              archivo={`metas-${anio}-${String(mes).padStart(2, '0')}`}
+              hoja="Metas por vendedor"
+              cols={COLS_PREVIEW}
+              filas={preview.flatMap((p) =>
+                p.vendedores.map((v) => ({
+                  rubro: p.rubro, origen: p.origen, vendedor: v.vendedor,
+                  peso_pct: v.peso_pct, kg_meta: v.kg_meta,
+                })),
+              )}
+            />
             <div className="flex gap-4 text-[12px]">
               <span className="text-[#71717a]">Mondelez: <strong className="text-[#09090b]">{formatKg(totalMondelez)} kg</strong></span>
               <span className="text-[#71717a]">Total: <strong className="text-[#09090b]">{formatKg(totalGeneral)} kg</strong></span>

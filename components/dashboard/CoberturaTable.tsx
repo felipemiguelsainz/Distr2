@@ -1,13 +1,25 @@
 import { CoberturaItem } from '@/lib/types';
 import { avanceColor, formatPctPlain } from '@/lib/calculations/dashboard';
+import { BotonExcel } from '@/components/ui/BotonExcel';
+import type { ColExcel } from '@/lib/excel/exportar';
+
+const COLS_EXCEL: ColExcel[] = [
+  { key: 'sku',            label: 'SKU',          w: 14 },
+  { key: 'articulo',       label: 'Articulo',     w: 42 },
+  { key: 'pdvs_compraron', label: 'PDVs',         fmt: 'int' },
+  { key: 'pdvs_totales',   label: 'Total',        fmt: 'int' },
+  { key: 'cobertura_pct',  label: 'Cobertura %',  fmt: 'pct' },
+  { key: 'objetivo_pct',   label: 'Objetivo %',   fmt: 'pct' },
+];
 
 export function CoberturaTable({ data }: { data: CoberturaItem[] }) {
   if (data.length === 0) return null;
 
   return (
     <div className="bg-[#ffffff] rounded-2xl border border-[#e4e4e7] hover:border-[#d4d4d8] transition-all duration-200 shadow-xl shadow-black/5 overflow-hidden">
-      <div className="px-5 py-4 border-b border-[#e4e4e7]">
+      <div className="px-5 py-4 border-b border-[#e4e4e7] flex items-center justify-between gap-3">
         <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a]" style={{fontFamily: "'JetBrains Mono', monospace"}}>Cobertura SKUs clave</p>
+        <BotonExcel archivo="cobertura-skus" hoja="Cobertura SKUs" cols={COLS_EXCEL} filas={data} />
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">

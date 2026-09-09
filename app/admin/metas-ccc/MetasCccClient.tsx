@@ -1,6 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { BotonExcel } from '@/components/ui/BotonExcel';
+import type { ColExcel } from '@/lib/excel/exportar';
 
 export interface VendedorMetas {
   vendedor: string;
@@ -90,6 +92,21 @@ export function MetasCccClient({
 
   const minWidth = 200 + rubros.length * 100;
 
+  // Lo que hay en pantalla, ediciones sin guardar incluidas: es la planilla que
+  // el supervisor manda a revisar antes de confirmar.
+  const colsExcel: ColExcel[] = [
+    { key: 'vendedor', label: 'Vendedor',   w: 26 },
+    { key: 'origen',   label: 'Origen',     w: 12 },
+    { key: 'total',    label: 'Meta total', fmt: 'int', w: 12 },
+    ...rubros.map((rb) => ({ key: rb, label: rb, fmt: 'int' as const, w: 14 })),
+  ];
+  const filasExcel = filas.map((f) => ({
+    vendedor: f.vendedor,
+    origen:   presetFlags[f.vendedor] ? 'auto' : 'editada',
+    total:    totals[f.vendedor] ?? 0,
+    ...Object.fromEntries(rubros.map((rb) => [rb, derivedRubro(f.vendedor, rb)])),
+  }));
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
@@ -97,6 +114,8 @@ export function MetasCccClient({
           Editá la <strong className="text-[#09090b]">meta total</strong> de cada vendedor. Las metas por rubro se recalculan por cascadeo (penetración histórica) y son de solo lectura.
         </p>
         <div className="flex items-center gap-3 ml-auto">
+          <BotonExcel archivo={`metas-ccc-${anio}-${String(mes).padStart(2, '0')}`}
+                      hoja="Metas CCC" cols={colsExcel} filas={filasExcel} />
           {error && <span className="text-[12px] text-[#dc2626]">{error}</span>}
           {msg && <span className="text-[12px] text-[#15803d] font-medium">{msg}</span>}
           <button

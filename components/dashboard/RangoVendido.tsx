@@ -1,5 +1,13 @@
 import { fetchVentasRango } from '@/lib/calculations/queries';
 import { formatKg } from '@/lib/calculations/dashboard';
+import { BotonExcel } from '@/components/ui/BotonExcel';
+import type { ColExcel } from '@/lib/excel/exportar';
+
+const COLS_EXCEL: ColExcel[] = [
+  { key: 'rubro', label: 'Rubro', w: 26 },
+  { key: 'kilos', label: 'Kilos', fmt: 'kg' },
+  { key: 'neto',  label: 'Neto $', fmt: 'money', w: 16 },
+];
 
 const MONO = { fontFamily: "'JetBrains Mono', monospace" } as const;
 
@@ -25,13 +33,24 @@ export async function RangoVendido({
 
   return (
     <section className="bg-[#ffffff] rounded-2xl border border-[rgba(12,92,171,0.25)] shadow-xl shadow-black/5 overflow-hidden">
-      <div className="px-5 py-4 border-b border-[#e4e4e7] bg-[rgba(12,92,171,0.03)]">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#0c5cab]" style={MONO}>
-          Vendido en el rango
-        </p>
-        <p className="text-[14px] font-bold text-[#09090b] mt-0.5">
-          {fmtFecha(desde)} → {fmtFecha(hasta)}
-        </p>
+      <div className="px-5 py-4 border-b border-[#e4e4e7] bg-[rgba(12,92,171,0.03)] flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#0c5cab]" style={MONO}>
+            Vendido en el rango
+          </p>
+          <p className="text-[14px] font-bold text-[#09090b] mt-0.5">
+            {fmtFecha(desde)} → {fmtFecha(hasta)}
+          </p>
+        </div>
+        <BotonExcel
+          archivo="vendido-en-el-rango"
+          hoja="Vendido en el rango"
+          cols={COLS_EXCEL}
+          filas={[
+            ...data.porRubro,
+            { rubro: 'TOTAL', kilos: data.totalKilos, neto: data.totalNeto },
+          ]}
+        />
       </div>
 
       {data.porRubro.length === 0 ? (

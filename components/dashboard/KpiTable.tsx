@@ -6,6 +6,8 @@ import {
   formatKg, formatPct, formatPctPlain, formatCurrency,
 } from '@/lib/calculations/dashboard';
 import { esMondelez } from '@/lib/constants';
+import { BotonExcel } from '@/components/ui/BotonExcel';
+import type { ColExcel, Fmt } from '@/lib/excel/exportar';
 
 // ---------------------------------------------------------------------------
 // Column definitions
@@ -68,6 +70,20 @@ const NETO_PAST: ColDef[] = [
   { key: 'neto_acumulado_aa', label: 'AA',     type: 'currency',                       mobileHidden: true },
   { key: 'neto_vs_aa_pct',    label: 'vsAA',   type: 'pct_signed', colorFn: vsAaColor },
 ];
+
+// El Excel usa las MISMAS columnas que la tabla: si el mes está cerrado y en
+// pantalla no hay Tendencia, en la planilla tampoco.
+const FMT_EXCEL: Record<ColDef['type'], Fmt> = {
+  kg: 'kg', currency: 'money', pct: 'pct', pct_signed: 'pct',
+  currency_signed: 'money', dash: 'text',
+};
+
+function colsExcel(cols: ColDef[]): ColExcel[] {
+  return [
+    { key: 'rubro', label: 'Rubro', w: 26 },
+    ...cols.map((c) => ({ key: c.key as string, label: c.label, fmt: FMT_EXCEL[c.type], w: 14 })),
+  ];
+}
 
 // ---------------------------------------------------------------------------
 // Total row builder
@@ -209,7 +225,15 @@ function DataTable({ data, label, isKg }: { data: KpiRubro[]; label: string; isK
 
   return (
     <div>
-      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a] mb-2" style={{fontFamily: "'JetBrains Mono', monospace"}}>{label}</p>
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a]" style={{fontFamily: "'JetBrains Mono', monospace"}}>{label}</p>
+        <BotonExcel
+          archivo={isKg ? 'kpis-kg' : 'kpis-pesos'}
+          hoja={label}
+          cols={colsExcel(cols)}
+          filas={rows.map(({ row }) => row as unknown as Record<string, string | number | null>)}
+        />
+      </div>
       <div className="relative rounded-2xl border border-[#e4e4e7] shadow-xl shadow-black/5 overflow-hidden">
         <div className="overflow-x-auto [-webkit-overflow-scrolling:touch]">
         <table className="w-full table-fixed min-w-[var(--mw-m)] sm:min-w-[var(--mw-d)]" style={cssVars}>

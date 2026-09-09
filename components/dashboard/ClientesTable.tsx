@@ -1,5 +1,20 @@
 import { ClientesRubro } from '@/lib/types';
 import { avanceColor, formatPctPlain } from '@/lib/calculations/dashboard';
+import { BotonExcel } from '@/components/ui/BotonExcel';
+import type { ColExcel } from '@/lib/excel/exportar';
+
+const COLS_EXCEL: ColExcel[] = [
+  { key: 'rubro',                 label: 'Categoria',         w: 26 },
+  { key: 'clientes_mes',          label: 'Clientes mes',      fmt: 'int' },
+  { key: 'meta',                  label: 'Meta',              fmt: 'int' },
+  { key: 'cumplimiento_pct',      label: 'Cumpl. %',          fmt: 'pct' },
+  { key: 'cartera_activa_3m',     label: 'Cartera 3M',        fmt: 'int' },
+  { key: 'penetracion_pct',       label: 'Penetracion %',     fmt: 'pct' },
+  { key: 'clientes_mes_anterior', label: 'Clientes mes ant.', fmt: 'int', w: 18 },
+  { key: 'vs_mes_anterior_pct',   label: 'vs Mes ant. %',     fmt: 'pct', w: 16 },
+  { key: 'clientes_aa',           label: 'Clientes AA',       fmt: 'int' },
+  { key: 'vs_aa_pct',             label: 'vs AA %',           fmt: 'pct' },
+];
 
 const MONO = { fontFamily: "'JetBrains Mono', monospace" };
 
@@ -76,19 +91,33 @@ export function ClientesTable({
 
   const rows = [...data, total];
 
+  // Mismas filas y mismo orden que la tabla; la meta y el cumplimiento se
+  // calculan una sola vez para que planilla y pantalla no puedan discrepar.
+  const filasExcel = rows.map((r) => {
+    const meta = metaFor(r.rubro);
+    return {
+      ...r,
+      meta:             meta > 0 ? meta : null,
+      cumplimiento_pct: cumplFor(r.clientes_mes, meta),
+    };
+  });
+
   return (
     <div className="bg-[#ffffff] rounded-2xl border border-[#e4e4e7] hover:border-[#d4d4d8] transition-all duration-200 shadow-xl shadow-black/5 overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-3.5 border-b border-[#e4e4e7]">
-        <p
-          className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a]"
-          style={MONO}
-        >
-          Clientes con Compra — Por Categoría
-        </p>
-        {caption && (
-          <p className="text-[11px] text-[#71717a] mt-1">{caption}</p>
-        )}
+      <div className="px-5 py-3.5 border-b border-[#e4e4e7] flex items-start justify-between gap-3">
+        <div>
+          <p
+            className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a]"
+            style={MONO}
+          >
+            Clientes con Compra — Por Categoría
+          </p>
+          {caption && (
+            <p className="text-[11px] text-[#71717a] mt-1">{caption}</p>
+          )}
+        </div>
+        <BotonExcel archivo="clientes-ccc" hoja="Clientes con compra" cols={COLS_EXCEL} filas={filasExcel} />
       </div>
 
       <div className="overflow-x-auto">

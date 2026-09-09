@@ -3,6 +3,8 @@
 import { useMemo, useState } from 'react';
 import { KpiVendedor } from '@/lib/types';
 import { avanceColor, formatKg, formatPctPlain, formatCurrency, formatPct } from '@/lib/calculations/dashboard';
+import { BotonExcel } from '@/components/ui/BotonExcel';
+import type { ColExcel } from '@/lib/excel/exportar';
 
 const MONO = { fontFamily: "'JetBrains Mono', monospace" };
 
@@ -91,101 +93,92 @@ function SectionHeader({
   title,
   open,
   onToggle,
+  accion,
 }: {
   title: string;
   open: boolean;
   onToggle: () => void;
+  /** Botón de exportar. Va afuera del toggle: un <button> no anida a otro. */
+  accion?: React.ReactNode;
 }) {
   return (
-    <button
-      onClick={onToggle}
-      className="w-full flex items-center justify-between px-4 py-3 border-b border-[#e4e4e7] hover:bg-[rgba(12,92,171,0.04)] transition-colors lg:cursor-default"
-    >
-      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a]" style={MONO}>
-        {title}
-      </p>
-      <svg
-        className={`w-4 h-4 text-[#71717a] transition-transform lg:hidden ${open ? 'rotate-180' : ''}`}
-        fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+    <div className="flex items-center gap-2 border-b border-[#e4e4e7] pr-3">
+      <button
+        onClick={onToggle}
+        className="flex-1 flex items-center justify-between px-4 py-3 hover:bg-[rgba(12,92,171,0.04)] transition-colors lg:cursor-default"
       >
-        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-      </svg>
-    </button>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a]" style={MONO}>
+          {title}
+        </p>
+        <svg
+          className={`w-4 h-4 text-[#71717a] transition-transform lg:hidden ${open ? 'rotate-180' : ''}`}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {accion}
+    </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// KG por vendedor
+// KG / $ por vendedor — la misma tabla; cambian el formateador y los campos
 // ---------------------------------------------------------------------------
-function KgVendedorTable({ data }: { data: VendedorAgg[] }) {
-  const tot = data.reduce(
+/** Las seis cifras de una fila, con un solo juego de nombres para KG y para $. */
+function cifras(r: VendedorAgg, neto: boolean) {
+  return neto
+    ? {
+        meta: r.neto_meta, acumulado: r.neto_acumulado, tendencia: r.neto_tendencia,
+        avance_pct: r.neto_avance_pct, media_real: r.neto_media_real,
+        media_necesaria: r.neto_media_necesaria,
+      }
+    : {
+        meta: r.meta, acumulado: r.acumulado, tendencia: r.tendencia,
+        avance_pct: r.avance_pct, media_real: r.media_real,
+        media_necesaria: r.media_necesaria,
+      };
+}
+
+function totales(data: VendedorAgg[], neto: boolean) {
+  const t = data.map((r) => cifras(r, neto)).reduce(
     (s, r) => ({
-      meta:            s.meta            + r.meta,
-      acumulado:       s.acumulado       + r.acumulado,
+      meta:            s.meta       + r.meta,
+      acumulado:       s.acumulado  + r.acumulado,
       tendencia:       r.tendencia       != null ? (s.tendencia       ?? 0) + r.tendencia       : s.tendencia,
-      media_real:      s.media_real      + r.media_real,
+      media_real:      s.media_real + r.media_real,
       media_necesaria: r.media_necesaria != null ? (s.media_necesaria ?? 0) + r.media_necesaria : s.media_necesaria,
     }),
     { meta: 0, acumulado: 0, tendencia: null as number | null, media_real: 0, media_necesaria: null as number | null },
   );
-  const totAvance = tot.meta > 0 ? ((tot.tendencia ?? tot.acumulado) / tot.meta) * 100 : 0;
-
-  return (
-    <ScrollTable>
-      <table className="table-fixed w-full text-[11px] min-w-[560px]">
-        <thead>
-          <tr className="border-b border-[#e4e4e7] bg-[#f4f4f5]/60">
-            <TH sticky>Vendedor</TH>
-            <TH right>Meta KG</TH>
-            <TH right>Acum.</TH>
-            <TH right>Tend.</TH>
-            <TH right>Av%</TH>
-            <TH right>M.Real</TH>
-            <TH right>M.Nec.</TH>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-[#e4e4e7]">
-          {data.map((r) => (
-            <tr key={r.vendedor} className="hover:bg-[rgba(12,92,171,0.04)]">
-              <td className="sticky left-0 z-10 bg-[#ffffff] px-3 py-2 text-[10px] truncate text-[#27272a]" style={MONO}>{r.vendedor}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{formatKg(r.meta)}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-[#09090b]" style={MONO}>{formatKg(r.acumulado)}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{r.tendencia != null ? formatKg(r.tendencia) : '—'}</td>
-              <td className={`px-3 py-2 text-right tabular-nums font-semibold text-[11px] rounded-md ${avanceColor(r.avance_pct)}`} style={MONO}>{formatPctPlain(r.avance_pct)}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{formatKg(r.media_real)}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{r.media_necesaria != null ? formatKg(r.media_necesaria) : '—'}</td>
-            </tr>
-          ))}
-          <tr className="bg-[#f4f4f5]/70 border-t-2 border-t-[#e4e4e7]">
-            <td className="sticky left-0 z-10 bg-[#f7f7f8] px-3 py-2 text-[10px] text-[#09090b] font-bold" style={MONO}>TOTAL</td>
-            <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{formatKg(tot.meta)}</td>
-            <td className="px-3 py-2 text-right tabular-nums text-[#09090b] font-bold" style={MONO}>{formatKg(tot.acumulado)}</td>
-            <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{tot.tendencia != null ? formatKg(tot.tendencia) : '—'}</td>
-            <td className={`px-3 py-2 text-right tabular-nums font-bold text-[11px] rounded-md ${avanceColor(totAvance)}`} style={MONO}>{formatPctPlain(totAvance)}</td>
-            <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{formatKg(tot.media_real)}</td>
-            <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{tot.media_necesaria != null ? formatKg(tot.media_necesaria) : '—'}</td>
-          </tr>
-        </tbody>
-      </table>
-    </ScrollTable>
-  );
+  return { ...t, avance_pct: t.meta > 0 ? ((t.tendencia ?? t.acumulado) / t.meta) * 100 : 0 };
 }
 
-// ---------------------------------------------------------------------------
-// $ Neto por vendedor
-// ---------------------------------------------------------------------------
-function NetoVendedorTable({ data }: { data: VendedorAgg[] }) {
-  const tot = data.reduce(
-    (s, r) => ({
-      meta:            s.meta            + r.neto_meta,
-      acumulado:       s.acumulado       + r.neto_acumulado,
-      tendencia:       r.neto_tendencia       != null ? (s.tendencia       ?? 0) + r.neto_tendencia       : s.tendencia,
-      media_real:      s.media_real      + r.neto_media_real,
-      media_necesaria: r.neto_media_necesaria != null ? (s.media_necesaria ?? 0) + r.neto_media_necesaria : s.media_necesaria,
-    }),
-    { meta: 0, acumulado: 0, tendencia: null as number | null, media_real: 0, media_necesaria: null as number | null },
-  );
-  const totAvance = tot.meta > 0 ? ((tot.tendencia ?? tot.acumulado) / tot.meta) * 100 : 0;
+/** Filas del Excel: los mismos vendedores que la tabla, más el TOTAL. */
+function filasVendedor(data: VendedorAgg[], neto: boolean) {
+  return [
+    ...data.map((r) => ({ vendedor: r.vendedor, ...cifras(r, neto) })),
+    { vendedor: 'TOTAL', ...totales(data, neto) },
+  ];
+}
+
+function colsVendedor(neto: boolean): ColExcel[] {
+  const fmt = neto ? ('money' as const) : ('kg' as const);
+  const w   = neto ? 16 : 12;
+  return [
+    { key: 'vendedor',        label: 'Vendedor',                  w: 26 },
+    { key: 'meta',            label: neto ? 'Meta $' : 'Meta KG', fmt, w },
+    { key: 'acumulado',       label: 'Acumulado',                 fmt, w },
+    { key: 'tendencia',       label: 'Tendencia',                 fmt, w },
+    { key: 'avance_pct',      label: 'Avance %',                  fmt: 'pct' },
+    { key: 'media_real',      label: 'Media real',                fmt, w },
+    { key: 'media_necesaria', label: 'Media necesaria',           fmt, w: w + 4 },
+  ];
+}
+
+function VendedorKpiTable({ data, neto }: { data: VendedorAgg[]; neto: boolean }) {
+  const fmt = neto ? formatCurrency : formatKg;
+  const tot = totales(data, neto);
 
   return (
     <ScrollTable>
@@ -193,7 +186,7 @@ function NetoVendedorTable({ data }: { data: VendedorAgg[] }) {
         <thead>
           <tr className="border-b border-[#e4e4e7] bg-[#f4f4f5]/60">
             <TH sticky>Vendedor</TH>
-            <TH right>Meta $</TH>
+            <TH right>{neto ? 'Meta $' : 'Meta KG'}</TH>
             <TH right>Acum.</TH>
             <TH right>Tend.</TH>
             <TH right>Av%</TH>
@@ -202,25 +195,28 @@ function NetoVendedorTable({ data }: { data: VendedorAgg[] }) {
           </tr>
         </thead>
         <tbody className="divide-y divide-[#e4e4e7]">
-          {data.map((r) => (
-            <tr key={r.vendedor} className="hover:bg-[rgba(12,92,171,0.04)]">
-              <td className="sticky left-0 z-10 bg-[#ffffff] px-3 py-2 text-[10px] truncate text-[#27272a]" style={MONO}>{r.vendedor}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{formatCurrency(r.neto_meta)}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-[#09090b]" style={MONO}>{formatCurrency(r.neto_acumulado)}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{r.neto_tendencia != null ? formatCurrency(r.neto_tendencia) : '—'}</td>
-              <td className={`px-3 py-2 text-right tabular-nums font-semibold text-[11px] rounded-md ${avanceColor(r.neto_avance_pct)}`} style={MONO}>{formatPctPlain(r.neto_avance_pct)}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{formatCurrency(r.neto_media_real)}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{r.neto_media_necesaria != null ? formatCurrency(r.neto_media_necesaria) : '—'}</td>
-            </tr>
-          ))}
+          {data.map((row) => {
+            const r = cifras(row, neto);
+            return (
+              <tr key={row.vendedor} className="hover:bg-[rgba(12,92,171,0.04)]">
+                <td className="sticky left-0 z-10 bg-[#ffffff] px-3 py-2 text-[10px] truncate text-[#27272a]" style={MONO}>{row.vendedor}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{fmt(r.meta)}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-[#09090b]" style={MONO}>{fmt(r.acumulado)}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{r.tendencia != null ? fmt(r.tendencia) : '—'}</td>
+                <td className={`px-3 py-2 text-right tabular-nums font-semibold text-[11px] rounded-md ${avanceColor(r.avance_pct)}`} style={MONO}>{formatPctPlain(r.avance_pct)}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{fmt(r.media_real)}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{r.media_necesaria != null ? fmt(r.media_necesaria) : '—'}</td>
+              </tr>
+            );
+          })}
           <tr className="bg-[#f4f4f5]/70 border-t-2 border-t-[#e4e4e7]">
             <td className="sticky left-0 z-10 bg-[#f7f7f8] px-3 py-2 text-[10px] text-[#09090b] font-bold" style={MONO}>TOTAL</td>
-            <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{formatCurrency(tot.meta)}</td>
-            <td className="px-3 py-2 text-right tabular-nums text-[#09090b] font-bold" style={MONO}>{formatCurrency(tot.acumulado)}</td>
-            <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{tot.tendencia != null ? formatCurrency(tot.tendencia) : '—'}</td>
-            <td className={`px-3 py-2 text-right tabular-nums font-bold text-[11px] rounded-md ${avanceColor(totAvance)}`} style={MONO}>{formatPctPlain(totAvance)}</td>
-            <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{formatCurrency(tot.media_real)}</td>
-            <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{tot.media_necesaria != null ? formatCurrency(tot.media_necesaria) : '—'}</td>
+            <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{fmt(tot.meta)}</td>
+            <td className="px-3 py-2 text-right tabular-nums text-[#09090b] font-bold" style={MONO}>{fmt(tot.acumulado)}</td>
+            <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{tot.tendencia != null ? fmt(tot.tendencia) : '—'}</td>
+            <td className={`px-3 py-2 text-right tabular-nums font-bold text-[11px] rounded-md ${avanceColor(tot.avance_pct)}`} style={MONO}>{formatPctPlain(tot.avance_pct)}</td>
+            <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{fmt(tot.media_real)}</td>
+            <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{tot.media_necesaria != null ? fmt(tot.media_necesaria) : '—'}</td>
           </tr>
         </tbody>
       </table>
@@ -231,14 +227,47 @@ function NetoVendedorTable({ data }: { data: VendedorAgg[] }) {
 // ---------------------------------------------------------------------------
 // CCC por vendedor — con META (meta_pdvs total) y cumplimiento
 // ---------------------------------------------------------------------------
+const COLS_CCC: ColExcel[] = [
+  { key: 'vendedor',       label: 'Vendedor',      w: 26 },
+  { key: 'meta',           label: 'Meta',          fmt: 'int' },
+  { key: 'mes_actual',     label: 'Acumulado',     fmt: 'int' },
+  { key: 'cumplimiento',   label: 'Cumpl. %',      fmt: 'pct' },
+  { key: 'mes_anterior',   label: 'Mes anterior',  fmt: 'int', w: 14 },
+  { key: 'variacion_pct',  label: 'Variacion %',   fmt: 'pct', w: 14 },
+];
+
+/** Filas de la tabla de CCC, ya ordenadas y con el TOTAL al final. */
+function filasCcc(data: CccRow[], metaByVendedor: Record<string, number>) {
+  const filas = [...data]
+    .sort((a, b) => a.vendedor.localeCompare(b.vendedor))
+    .map((r) => {
+      const meta = metaByVendedor[r.vendedor] ?? 0;
+      return {
+        ...r,
+        meta:         meta > 0 ? meta : null,
+        cumplimiento: meta > 0 ? (r.mes_actual / meta) * 100 : null,
+      };
+    });
+
+  const mes_actual   = filas.reduce((s, r) => s + r.mes_actual, 0);
+  const mes_anterior = filas.reduce((s, r) => s + r.mes_anterior, 0);
+  const metaTotal    = filas.reduce((s, r) => s + (r.meta ?? 0), 0);
+
+  const total = {
+    vendedor: 'TOTAL',
+    mes_actual,
+    mes_anterior,
+    meta:          metaTotal > 0 ? metaTotal : null,
+    cumplimiento:  metaTotal > 0 ? (mes_actual / metaTotal) * 100 : null,
+    variacion_pct: mes_anterior > 0 ? ((mes_actual - mes_anterior) / mes_anterior) * 100 : 0,
+  };
+
+  return { filas, total };
+}
+
 function CccVendedorTable({ data, metaByVendedor }: { data: CccRow[]; metaByVendedor: Record<string, number> }) {
-  const sorted = [...data].sort((a, b) => a.vendedor.localeCompare(b.vendedor));
-  const totAct  = sorted.reduce((s, r) => s + r.mes_actual, 0);
-  const totAnt  = sorted.reduce((s, r) => s + r.mes_anterior, 0);
-  const totMeta = sorted.reduce((s, r) => s + (metaByVendedor[r.vendedor] ?? 0), 0);
-  const totVar  = totAnt > 0 ? ((totAct - totAnt) / totAnt) * 100 : 0;
-  const totColor = totVar > 0 ? 'text-[#15803d]' : totVar < 0 ? 'text-[#dc2626]' : 'text-[#71717a]';
-  const totCumpl = totMeta > 0 ? (totAct / totMeta) * 100 : null;
+  const { filas, total } = filasCcc(data, metaByVendedor);
+  const totColor = total.variacion_pct > 0 ? 'text-[#15803d]' : total.variacion_pct < 0 ? 'text-[#dc2626]' : 'text-[#71717a]';
 
   return (
     <ScrollTable>
@@ -254,17 +283,15 @@ function CccVendedorTable({ data, metaByVendedor }: { data: CccRow[]; metaByVend
           </tr>
         </thead>
         <tbody className="divide-y divide-[#e4e4e7]">
-          {sorted.map((r) => {
+          {filas.map((r) => {
             const color = r.variacion_pct > 0 ? 'text-[#15803d]' : r.variacion_pct < 0 ? 'text-[#dc2626]' : 'text-[#71717a]';
-            const meta  = metaByVendedor[r.vendedor] ?? 0;
-            const cumpl = meta > 0 ? (r.mes_actual / meta) * 100 : null;
             return (
               <tr key={r.vendedor} className="hover:bg-[rgba(12,92,171,0.04)]">
                 <td className="sticky left-0 z-10 bg-[#ffffff] px-3 py-2 text-[10px] truncate text-[#27272a]" style={MONO}>{r.vendedor}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{meta > 0 ? meta : '—'}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{r.meta ?? '—'}</td>
                 <td className="px-3 py-2 text-right tabular-nums text-[#09090b] font-semibold" style={MONO}>{r.mes_actual}</td>
-                <td className={`px-3 py-2 text-right tabular-nums font-semibold text-[11px] rounded-md ${cumpl !== null ? avanceColor(cumpl) : 'text-[#71717a]'}`} style={MONO}>
-                  {cumpl !== null ? formatPctPlain(cumpl) : '—'}
+                <td className={`px-3 py-2 text-right tabular-nums font-semibold text-[11px] rounded-md ${r.cumplimiento !== null ? avanceColor(r.cumplimiento) : 'text-[#71717a]'}`} style={MONO}>
+                  {r.cumplimiento !== null ? formatPctPlain(r.cumplimiento) : '—'}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{r.mes_anterior}</td>
                 <td className={`px-3 py-2 text-right tabular-nums font-semibold ${color}`} style={MONO}>
@@ -273,17 +300,17 @@ function CccVendedorTable({ data, metaByVendedor }: { data: CccRow[]; metaByVend
               </tr>
             );
           })}
-          {sorted.length > 0 && (
+          {filas.length > 0 && (
             <tr className="bg-[#f4f4f5]/70 border-t-2 border-t-[#e4e4e7]">
               <td className="sticky left-0 z-10 bg-[#f7f7f8] px-3 py-2 text-[10px] text-[#09090b] font-bold" style={MONO}>TOTAL</td>
-              <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{totMeta > 0 ? totMeta : '—'}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-[#09090b] font-bold" style={MONO}>{totAct}</td>
-              <td className={`px-3 py-2 text-right tabular-nums font-bold text-[11px] rounded-md ${totCumpl !== null ? avanceColor(totCumpl) : 'text-[#71717a]'}`} style={MONO}>
-                {totCumpl !== null ? formatPctPlain(totCumpl) : '—'}
+              <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{total.meta ?? '—'}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-[#09090b] font-bold" style={MONO}>{total.mes_actual}</td>
+              <td className={`px-3 py-2 text-right tabular-nums font-bold text-[11px] rounded-md ${total.cumplimiento !== null ? avanceColor(total.cumplimiento) : 'text-[#71717a]'}`} style={MONO}>
+                {total.cumplimiento !== null ? formatPctPlain(total.cumplimiento) : '—'}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{totAnt}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-[#71717a]" style={MONO}>{total.mes_anterior}</td>
               <td className={`px-3 py-2 text-right tabular-nums font-bold ${totColor}`} style={MONO}>
-                {totAnt > 0 ? formatPct(totVar) : '—'}
+                {total.mes_anterior > 0 ? formatPct(total.variacion_pct) : '—'}
               </td>
             </tr>
           )}
@@ -435,17 +462,25 @@ export function ConsolidadoClient({
 
       {/* KG */}
       <div className={card}>
-        <SectionHeader title="Volumen (KG)" open={openKg} onToggle={() => setOpenKg(v => !v)} />
+        <SectionHeader
+          title="Volumen (KG)" open={openKg} onToggle={() => setOpenKg(v => !v)}
+          accion={<BotonExcel archivo="consolidado-kg" hoja="Volumen KG"
+                              cols={colsVendedor(false)} filas={filasVendedor(aggregated, false)} />}
+        />
         <div className={openKg ? '' : 'hidden lg:block'}>
-          <KgVendedorTable data={aggregated} />
+          <VendedorKpiTable data={aggregated} neto={false} />
         </div>
       </div>
 
       {/* Neto $ */}
       <div className={card}>
-        <SectionHeader title="Volumen ($)" open={openNeto} onToggle={() => setOpenNeto(v => !v)} />
+        <SectionHeader
+          title="Volumen ($)" open={openNeto} onToggle={() => setOpenNeto(v => !v)}
+          accion={<BotonExcel archivo="consolidado-pesos" hoja="Volumen $"
+                              cols={colsVendedor(true)} filas={filasVendedor(aggregated, true)} />}
+        />
         <div className={openNeto ? '' : 'hidden lg:block'}>
-          <NetoVendedorTable data={aggregated} />
+          <VendedorKpiTable data={aggregated} neto />
         </div>
       </div>
 
@@ -455,6 +490,10 @@ export function ConsolidadoClient({
           title={cccCaption ? `CCC — Clientes con Compra · ${cccCaption}` : 'CCC — Clientes con Compra'}
           open={openCcc}
           onToggle={() => setOpenCcc(v => !v)}
+          accion={(() => {
+            const { filas, total } = filasCcc(ccc, metaCccByVendedor);
+            return <BotonExcel archivo="consolidado-ccc" hoja="CCC" cols={COLS_CCC} filas={[...filas, total]} />;
+          })()}
         />
         <div className={openCcc ? '' : 'hidden lg:block'}>
           <CccVendedorTable data={ccc} metaByVendedor={metaCccByVendedor} />

@@ -4,6 +4,8 @@ import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { formatKg, formatCurrency } from '@/lib/calculations/dashboard';
 import type { CatalogoItem, ConsolidadoProductoRow } from '@/lib/calculations/productos';
 import type { Periodo } from '@/lib/periodos';
+import { BotonExcel } from '@/components/ui/BotonExcel';
+import type { ColExcel, Fmt } from '@/lib/excel/exportar';
 
 const MONO: React.CSSProperties = { fontFamily: "'JetBrains Mono', monospace" };
 const CARD = 'bg-[#ffffff] rounded-2xl border border-[#e4e4e7] shadow-xl shadow-black/5 overflow-hidden';
@@ -25,26 +27,52 @@ function TH({ children, right }: { children: React.ReactNode; right?: boolean })
 // ---------------------------------------------------------------------------
 // Tabla genérica por vendedor
 // ---------------------------------------------------------------------------
+/** Una columna sirve para la pantalla y para el Excel: mismo campo, mismo formato. */
+type ColProducto = { key: keyof ConsolidadoProductoRow; label: string; fmt: Fmt };
+
+const MOSTRAR: Record<Fmt, (v: number) => string> = {
+  kg:    (v) => formatKg(v) + ' kg',
+  money: formatCurrency,
+  int:   (v) => String(Math.round(v)),
+  pct:   (v) => v.toFixed(1) + '%',
+  text:  String,
+};
+
 function VendedorTable({
   title,
+  archivo,
   data,
   cols,
 }: {
-  title: string;
-  data:  ConsolidadoProductoRow[];
-  cols:  { label: string; value: (r: ConsolidadoProductoRow) => number | null; fmt: (v: number) => string }[];
+  title:   string;
+  /** Base del nombre del archivo Excel. */
+  archivo: string;
+  data:    ConsolidadoProductoRow[];
+  cols:    ColProducto[];
 }) {
   const totals = cols.map((c) => {
-    const vals = data.map((r) => c.value(r));
+    const vals = data.map((r) => r[c.key] as number | null);
     if (vals.every((v) => v == null)) return null;
     return vals.reduce((s: number, v) => s + (v ?? 0), 0);
   });
 
+  const colsExcel: ColExcel[] = [
+    { key: 'vendedor', label: 'Vendedor', w: 26 },
+    ...cols.map((c) => ({ key: c.key as string, label: c.label, fmt: c.fmt, w: 16 })),
+  ];
+  const filasExcel = [
+    ...data,
+    { vendedor: 'TOTAL', ...Object.fromEntries(cols.map((c, i) => [c.key, totals[i]])) },
+  ];
+
   return (
     <div className={CARD}>
-      <p className="px-4 py-3 border-b border-[#e4e4e7] text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a]" style={MONO}>
-        {title}
-      </p>
+      <div className="px-4 py-3 border-b border-[#e4e4e7] flex items-center justify-between gap-3">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a]" style={MONO}>
+          {title}
+        </p>
+        <BotonExcel archivo={archivo} hoja={archivo} cols={colsExcel} filas={filasExcel} />
+      </div>
       <div className="overflow-x-auto">
         <table className="table-fixed w-full text-[11px]" style={{ minWidth: 150 + cols.length * 110 }}>
           <thead>
@@ -58,10 +86,10 @@ function VendedorTable({
               <tr key={r.vendedor} className="hover:bg-[rgba(12,92,171,0.04)]">
                 <td className="px-3 py-2 text-[10px] truncate text-[#27272a]" style={MONO}>{r.vendedor}</td>
                 {cols.map((c) => {
-                  const v = c.value(r);
+                  const v = r[c.key] as number | null;
                   return (
                     <td key={c.label} className="px-3 py-2 text-right tabular-nums text-[#09090b]" style={MONO}>
-                      {v == null ? '—' : c.fmt(v)}
+                      {v == null ? '—' : MOSTRAR[c.fmt](v)}
                     </td>
                   );
                 })}
@@ -72,7 +100,7 @@ function VendedorTable({
                 <td className="px-3 py-2 text-[10px] text-[#09090b] font-bold" style={MONO}>TOTAL</td>
                 {cols.map((c, i) => (
                   <td key={c.label} className="px-3 py-2 text-right tabular-nums text-[#09090b] font-bold" style={MONO}>
-                    {totals[i] == null ? '—' : c.fmt(totals[i] as number)}
+                    {totals[i] == null ? '—' : MOSTRAR[c.fmt](totals[i] as number)}
                   </td>
                 ))}
               </tr>
@@ -316,28 +344,29 @@ export function ProductosClient({
       <div className={`space-y-4 transition-opacity ${loading ? 'opacity-50' : ''}`}>
         <VendedorTable
           title="Volumen (KG)"
+          archivo="productos-kg"
           data={ordenadas}
           cols={[
-            { label: 'Acumulado',  value: (r) => r.kilos,      fmt: (v) => formatKg(v) + ' kg' },
-            { label: 'Tendencia',  value: (r) => r.tendencia,  fmt: (v) => formatKg(v) + ' kg' },
-            { label: 'Media Real', value: (r) => r.media_real, fmt: (v) => formatKg(v) + ' kg' },
+            { key: 'kilos',      label: 'Acumulado',  fmt: 'kg' },
+            { key: 'tendencia',  label: 'Tendencia',  fmt: 'kg' },
+            { key: 'media_real', label: 'Media Real', fmt: 'kg' },
           ]}
         />
         <VendedorTable
           title="Volumen ($)"
+          archivo="productos-pesos"
           data={ordenadas}
           cols={[
-            { label: 'Acumulado',  value: (r) => r.neto,            fmt: formatCurrency },
-            { label: 'Tendencia',  value: (r) => r.neto_tendencia,  fmt: formatCurrency },
-            { label: 'Media Real', value: (r) => r.neto_media_real, fmt: formatCurrency },
+            { key: 'neto',            label: 'Acumulado',  fmt: 'money' },
+            { key: 'neto_tendencia',  label: 'Tendencia',  fmt: 'money' },
+            { key: 'neto_media_real', label: 'Media Real', fmt: 'money' },
           ]}
         />
         <VendedorTable
           title={cccCaption ? `CCC — Clientes con Compra · ${cccCaption}` : 'CCC — Clientes con Compra'}
+          archivo="productos-ccc"
           data={ordenadas}
-          cols={[
-            { label: 'Clientes', value: (r) => r.ccc, fmt: (v) => String(Math.round(v)) },
-          ]}
+          cols={[{ key: 'ccc', label: 'Clientes', fmt: 'int' }]}
         />
       </div>
     </div>

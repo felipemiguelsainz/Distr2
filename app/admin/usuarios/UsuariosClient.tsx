@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Rol } from '@/lib/types';
+import { BotonExcel } from '@/components/ui/BotonExcel';
+import type { ColExcel } from '@/lib/excel/exportar';
 
 interface Usuario {
   id: string;
@@ -27,6 +29,17 @@ const ROL_LABEL: Record<Rol, string> = {
   supervisor: 'Supervisor',
   vendedor: 'Vendedor',
 };
+
+const COLS_EXCEL: ColExcel[] = [
+  { key: 'email',                label: 'Email',            w: 32 },
+  { key: 'nombre',               label: 'Nombre',           w: 26 },
+  { key: 'rol_label',            label: 'Rol',              w: 16 },
+  { key: 'equipo',               label: 'Equipo',           w: 24 },
+  { key: 'vendedor_nombre',      label: 'Vendedor',         w: 24 },
+  { key: 'estado',               label: 'Estado',           w: 12 },
+  { key: 've_empresa_label',     label: 'Alcance',          w: 18 },
+  { key: 'pass_temporal',        label: 'Pass temporal',    w: 15 },
+];
 
 const inputClass =
   'w-full px-3 py-[9px] text-[13px] bg-[rgba(0,0,0,0.02)] border border-[#e4e4e7] rounded-[9px] text-[#09090b] caret-[#0c5cab] focus:outline-none focus:border-[rgba(12,92,171,0.4)] transition-all placeholder:text-[#71717a]';
@@ -247,10 +260,22 @@ export function UsuariosClient({ supervisores, vendedores, currentUserId }: Prop
 
       {/* Listado de cuentas */}
       <div className="bg-[#ffffff] rounded-2xl border border-[#e4e4e7] shadow-xl shadow-black/5 overflow-hidden">
-        <div className="px-5 py-4 border-b border-[#e4e4e7]">
+        <div className="px-5 py-4 border-b border-[#e4e4e7] flex items-center justify-between gap-3">
           <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717a]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
             Cuentas existentes
           </p>
+          <BotonExcel
+            archivo="usuarios"
+            hoja="Usuarios"
+            cols={COLS_EXCEL}
+            filas={usuarios.map((u) => ({
+              ...u,
+              rol_label:        u.rol ? ROL_LABEL[u.rol] : 'Sin perfil',
+              estado:           u.activo ? 'Activo' : 'Inactivo',
+              ve_empresa_label: u.ve_empresa ? 'Toda la empresa' : 'Su alcance',
+              pass_temporal:    u.must_change_password ? 'Si' : 'No',
+            }))}
+          />
         </div>
 
         {loadingList ? (
