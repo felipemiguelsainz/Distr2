@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidateTag } from 'next/cache';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { traerTodo } from '@/lib/supabase/paginar';
 import { PdvsUploadResult, Pdv } from '@/lib/types';
+
+// Upsert de ~7.000 PDVs + bajas + recálculo de metas CCC: pasa el default de Vercel.
+export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,7 +16,11 @@ export async function POST(request: NextRequest) {
     if (profile?.rol !== 'admin') return NextResponse.json({ error: 'Prohibido.' }, { status: 403 });
 
     const body = await request.json();
-    const rows: Pdv[] = body.rows;
+    // Un id repetido en el archivo hace fallar el upsert del lote entero
+    // ("cannot affect row a second time"): queda la última aparición.
+    const rows: Pdv[] = Array.isArray(body.rows)
+      ? [...new Map((body.rows as Pdv[]).map((r) => [r.id, r])).values()]
+      : body.rows;
     const confirmed: boolean = body.confirmed ?? false;
 
     if (!Array.isArray(rows) || rows.length === 0) {
@@ -21,15 +29,16 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServiceClient();
 
-    // Fetch existing cartera values to detect changes
-    const ids = rows.map((r) => r.id);
-    const { data: existing } = await supabase
-      .from('pdvs')
-      .select('id, cartera, razon_social')
-      .in('id', ids);
+    // Todos los PDVs actuales, paginados. Antes iba un .in('id', ids) con los
+    // ~7.000 ids del archivo: la URL pasa el tope y PostgREST responde 400, y
+    // además cualquier select corta en 1000 filas → no se detectaban
+    // reasignaciones y las bajas se calculaban sobre 1000 activos.
+    const existing = await traerTodo<{ id: number; cartera: string; razon_social: string; activo: boolean }>(
+      (desde, hasta) => supabase.from('pdvs').select('id, cartera, razon_social, activo').order('id').range(desde, hasta),
+    );
 
     const existingMap = new Map<number, { cartera: string; razon_social: string }>();
-    for (const e of existing ?? []) {
+    for (const e of existing) {
       existingMap.set(e.id, e);
     }
 
@@ -71,8 +80,7 @@ export async function POST(request: NextRequest) {
 
     // Cuántos PDVs activos quedarían dados de baja (no vienen en el archivo).
     const idsInFile = new Set(rows.map((r) => r.id));
-    const { data: activeBefore } = await supabase.from('pdvs').select('id').eq('activo', true);
-    const activosAntes = (activeBefore ?? []).map((p) => p.id as number);
+    const activosAntes = existing.filter((p) => p.activo).map((p) => p.id);
     const bajas = activosAntes.filter((id) => !idsInFile.has(id)).length;
     // Guardrail: dar de baja a >30% de los activos casi siempre es un archivo
     // parcial/equivocado → pedir confirmación explícita.
@@ -102,16 +110,16 @@ export async function POST(request: NextRequest) {
     for (let i = 0; i < rowsAsActive.length; i += CHUNK) {
       const chunk = rowsAsActive.slice(i, i + CHUNK);
 
-      const { data } = await supabase
+      const { error: upsertErr } = await supabase
         .from('pdvs')
-        .upsert(chunk, { onConflict: 'id', ignoreDuplicates: false })
-        .select('id');
+        .upsert(chunk, { onConflict: 'id', ignoreDuplicates: false });
+      // Cortar acá: si seguía, daba de baja a los PDVs que no se llegaron a guardar.
+      if (upsertErr) throw new Error(`Guardando PDVs (filas ${i + 1}–${i + chunk.length}): ${upsertErr.message}`);
 
       for (const row of chunk) {
         if (existingMap.has(row.id)) updated++;
         else inserted++;
       }
-      void data;
     }
 
     // Reemplazo completo: marcar activo=false los PDVs que NO vinieron en este archivo.
@@ -171,6 +179,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result);
   } catch (err) {
     console.error('[pdvs-upload]', err);
-    return NextResponse.json({ error: 'Error interno del servidor.' }, { status: 500 });
+    const detalle = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: `Error interno del servidor: ${detalle}` }, { status: 500 });
   }
 }

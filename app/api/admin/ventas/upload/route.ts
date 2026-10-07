@@ -3,7 +3,11 @@ import { revalidateTag } from 'next/cache';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { recalcularResumenDiario } from '@/lib/calculations/resumen';
 import { parseVentasFile } from '@/lib/excel/parser';
+import { traerTodo } from '@/lib/supabase/paginar';
 import { VentasUploadResult } from '@/lib/types';
+
+// Parseo + upsert + recálculo del resumen: un día cargado pasa el default de Vercel.
+export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
   try {
@@ -77,13 +81,13 @@ export async function POST(request: NextRequest) {
     const fechasSet = new Set<string>();
 
     // Auto-crear PDVs faltantes para no violar el FK constraint
-    const uniquePdvIds = [...new Set(rows.map(r => r.pdv_id))];
-    const { data: existingPdvs } = await supabase
-      .from('pdvs')
-      .select('id')
-      .in('id', uniquePdvIds);
+    // Todos los ids paginados: un .in() con miles de ids pasa el tope de URL
+    // (400) y cualquier select corta en 1000 filas.
+    const existingPdvs = await traerTodo<{ id: number }>(
+      (desde, hasta) => supabase.from('pdvs').select('id').order('id').range(desde, hasta),
+    );
 
-    const existingIds = new Set((existingPdvs ?? []).map(p => p.id));
+    const existingIds = new Set(existingPdvs.map(p => p.id));
     const missingPdvs = rows
       .filter(r => !existingIds.has(r.pdv_id))
       .reduce((acc, r) => {
@@ -170,6 +174,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result);
   } catch (err) {
     console.error('[ventas-upload]', err);
-    return NextResponse.json({ error: 'Error interno del servidor.' }, { status: 500 });
+    const detalle = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: `Error interno del servidor: ${detalle}` }, { status: 500 });
   }
 }

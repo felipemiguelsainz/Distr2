@@ -23,6 +23,19 @@ const normKey = (s: string) =>
 // Lector de columnas tolerante para una fila: g('Canal Venta', 'Canal Vta')
 // prueba cada candidato normalizado y devuelve el primer valor no vacío. Blinda
 // los parsers contra renombres de encabezado.
+// Si Vercel corta antes de llegar a la ruta (archivo grande, timeout) devuelve
+// una página de texto: res.json() explotaba con "Unexpected token" y no decía nada.
+async function leerJson(res: Response) {
+  const texto = await res.text();
+  try {
+    return JSON.parse(texto);
+  } catch {
+    if (res.status === 413) return { error: 'El archivo es demasiado grande para la web publicada (tope ~4.5 MB). Cargalo corriendo la app local.' };
+    if (res.status === 504) return { error: 'El servidor tardó demasiado y cortó. Probá de nuevo o cargalo corriendo la app local.' };
+    return { error: `El servidor respondió ${res.status}: ${texto.slice(0, 200)}` };
+  }
+}
+
 function rowGetter(r: Record<string, unknown>) {
   const map = new Map<string, unknown>();
   for (const k of Object.keys(r)) map.set(normKey(k), r[k]);
@@ -524,7 +537,7 @@ export function CargarClient() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ anio: borrarAnio, mes: borrarMes }),
     });
-    const data = await res.json();
+    const data = await leerJson(res);
     setBorrarLoading(false); setBorrarConfirm(false);
     setBorrarResult(res.ok ? `✓ Datos de ${MESES[borrarMes - 1]} ${borrarAnio} eliminados.` : `Error: ${data.error}`);
   }
@@ -535,7 +548,7 @@ export function CargarClient() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ anio: borrarAnio, mes: borrarMes }),
     });
-    const data = await res.json();
+    const data = await leerJson(res);
     setRecalcLoading(false);
     setBorrarResult(res.ok ? `✓ Resumen recalculado para ${data.fechas_procesadas} fechas.` : `Error: ${data.error}`);
   }
@@ -562,7 +575,7 @@ export function CargarClient() {
       formData.append('file', ventasPendingFile);
       if (confirmedHuerfanos) formData.append('confirmed', 'true');
       const res = await fetch('/api/admin/ventas/upload', { method: 'POST', body: formData });
-      const data = await res.json();
+      const data = await leerJson(res);
       if (!res.ok) throw new Error(data.error ?? 'Error al cargar ventas.');
       // El server pide confirmar por vendedores huérfanos → mostrar ese modal.
       // NO limpiar el archivo: se reusa en el reintento confirmado.
@@ -589,7 +602,7 @@ export function CargarClient() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rows: geoRows }),
       });
-      const data = await res.json();
+      const data = await leerJson(res);
       if (!res.ok) throw new Error(data.error ?? 'Error al cargar geolocalización.');
       setGeoResult(data);
     } catch (e) { setGeoError(e instanceof Error ? e.message : String(e)); }
@@ -611,7 +624,7 @@ export function CargarClient() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rows, confirmed: false }),
       });
-      const data = await res.json();
+      const data = await leerJson(res);
       if (!res.ok) throw new Error(data.error ?? 'Error al procesar clientes.');
       if (data.requires_confirmation) {
         setPdvsPendingRows(rows);
@@ -641,7 +654,7 @@ export function CargarClient() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rows, confirmed: true }),
       });
-      const data = await res.json();
+      const data = await leerJson(res);
       if (!res.ok) throw new Error(data.error ?? 'Error al guardar clientes.');
       setPdvsResult(data);
       scrollShellTop();
@@ -670,7 +683,7 @@ export function CargarClient() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ vendedores }),
       });
-      const data = await res.json();
+      const data = await leerJson(res);
       if (!res.ok) throw new Error(data.error ?? 'Error al cargar maestro de vendedores.');
       setMaestrosResult(data);
     } catch (e) { setMaestrosError(e instanceof Error ? e.message : String(e)); }
