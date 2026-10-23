@@ -98,8 +98,10 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Asegurar activo=true para los PDVs del archivo (por si estaban dados de baja)
-    const rowsAsActive = rows.map((r) => ({ ...r, activo: true }));
+    // El parser ya deja activo=true si el archivo no trae la columna "Activo"
+    // (reactiva a los dados de baja). Si la trae en false/0/no, se respeta: antes
+    // se forzaba true y esos PDVs inflaban la cartera activa.
+    const rowsAsActive = rows.map((r) => ({ ...r, activo: r.activo !== false }));
 
     // Proceed with upsert
     let inserted = 0;
@@ -126,7 +128,7 @@ export async function POST(request: NextRequest) {
     // No los borramos físicamente porque ventas.pdv_id es FK; preservamos la historia
     // (las ventas NO se tocan). Reutilizamos activosAntes calculado arriba.
     const toDeactivate = activosAntes.filter((id) => !idsInFile.has(id));
-    let deactivated = 0;
+    let deactivated = rowsAsActive.filter((r) => !r.activo && activosAntes.includes(r.id)).length;
     for (let i = 0; i < toDeactivate.length; i += CHUNK) {
       const chunk = toDeactivate.slice(i, i + CHUNK);
       const { error: deactErr } = await supabase.from('pdvs').update({ activo: false }).in('id', chunk);

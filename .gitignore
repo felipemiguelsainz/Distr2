@@ -56,3 +56,6 @@ scripts/*-backup-*.json
 
 # artefactos de Playwright MCP (capturas y logs de diagnostico)
 .playwright-mcp/
+
+# respaldos locales de la base
+/respaldos/
