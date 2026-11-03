@@ -10,6 +10,7 @@
 //
 //   node scripts/recalcular-metas-kg.cjs 2026 10            # dry-run
 //   node scripts/recalcular-metas-kg.cjs 2026 10 --aplicar  # respalda, borra el mes e inserta
+//   node scripts/recalcular-metas-kg.cjs 2026 11 --objetivos-de=2026-10   # mes sin metas: toma objetivos $ y excluidos de otro mes
 const { Pool } = require('pg');
 const fs = require('fs');
 for (const l of fs.readFileSync('.env.local', 'utf8').split(/\r?\n/)) {
@@ -17,7 +18,8 @@ for (const l of fs.readFileSync('.env.local', 'utf8').split(/\r?\n/)) {
   if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
 }
 const anio = Number(process.argv[2]), mes = Number(process.argv[3]);
-const aplicar = process.argv[4] === '--aplicar';
+const aplicar = process.argv.includes('--aplicar');
+const baseArg = (process.argv.find((a) => a.startsWith('--objetivos-de=')) ?? '').split('=')[1]; // AAAA-MM
 if (!anio || !mes) { console.error('uso: node scripts/recalcular-metas-kg.cjs <anio> <mes> [--aplicar]'); process.exit(1); }
 
 const MONDELEZ = ['Beverages', 'Biscuits', 'Candies', 'Chocolates', 'Dry Mixes', 'Gums'];
@@ -47,13 +49,15 @@ const prev = (a, m) => (m === 1 ? { a: a - 1, m: 12 } : { a, m: m - 1 });
     }
 
     const { rows: viejas } = await pool.query('SELECT * FROM metas WHERE anio=$1 AND mes=$2', [anio, mes]);
-    if (!viejas.length) throw new Error(`No hay metas guardadas para ${anio}-${pad(mes)}: no puedo recuperar los objetivos.`);
-    const conMeta = new Set(viejas.map((v) => v.vendedor_nombre));
+    const [ba, bm] = baseArg ? baseArg.split('-').map(Number) : [anio, mes];
+    const { rows: fuente } = baseArg ? await pool.query('SELECT * FROM metas WHERE anio=$1 AND mes=$2', [ba, bm]) : { rows: viejas };
+    if (!fuente.length) throw new Error(`No hay metas guardadas para ${ba}-${pad(bm)}: no puedo recuperar los objetivos (usá --objetivos-de=AAAA-MM).`);
+    const conMeta = new Set(fuente.map((v) => v.vendedor_nombre));
     const todosHist = new Set(pv.map((r) => r.vendedor));
     const excluidos = new Set([...todosHist].filter((v) => !conMeta.has(v)));
     console.log(`excluidos (sin meta guardada): ${[...excluidos].join(', ') || 'ninguno'}`);
 
-    const objetivo = (rubro) => viejas.filter((v) => v.rubro === rubro).reduce((s, v) => s + Number(v.neto_meta ?? 0), 0);
+    const objetivo = (rubro) => fuente.filter((v) => v.rubro === rubro).reduce((s, v) => s + Number(v.neto_meta ?? 0), 0);
     const dpk = (rubro) => { const t = totAnt.get(rubro); return t && t.kilos > 0 ? t.neto / t.kilos : 0; };
 
     const rubros = new Set([...MONDELEZ, ...totAnt.keys(), ...hist.keys()]);
