@@ -30,7 +30,7 @@ for (const [dom, calle, altura] of casos) {
 const pdv = (id: number, domicilio: string, localidad: string): PdvPlan => ({
   pdv_id: id, lat: 0, lon: 0, razon_social: `C${id}`, domicilio,
   cartera: null, dia_visita: null, localidad, partido: null, zona: null,
-  canal_venta: 'KIOSCO', ultima_vta: null,
+  canal_venta: 'KIOSCO', ultima_vta: null, cartera_activa: true,
 });
 
 const desordenados = [

@@ -20,9 +20,6 @@ const DIACRITICS = new RegExp('[\\u0300-\\u036f]', 'g'); // marcas de acento (NF
 const normKey = (s: string) =>
   s.toLowerCase().normalize('NFD').replace(DIACRITICS, '').replace(/[\s._]/g, '');
 
-// Lector de columnas tolerante para una fila: g('Canal Venta', 'Canal Vta')
-// prueba cada candidato normalizado y devuelve el primer valor no vacío. Blinda
-// los parsers contra renombres de encabezado.
 // Si Vercel corta antes de llegar a la ruta (archivo grande, timeout) devuelve
 // una página de texto: res.json() explotaba con "Unexpected token" y no decía nada.
 async function leerJson(res: Response) {
@@ -36,6 +33,9 @@ async function leerJson(res: Response) {
   }
 }
 
+// Lector de columnas tolerante para una fila: g('Canal Venta', 'Canal Vta')
+// prueba cada candidato normalizado y devuelve el primer valor no vacío. Blinda
+// los parsers contra renombres de encabezado.
 function rowGetter(r: Record<string, unknown>) {
   const map = new Map<string, unknown>();
   for (const k of Object.keys(r)) map.set(normKey(k), r[k]);
@@ -268,17 +268,23 @@ async function parseGeoFile(buffer: ArrayBuffer) {
         return `${d.y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`;
       } catch { return null; }
     }
+    // Texto: dd/mm/aaaa o ISO. Cualquier otra cosa → null. Mandar el texto
+    // crudo rompía toda la carga de geo: la base lee "25/09/2026" como mes 25.
     const s = String(val).trim();
-    return s ? s.slice(0, 10) : null;
+    const dmy = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+    if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+    return /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : null;
   }
+  // "-34,6037" (coma decimal) con parseFloat daba -34 y el PDV caía fuera de GBA.
+  const num = (v: unknown) => parseFloat(String(v ?? '').trim().replace(',', '.'));
 
   return raw
     .map((r) => {
       const pdv_id = pickPdvId(r);
       if (!pdv_id || isNaN(pdv_id)) return null;
       const g = rowGetter(r);
-      const lat = parseFloat(String(g('LATITUD') ?? ''));
-      const lng = parseFloat(String(g('LONGITUD') ?? ''));
+      const lat = num(g('LATITUD'));
+      const lng = num(g('LONGITUD'));
       const ruteableRaw = String(g('Ruteable') ?? '').toLowerCase();
       return {
         pdv_id,

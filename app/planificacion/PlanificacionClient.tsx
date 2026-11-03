@@ -120,6 +120,32 @@ function PaneCuadrantes({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** Filtro de tilde del panel. */
+function Tick({ activo, onClick, children }: { activo: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={activo}
+      className={`flex items-center gap-2 px-2.5 py-1.5 text-[11.5px] font-medium rounded-[8px] border transition-all text-left ${
+        activo
+          ? 'bg-[rgba(12,92,171,0.1)] border-[rgba(12,92,171,0.35)] text-[#09090b]'
+          : 'bg-[rgba(0,0,0,0.02)] border-[#e4e4e7] text-[#52525b] hover:border-[#d4d4d8]'
+      }`}
+    >
+      <span className={`w-3.5 h-3.5 rounded-[4px] border flex items-center justify-center shrink-0 ${
+        activo ? 'bg-[#0c5cab] border-[#0c5cab]' : 'bg-white border-[#d4d4d8]'
+      }`}>
+        {activo && (
+          <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
+            <path d="M2 5.2L4 7.2L8 3" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </span>
+      {children}
+    </button>
+  );
+}
+
 // ---------------------------------------------------------------------------
 export default function PlanificacionClient() {
   const [data, setData]       = useState<PlanificacionData | null>(null);
@@ -158,6 +184,7 @@ export default function PlanificacionClient() {
   // --- Filtros del lienzo -------------------------------------------------
   const [localidad, setLocalidad]         = useState('');
   const [soloSinPlan, setSoloSinPlan]     = useState(false);
+  const [soloActivos, setSoloActivos]     = useState(false);
   const [colorearPor, setColorearPor]     = useState<ColorearPor>('dia');
   const [ocultos, setOcultos]             = useState<Set<string>>(new Set());
   /** Días cuyos cuadrantes se muestran. Vacío = todos. */
@@ -213,6 +240,7 @@ export default function PlanificacionClient() {
     }
     let out = puntos;
     if (localidad) out = out.filter((p) => p.localidad === localidad);
+    if (soloActivos) out = out.filter((p) => p.cartera_activa);
     if (soloSinPlan) {
       // Los PDVs del cuadrante que se esta editando cuentan como "sin plan":
       // si no, al redibujar su contorno quedaban fuera de la vista y el
@@ -224,7 +252,13 @@ export default function PlanificacionClient() {
       });
     }
     return out;
-  }, [puntos, localidad, soloSinPlan, cuadrantePorPdv, editandoId, zonaCaptura, cuadrantes]);
+  }, [puntos, localidad, soloActivos, soloSinPlan, cuadrantePorPdv, editandoId, zonaCaptura, cuadrantes]);
+
+  /** Activos en la localidad elegida, para el número al costado del tick. */
+  const activosEnLocalidad = useMemo(
+    () => puntos.filter((p) => p.cartera_activa && (!localidad || p.localidad === localidad)).length,
+    [puntos, localidad],
+  );
   const [guardando, setGuardando] = useState(false);
   const [aviso, setAviso]         = useState<string | null>(null);
   const [tab, setTab]             = useState<'cuadrantes' | 'resumen'>('cuadrantes');
@@ -975,25 +1009,18 @@ export default function PlanificacionClient() {
                     ))}
                   </div>
 
-                  <button
-                    onClick={() => setSoloSinPlan((v) => !v)}
-                    className={`flex items-center gap-2 px-2.5 py-1.5 text-[11.5px] font-medium rounded-[8px] border transition-all text-left ${
-                      soloSinPlan
-                        ? 'bg-[rgba(12,92,171,0.1)] border-[rgba(12,92,171,0.35)] text-[#09090b]'
-                        : 'bg-[rgba(0,0,0,0.02)] border-[#e4e4e7] text-[#52525b] hover:border-[#d4d4d8]'
-                    }`}
-                  >
-                    <span className={`w-3.5 h-3.5 rounded-[4px] border flex items-center justify-center shrink-0 ${
-                      soloSinPlan ? 'bg-[#0c5cab] border-[#0c5cab]' : 'bg-white border-[#d4d4d8]'
-                    }`}>
-                      {soloSinPlan && (
-                        <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
-                          <path d="M2 5.2L4 7.2L8 3" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      )}
-                    </span>
+                  <Tick activo={soloSinPlan} onClick={() => setSoloSinPlan((v) => !v)}>
                     Solo los que todavía no tienen cuadrante
-                  </button>
+                  </Tick>
+                  {/* Filtra el mapa y, como el polígono toma solo lo que está a
+                      la vista, también lo que entra en un cuadrante nuevo. */}
+                  <Tick activo={soloActivos} onClick={() => setSoloActivos((v) => !v)}>
+                    <span className="flex-1">
+                      Solo cartera activa
+                      <span className="block text-[10.5px] font-normal text-[#71717a]">compraron en los últimos 3 meses</span>
+                    </span>
+                    <span className="text-[10.5px] text-[#71717a]" style={MONO}>{activosEnLocalidad.toLocaleString('es-AR')}</span>
+                  </Tick>
 
                   {filtroDias}
 

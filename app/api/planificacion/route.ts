@@ -23,6 +23,15 @@ export async function GET() {
     partido: string | null;
     pdvs: Record<string, unknown> | null;
   };
+  // Cartera activa = compró en los últimos 3 meses según la tabla de ventas,
+  // el mismo criterio que el semáforo del mapa. No sale de pdvs.ultima_vta:
+  // la "Ultima Vta" del maestro da ~6.500 activos donde ventas da ~4.600.
+  // .then() la dispara ya (el builder es lazy) y corre en paralelo con los PDVs.
+  const ultimaVtaPromise = svc.rpc('pdvs_ultima_vta').then((r) => r);
+  const desde3m = new Date();
+  desde3m.setMonth(desde3m.getMonth() - 3);
+  const corte3m = desde3m.toISOString().slice(0, 10);
+
   let raw: RawRow[];
   try {
     raw = await traerTodo<RawRow>((desde, hasta) =>
@@ -37,6 +46,16 @@ export async function GET() {
   } catch {
     return NextResponse.json({ error: 'No se pudieron cargar los PDVs.' }, { status: 500 });
   }
+
+  const { data: ultimaData, error: ultimaErr } = await ultimaVtaPromise;
+  if (ultimaErr) {
+    return NextResponse.json({ error: 'No se pudo calcular la cartera activa.' }, { status: 500 });
+  }
+  const activos3m = new Set(
+    ((ultimaData ?? []) as { pdv_id: number; ultima: string }[])
+      .filter((u) => u.ultima >= corte3m)
+      .map((u) => u.pdv_id),
+  );
 
   const round5 = (n: number) => Math.round(n * 1e5) / 1e5;
 
@@ -57,6 +76,7 @@ export async function GET() {
         zona:         (pdv?.zona as string) ?? null,
         canal_venta:  (pdv?.canal_venta as string) ?? null,
         ultima_vta:   (pdv?.ultima_vta as string) ?? null,
+        cartera_activa: activos3m.has(r.pdv_id),
       };
     });
 

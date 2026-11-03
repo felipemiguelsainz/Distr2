@@ -26,6 +26,8 @@ export interface PdvPlan {
   zona: string | null;
   canal_venta: string | null;
   ultima_vta: string | null;
+  /** Compró en los últimos 3 meses (tabla de ventas, como el semáforo del mapa). */
+  cartera_activa: boolean;
 }
 
 /** Polígono como lo dibuja el usuario: anillo exterior [lat, lng], sin cerrar. */

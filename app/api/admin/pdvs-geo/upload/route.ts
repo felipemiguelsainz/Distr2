@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(data);
   } catch (err) {
     console.error('[pdvs-geo-upload]', err);
-    return NextResponse.json({ error: 'Error interno del servidor.' }, { status: 500 });
+    const detalle = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: `Error interno del servidor: ${detalle}` }, { status: 500 });
   }
 }
