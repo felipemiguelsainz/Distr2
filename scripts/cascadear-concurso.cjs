@@ -1,7 +1,7 @@
 // Cascadea los objetivos por vendedor de un archivo de concurso sin tocar el total empresa.
-//  - metas ($ y kg): por cada rubro, el pozo de los vendedores del archivo (la suma de lo que
-//    ya tienen en metas) se reparte según su Facturación del archivo. Los vendedores que no
-//    están en el archivo (oficinas, etc.) no se tocan, así el total del rubro no cambia.
+//  - metas ($ y kg): cada vendedor del archivo recibe su Facturación (con el mix de rubros de la
+//    empresa) y lo que sobra de cada rubro va a Megaunion (VENTA OFICINA F.VA, o --megaunion=NOMBRE).
+//    Los vendedores que no están en el archivo no se tocan.
 //  - metas_ccc: la meta total del vendedor pasa a ser la CCC del archivo; los rubros se
 //    escalan en proporción y las filas quedan como editadas (es_preset=false).
 // Hoja "Resumen": A vendedor · B spv · C facturación · D CCC.
@@ -19,6 +19,7 @@ for (const l of fs.readFileSync('.env.local', 'utf8').split(/\r?\n/)) {
 const [archivo, a, m, flag] = process.argv.slice(2);
 const anio = Number(a), mes = Number(m), aplicar = process.argv.includes('--aplicar'), conCcc = process.argv.includes('--ccc');
 if (!archivo || !anio || !mes) { console.error('uso: node scripts/cascadear-concurso.cjs <archivo> <anio> <mes> [--aplicar]'); process.exit(1); }
+const MEGA = (process.argv.find((x) => x.startsWith('--megaunion=')) ?? '--megaunion=VENTA OFICINA F.VA').split('=')[1];
 const suma = (xs) => xs.reduce((s, x) => s + x, 0);
 
 (async () => {
@@ -34,18 +35,25 @@ const suma = (xs) => xs.reduce((s, x) => s + x, 0);
     const sinMeta = [...arch.keys()].filter((v) => !metas.some((x) => x.vendedor_nombre === v));
     if (sinMeta.length) throw new Error(`Vendedores del archivo sin meta en ${anio}-${mes}: ${sinMeta.join(', ')}`);
 
-    // --- metas $ / kg
-    const fuera = metas.filter((x) => !arch.has(x.vendedor_nombre));
-    const dentro = metas.filter((x) => arch.has(x.vendedor_nombre));
+    // --- metas $ / kg: cada vendedor del archivo recibe SU facturación (con el mix de rubros de la
+    // empresa); lo que sobra de cada rubro va a Megaunion. Los que no están en el archivo no se tocan.
+    const rubros = [...new Set(metas.map((x) => x.rubro))];
+    const tr = (rubro, c) => suma(metas.filter((x) => x.rubro === rubro).map((x) => Number(x[c] ?? 0)));
+    const totalNeto = suma(rubros.map((r) => tr(r, 'neto_meta')));
+    const fuera = metas.filter((x) => !arch.has(x.vendedor_nombre) && x.vendedor_nombre !== MEGA);
     const nuevas = [];
-    for (const rubro of new Set(dentro.map((x) => x.rubro))) {
-      const rs = dentro.filter((x) => x.rubro === rubro);
-      const kg = suma(rs.map((x) => Number(x.kilos_meta))), neto = suma(rs.map((x) => Number(x.neto_meta ?? 0)));
-      const sinNeto = rs.every((x) => x.neto_meta == null);
-      for (const [v, { fact }] of arch)
-        nuevas.push({ anio, mes, vendedor_nombre: v, rubro, kilos_meta: kg * fact / totFact, neto_meta: sinNeto ? null : neto * fact / totFact });
+    for (const rubro of rubros) {
+      const Rn = tr(rubro, 'neto_meta'), Rk = tr(rubro, 'kilos_meta');
+      const vend = [...arch].map(([v, { fact }]) => ({ anio, mes, vendedor_nombre: v, rubro, kilos_meta: fact * Rk / totalNeto, neto_meta: fact * Rn / totalNeto }));
+      const otros = fuera.filter((x) => x.rubro === rubro);
+      const sobraN = Rn - suma(vend.map((x) => x.neto_meta)) - suma(otros.map((x) => Number(x.neto_meta ?? 0)));
+      const sobraK = Rk - suma(vend.map((x) => x.kilos_meta)) - suma(otros.map((x) => Number(x.kilos_meta)));
+      if (sobraN < -1 || sobraK < -0.01) throw new Error(`Rubro ${rubro}: lo asignado supera el total (${Math.round(sobraN)} $, ${sobraK.toFixed(2)} kg)`);
+      nuevas.push(...vend, { anio, mes, vendedor_nombre: MEGA, rubro, kilos_meta: Math.max(0, sobraK), neto_meta: Math.max(0, sobraN) });
     }
     const todas = [...fuera.map((x) => ({ anio, mes, vendedor_nombre: x.vendedor_nombre, rubro: x.rubro, kilos_meta: x.kilos_meta, neto_meta: x.neto_meta })), ...nuevas];
+    const dep = (v) => Math.round(suma(todas.filter((x) => x.vendedor_nombre === v).map((x) => Number(x.neto_meta ?? 0))));
+    console.log(`vendedores del archivo ${Math.round(totFact)} · ${MEGA} ${dep(MEGA)} · sin tocar: ${[...new Set(fuera.map((x) => x.vendedor_nombre))].map((v) => `${v} ${dep(v)}`).join(', ')}`);
     console.log('rubro | kg antes → después | $ antes → después');
     for (const rubro of [...new Set(metas.map((x) => x.rubro))].sort()) {
       const t = (rows, c) => Math.round(suma(rows.filter((x) => x.rubro === rubro).map((x) => Number(x[c] ?? 0))));
