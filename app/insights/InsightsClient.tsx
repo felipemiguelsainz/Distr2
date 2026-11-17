@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 
 type CardTipo = 'RECUPERACIÓN' | 'CRECIMIENTO' | 'COBERTURA' | 'ALERTA';
-interface ClienteRef { pdv_id: number; razon_social: string | null; localidad: string | null; ultima_vta: string; valor_mensual: number }
+interface ClienteRef { pdv_id: number; razon_social: string | null; localidad: string | null; domicilio?: string | null; ultima_vta: string; valor_mensual: number }
 type EnfriandoseRef = ClienteRef & { cadencia_dias: number; dias_sin: number };
 interface InsightCard {
   tipo: CardTipo; accion: string; metrica: string; detalle: string; pasos: string[]; cta: string; pdv_ids: number[];
@@ -344,7 +344,7 @@ function ActionCard({ card, when, vendedor, clientes }: { card: InsightCard; whe
                       <span className="min-w-0">
                         <span className="block text-sm text-[#09090b] truncate">#{c.pdv_id} — {c.razon_social ?? 's/n'}</span>
                         <span className="block text-xs text-[#71717a]">
-                          {c.localidad ?? '—'} · {c.ultima_vta === 'sin registro' ? 'sin compras' : `últ: ${c.ultima_vta.slice(0, 10)}`}
+                          {[c.domicilio, c.localidad].filter(Boolean).join(', ') || '—'} · {c.ultima_vta === 'sin registro' ? 'sin compras' : `últ: ${c.ultima_vta.slice(0, 10)}`}
                         </span>
                       </span>
                       {c.valor_mensual > 0 && (

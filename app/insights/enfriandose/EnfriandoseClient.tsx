@@ -7,7 +7,7 @@ import { BotonExcel } from '@/components/ui/BotonExcel';
 import type { ColExcel } from '@/lib/excel/exportar';
 
 interface Cliente {
-  pdv_id: number; razon_social: string | null; localidad: string | null; cartera: string | null;
+  pdv_id: number; razon_social: string | null; localidad: string | null; domicilio: string | null; cartera: string | null;
   ultima_vta: string; valor_mensual: number; kg_mensual?: number; cadencia_dias: number; dias_sin: number;
 }
 
@@ -30,6 +30,7 @@ function zonaRojaStyle(diasRestantes: number) {
 const COLS_EXCEL: ColExcel[] = [
   { key: 'pdv_id',        label: 'ID',            fmt: 'int' },
   { key: 'razon_social',  label: 'Razon social',  w: 38 },
+  { key: 'domicilio',     label: 'Direccion',     w: 30 },
   { key: 'localidad',     label: 'Localidad',     w: 22 },
   { key: 'cartera',       label: 'Vendedor',      w: 24 },
   { key: 'ultima_vta',    label: 'Ultima venta',  w: 14 },
@@ -181,7 +182,7 @@ export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores:
                 </div>
 
                 <p className="text-[12px] text-[#71717a] mt-0.5 truncate">
-                  {c.localidad ?? '—'}{mostrarVendedor && c.cartera ? ` · ${c.cartera}` : ''}
+                  {[c.domicilio, c.localidad].filter(Boolean).join(', ') || '—'}{mostrarVendedor && c.cartera ? ` · ${c.cartera}` : ''}
                 </p>
 
                 <div className="flex items-baseline gap-1.5 mt-2">
@@ -233,7 +234,7 @@ export function EnfriandoseClient({ vendedores, mostrarVendedor }: { vendedores:
                   return (
                     <tr key={c.pdv_id} className="hover:bg-[#f4f4f5]">
                       <td className="px-4 py-2.5 text-[#09090b]">#{c.pdv_id} — {c.razon_social ?? 's/n'}</td>
-                      <td className="px-4 py-2.5 text-[#71717a]">{c.localidad ?? '—'}</td>
+                      <td className="px-4 py-2.5 text-[#71717a]">{[c.domicilio, c.localidad].filter(Boolean).join(', ') || '—'}</td>
                       {mostrarVendedor && <td className="px-4 py-2.5 text-[#71717a] hidden md:table-cell">{c.cartera ?? '—'}</td>}
                       <td className="px-4 py-2.5 text-right tabular-nums text-[#27272a] hidden md:table-cell">{c.cadencia_dias} d</td>
                       <td className={`px-4 py-2.5 text-right tabular-nums font-medium ${s.text}`}>{c.dias_sin} d</td>

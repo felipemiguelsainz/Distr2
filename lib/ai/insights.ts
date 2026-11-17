@@ -41,7 +41,7 @@ export interface TendenciaRubro {
   rubro: string; pct: number | null; este: number; aa: number; // vs año pasado, a igual día del mes
 }
 export interface ChurnCliente {
-  pdv_id: number; razon_social: string | null; localidad: string | null; ultima_vta: string;
+  pdv_id: number; razon_social: string | null; localidad: string | null; domicilio: string | null; ultima_vta: string;
   valor_mensual: number; // $ que facturaba por mes cuando compraba (últ. 12m)
   kg_mensual?: number;   // kg/mes (solo lo puebla computeEnfriandose)
 }
@@ -84,8 +84,8 @@ export async function buildInsightData(
 
   // Paginado de PDVs del scope (supera el límite de 1000 de PostgREST).
   const fetchPdvs = () =>
-    traerTodo<{ id: number; razon_social: string | null; localidad: string | null }>((desde, hasta) => {
-      let q = svc.from('pdvs').select('id, razon_social, localidad').eq('activo', true).range(desde, hasta);
+    traerTodo<{ id: number; razon_social: string | null; localidad: string | null; domicilio: string | null }>((desde, hasta) => {
+      let q = svc.from('pdvs').select('id, razon_social, localidad, domicilio').eq('activo', true).range(desde, hasta);
       if (carteras !== null) q = q.in('cartera', carteras.length ? carteras : ['__none__']);
       return q;
     });
@@ -127,14 +127,14 @@ export async function buildInsightData(
     else if (d && d >= m3) tibios++;
     else {
       inactivos++;
-      rojos.push({ pdv_id: p.id, razon_social: p.razon_social, localidad: p.localidad, ultima_vta: u ?? 'sin registro', valor_mensual: valor.get(p.id) ?? 0 });
+      rojos.push({ pdv_id: p.id, razon_social: p.razon_social, localidad: p.localidad, domicilio: p.domicilio, ultima_vta: u ?? 'sin registro', valor_mensual: valor.get(p.id) ?? 0 });
     }
     // Enfriándose: alerta temprana (ver esEnfriandose).
     const c = cad.get(p.id);
     if (c) {
       const ds = diasDesde(c.ultima);
       if (esEnfriandose(c.cadencia, ds)) {
-        enfri.push({ pdv_id: p.id, razon_social: p.razon_social, localidad: p.localidad, ultima_vta: c.ultima, valor_mensual: valor.get(p.id) ?? 0, cadencia_dias: c.cadencia, dias_sin: ds });
+        enfri.push({ pdv_id: p.id, razon_social: p.razon_social, localidad: p.localidad, domicilio: p.domicilio, ultima_vta: c.ultima, valor_mensual: valor.get(p.id) ?? 0, cadencia_dias: c.cadencia, dias_sin: ds });
       }
     }
   }
@@ -153,7 +153,7 @@ export async function buildInsightData(
       clientes: (o.pdv_ids ?? [])
         .map((id) => {
           const p = nameMap.get(id);
-          return p ? { pdv_id: id, razon_social: p.razon_social, localidad: p.localidad, ultima_vta: ult.get(id) ?? 'sin registro', valor_mensual: valor.get(id) ?? 0 } : null;
+          return p ? { pdv_id: id, razon_social: p.razon_social, localidad: p.localidad, domicilio: p.domicilio, ultima_vta: ult.get(id) ?? 'sin registro', valor_mensual: valor.get(id) ?? 0 } : null;
         })
         .filter((c): c is ChurnCliente => c !== null),
     }));
@@ -341,9 +341,9 @@ export async function computeEnfriandose(
   carteras: string[] | null,
   today: Date
 ): Promise<EnfriandoseConCartera[]> {
-  const pdvs = await traerTodo<{ id: number; razon_social: string | null; localidad: string | null; cartera: string | null }>(
+  const pdvs = await traerTodo<{ id: number; razon_social: string | null; localidad: string | null; domicilio: string | null; cartera: string | null }>(
     (desde, hasta) => {
-      let q = svc.from('pdvs').select('id, razon_social, localidad, cartera').eq('activo', true).range(desde, hasta);
+      let q = svc.from('pdvs').select('id, razon_social, localidad, domicilio, cartera').eq('activo', true).range(desde, hasta);
       if (carteras !== null) q = q.in('cartera', carteras.length ? carteras : ['__none__']);
       return q;
     },
@@ -373,7 +373,7 @@ export async function computeEnfriandose(
     if (!c) continue;
     const ds = diasDesde(c.ultima);
     if (esEnfriandose(c.cadencia, ds)) {
-      out.push({ pdv_id: p.id, razon_social: p.razon_social, localidad: p.localidad, cartera: p.cartera, ultima_vta: c.ultima, valor_mensual: valor.get(p.id) ?? 0, kg_mensual: kilos.get(p.id) ?? 0, cadencia_dias: c.cadencia, dias_sin: ds });
+      out.push({ pdv_id: p.id, razon_social: p.razon_social, localidad: p.localidad, domicilio: p.domicilio, cartera: p.cartera, ultima_vta: c.ultima, valor_mensual: valor.get(p.id) ?? 0, kg_mensual: kilos.get(p.id) ?? 0, cadencia_dias: c.cadencia, dias_sin: ds });
     }
   }
   out.sort((a, b) => b.valor_mensual - a.valor_mensual);
