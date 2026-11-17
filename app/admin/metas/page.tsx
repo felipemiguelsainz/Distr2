@@ -9,7 +9,8 @@ export default async function MetasPage() {
   const profile = await getCurrentProfile();
   if (profile?.rol !== 'admin') redirect('/');
 
-  // Vendedores activos para el selector de exclusión del cálculo de metas.
+  // Todos los vendedores del maestro (también inactivos y los que no son vendedores,
+  // como las ventas de oficina) para el selector de exclusión del cálculo de metas.
   const svc = createServiceClient();
   const today = new Date();
 
@@ -20,7 +21,7 @@ export default async function MetasPage() {
   const iso = (d: Date) => d.toISOString().slice(0, 10);
 
   const [{ data: vData }, { data: hData }] = await Promise.all([
-    svc.from('vendedores').select('nombre, supervisor').eq('activo', true).order('nombre'),
+    svc.from('vendedores').select('nombre, supervisor').order('nombre'),
     svc.rpc('resumen_totales_por_vendedor_rubro', { p_desde: iso(desde), p_hasta: iso(today) }),
   ]);
 

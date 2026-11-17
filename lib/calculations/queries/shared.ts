@@ -153,28 +153,28 @@ export function buildKpisFromRpc(
 }
 
 // ---------------------------------------------------------------------------
-// Lista de nombres de vendedor de un equipo — memoizada por request
+// Lista de nombres de vendedor de un equipo — memoizada por request.
+// Incluye inactivos: si siguen vendiendo (ej. Matías Bonfiglio) su venta tiene que
+// contar en el equipo; filtrar por activo la hacía desaparecer del equipo.
 // ---------------------------------------------------------------------------
 export const vendedoresByEquipo = cache(async (equipo: string): Promise<string[]> => {
   const svc = createServiceClient();
   const { data } = await svc
     .from('vendedores')
     .select('nombre')
-    .eq('equipo', equipo)
-    .eq('activo', true);
+    .eq('equipo', equipo);
   return (data ?? []).map(v => v.nombre);
 });
 
 // ---------------------------------------------------------------------------
-// Todos los vendedores activos — memoizada por request.
+// Todos los vendedores del maestro (activos o no) — memoizada por request.
 // La usa la vista "Total Empresa" del consolidado (equipo vacío = sin filtro).
 // ---------------------------------------------------------------------------
 export const vendedoresTodos = cache(async (): Promise<string[]> => {
   const svc = createServiceClient();
   const { data } = await svc
     .from('vendedores')
-    .select('nombre')
-    .eq('activo', true);
+    .select('nombre');
   return (data ?? []).map(v => v.nombre);
 });
 
