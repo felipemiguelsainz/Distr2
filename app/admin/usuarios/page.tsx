@@ -13,7 +13,6 @@ export default async function UsuariosAdminPage() {
   const { data: vRows } = await svc
     .from('vendedores')
     .select('nombre, equipo')
-    .eq('activo', true)
     .not('equipo', 'is', null);
 
   const vendedores = Array.from(
