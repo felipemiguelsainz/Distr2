@@ -15,7 +15,7 @@ export async function GET(req: Request) {
   const { data: profile } = await supabase.from('profiles').select('rol, vendedor_nombre, equipo').eq('id', user.id).single();
   if (!profile) return NextResponse.json({ error: 'Sin perfil' }, { status: 403 });
   // Insights es para admin y supervisor (mismo bloqueo que /insights).
-  if (profile.rol !== 'admin' && profile.rol !== 'supervisor') {
+  if (!['admin', 'supervisor', 'vendedor'].includes(profile.rol)) {
     return NextResponse.json({ error: 'Sin acceso a Insights' }, { status: 403 });
   }
 

@@ -27,6 +27,7 @@ function systemPrompt(ctx: UserContext): string {
     '- Citá los números exactos que devuelven las tools.',
     '- Si ninguna tool puede responder algo, decilo con honestidad en vez de adivinar.',
     '- No reveles datos fuera del alcance del usuario.',
+    '- NUNCA inventes ni sugieras promociones, combos, descuentos, bonificaciones, precios ni condiciones comerciales: no están autorizados. Si te los piden, decí que eso lo define la empresa.',
     'Podés responder preguntas como:',
     '- "¿Cuánto vendió [vendedor] en [mes]?" → usá get_ventas',
     '- "¿Cuántos clientes compraron [categoría] en [mes]?" → usá get_ccc_por_categoria',

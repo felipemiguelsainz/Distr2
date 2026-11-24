@@ -117,8 +117,8 @@ function buildNav(
     items.push({ href: '/mapa',            label: 'Mapa de PDVs',    icon: <MapPinIcon /> });
   }
 
-  // Insights (IA) para admin y supervisor. Perfil, para todos los roles.
-  if (rol === 'admin' || rol === 'supervisor') {
+  // Insights (IA) y Perfil, para todos los roles.
+  if (rol === 'admin' || rol === 'supervisor' || rol === 'vendedor') {
     items.push({ href: '/insights', label: 'Insights', icon: <SparkIcon /> });
   }
   items.push({ href: '/perfil', label: 'Mi perfil', icon: <PersonIcon /> });

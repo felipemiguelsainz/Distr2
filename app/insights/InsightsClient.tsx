@@ -146,7 +146,7 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
               Datos al {fmtFechaAnalisis(generatedAt)}
             </span>
           )}
-          <div className="relative flex-1 sm:flex-none min-w-[150px]">
+          {vendedores.length > 1 && <div className="relative flex-1 sm:flex-none min-w-[150px]">
             <select
               value={vendedor}
               onChange={(e) => setVendedor(e.target.value)}
@@ -156,7 +156,7 @@ export function InsightsClient({ vendedores }: { vendedores: string[] }) {
               {vendedores.map((v) => <option key={v} value={v}>{v}</option>)}
             </select>
             <ChevronDown className="w-4 h-4 text-[#a1a1aa] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
+          </div>}
         </div>
       </div>
 

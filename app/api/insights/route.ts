@@ -24,10 +24,10 @@ async function resolveScope(svc: SvcClient, vendedorParam: string | null):
   if (!user) return { error: 'No autenticado', status: 401 };
   const { data: profile } = await supabase.from('profiles').select('rol, vendedor_nombre, equipo').eq('id', user.id).single();
   if (!profile) return { error: 'Sin perfil', status: 403 };
-  // Insights es para admin y supervisor (mismo bloqueo que /insights). El
-  // vendedor no lo tiene: el redirect de página sólo esconde la UI, así que el
+  // Insights: admin, supervisor y vendedor (cada uno con su alcance). El
+  // redirect de página sólo esconde la UI, así que el
   // corte va también acá.
-  if (profile.rol !== 'admin' && profile.rol !== 'supervisor') {
+  if (!['admin', 'supervisor', 'vendedor'].includes(profile.rol)) {
     return { error: 'Sin acceso a Insights', status: 403 };
   }
 

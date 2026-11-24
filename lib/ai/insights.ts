@@ -237,6 +237,7 @@ export async function generateCards(data: InsightData, model?: string): Promise<
     'TENDENCIA: tendencia[] trae pct (variación vs el año pasado por rubro, a',
     'igual día del mes). Si un rubro cae fuerte (pct muy negativo) generá una',
     'ALERTA; si crece fuerte, una de CRECIMIENTO. Mencioná el % vs año pasado.',
+    'REGLAS DURAS (no negociables): NO inventes promociones, combos, descuentos, bonificaciones, precios, condiciones de pago, regalos ni beneficios de ningún tipo: no están autorizados por la empresa. Los pasos solo pueden ser contactar, visitar, ofrecer productos del catálogo a precio de lista, preguntar el motivo, revisar el mix o registrar la gestión. Si no sabés si algo está autorizado, no lo propongas.',
     'Respondé SOLO con un array JSON válido (sin markdown, sin texto extra) con este schema por item:',
     '{ "tipo": "RECUPERACIÓN" | "CRECIMIENTO" | "COBERTURA" | "ALERTA", "accion": string, "metrica": string, "detalle": string, "pasos": string[], "cta": "Ver clientes" | "Ver productos" | "Ver ruta" | "Ver detalle", "pdv_ids": number[] }',
     '- accion: imperativa, 1 línea. metrica: etiqueta corta para un badge (ej: "5 clientes", "28 en riesgo").',
